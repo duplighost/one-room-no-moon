@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>No Moon Arcade — One Room</title>
+  <meta name="description" content="No Moon rebuilt as a one-room arcade roguelite: clear the arena, watch it mutate, and survive the next room in the same haunted box." />
+  <meta name="theme-color" content="#070812" />
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <style>
+    :root {
+      --bg: #05050b;
+      --panel: rgba(10, 11, 22, 0.84);
+      --line: rgba(211, 226, 255, 0.18);
+      --text: #f4f7ff;
+      --muted: rgba(244, 247, 255, 0.72);
+      --cyan: #89e7ff;
+      --gold: #ffd98c;
+      --pink: #f3dcff;
+      --danger: #ff829c;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+    #game {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background: radial-gradient(circle at 50% 35%, #13172a 0%, #05050b 60%, #020207 100%);
+    }
+
+    .hud {
+      position: fixed;
+      left: max(14px, env(safe-area-inset-left));
+      right: max(14px, env(safe-area-inset-right));
+      top: max(12px, env(safe-area-inset-top));
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 0.75rem;
+      align-items: start;
+      pointer-events: none;
+      z-index: 3;
+      text-shadow: 0 1px 12px rgba(0,0,0,0.72);
+    }
+    .hud-panel {
+      border: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(10, 13, 28, 0.78), rgba(8, 8, 16, 0.46));
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 70px rgba(0,0,0,0.28);
+      border-radius: 18px;
+      padding: 0.7rem 0.85rem;
+      min-height: 4.2rem;
+    }
+    .hud-left { justify-self: start; max-width: min(31rem, 44vw); }
+    .hud-mid { justify-self: center; text-align: center; min-width: 12rem; }
+    .hud-right { justify-self: end; text-align: right; max-width: min(29rem, 40vw); }
+    .hud-kicker { color: var(--muted); text-transform: uppercase; letter-spacing: .12em; font-size: .66rem; margin-bottom: .25rem; }
+    .hud-title { font-weight: 900; letter-spacing: .02em; font-size: clamp(1rem, 2vw, 1.45rem); line-height: 1.05; }
+    .hud-row { display: flex; flex-wrap: wrap; gap: .45rem .75rem; align-items: center; font-size: .86rem; color: rgba(244,247,255,.86); }
+    .hud-right .hud-row { justify-content: flex-end; }
+    .pill { border: 1px solid rgba(255,255,255,.14); border-radius: 999px; padding: .18rem .48rem; background: rgba(255,255,255,.06); }
+    .hpbar { margin-top: .42rem; display:flex; gap:.22rem; flex-wrap:wrap; }
+    .hp { width: 1.05rem; height: .62rem; border-radius: .3rem; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1px rgba(0,0,0,.22); }
+    .hp.full { background: linear-gradient(90deg, #ff6f96, #ffd0de); box-shadow: 0 0 16px rgba(255,111,150,.28); }
+    .hp.shield { background: linear-gradient(90deg, #83e9ff, #f0fdff); box-shadow: 0 0 16px rgba(131,233,255,.32); }
+    .grafts { margin-top:.38rem; display:flex; gap:.22rem; flex-wrap:wrap; justify-content:flex-end; }
+    .graft { font-size:.66rem; border-radius:.45rem; border:1px solid rgba(255,255,255,.16); padding:.12rem .33rem; background:rgba(255,255,255,.07); }
+
+    .top-buttons {
+      position: fixed;
+      right: max(14px, env(safe-area-inset-right));
+      bottom: max(14px, env(safe-area-inset-bottom));
+      z-index: 9;
+      display:flex;
+      gap:.5rem;
+      align-items:center;
+    }
+
+    button, .button {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.19);
+      border-radius: 999px;
+      padding: .78rem 1.05rem;
+      color: #061018;
+      background: linear-gradient(135deg, #a7f1ff, #ffe0a3);
+      font-weight: 900;
+      letter-spacing: .02em;
+      cursor: pointer;
+      box-shadow: 0 16px 48px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.7);
+    }
+    button.ghost {
+      color: var(--text);
+      background: rgba(255,255,255,.08);
+      backdrop-filter: blur(10px);
+    }
+    button:active { transform: translateY(1px); }
+
+    #boonButton {
+      pointer-events: auto;
+      min-width: 8.9rem;
+      color: #17091e;
+      background: linear-gradient(135deg, #f3dcff, #fff0b8);
+    }
+    #boonButton[disabled] { opacity: .42; cursor: not-allowed; }
+    #sfxButton { pointer-events:auto; }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 8;
+      display: grid;
+      place-items: center;
+      padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      background:
+        radial-gradient(circle at 25% 20%, rgba(137,231,255,.13), transparent 30%),
+        radial-gradient(circle at 78% 80%, rgba(243,220,255,.16), transparent 35%),
+        rgba(2, 2, 7, .78);
+      backdrop-filter: blur(16px);
+    }
+    .overlay.hidden { display:none; }
+    .panel {
+      width: min(58rem, 100%);
+      border-radius: 30px;
+      border: 1px solid rgba(230,238,255,.18);
+      background: linear-gradient(145deg, rgba(18,21,42,.92), rgba(7,8,17,.88));
+      box-shadow: 0 34px 120px rgba(0,0,0,.56), inset 0 1px 0 rgba(255,255,255,.06);
+      overflow:hidden;
+    }
+    .hero-panel { display:grid; grid-template-columns: 1fr minmax(14rem, 22rem); }
+    .panel-copy { padding: clamp(1.35rem, 4vw, 3rem); }
+    .eyebrow { color: var(--cyan); text-transform: uppercase; letter-spacing: .18em; font-weight: 900; font-size: .76rem; margin: 0 0 .7rem; }
+    h1, h2 { margin: 0; line-height: .95; letter-spacing: -.055em; }
+    h1 { font-size: clamp(3rem, 9vw, 7.6rem); }
+    h2 { font-size: clamp(2.25rem, 6vw, 5.2rem); }
+    .lead { color: rgba(244,247,255,.78); line-height: 1.56; font-size: clamp(1rem, 2vw, 1.15rem); max-width: 41rem; }
+    .title-actions { display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; margin-top: 1.4rem; }
+    .mini { color: rgba(244,247,255,.64); font-size:.86rem; line-height:1.45; margin-top:1rem; }
+    .portrait {
+      position: relative;
+      min-height: 28rem;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(243,220,255,.32), transparent 32%),
+        radial-gradient(circle at 54% 52%, rgba(137,231,255,.16), transparent 46%),
+        linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+      border-left: 1px solid rgba(255,255,255,.10);
+      display:grid;
+      place-items:center;
+      overflow:hidden;
+    }
+    .portrait::before {
+      content:"";
+      position:absolute;
+      inset: 8%;
+      background: url('/assets/no-moon/characters/moots-portrait.webp') center / contain no-repeat;
+      filter: drop-shadow(0 18px 42px rgba(243,220,255,.36));
+      transform: rotate(-2deg) scale(1.05);
+    }
+    .portrait::after {
+      content:"ONE ROOM / MANY FUNERALS";
+      position:absolute;
+      left:1.1rem;
+      right:1.1rem;
+      bottom:1.05rem;
+      color:rgba(255,255,255,.68);
+      font-size:.72rem;
+      letter-spacing:.18em;
+      text-align:center;
+      font-weight:900;
+    }
+
+    #draftUI {
+      position: fixed;
+      inset: 0;
+      z-index: 7;
+      display: none;
+      place-items: center;
+      padding: max(18px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+      background: rgba(2,2,7,.70);
+      backdrop-filter: blur(12px);
+    }
+    #draftUI.show { display:grid; }
+    .draft-panel { width:min(68rem, 100%); }
+    .draft-head { text-align:center; margin-bottom: 1rem; }
+    .draft-head h2 { font-size: clamp(2rem, 5vw, 4.8rem); }
+    .draft-head p { color: var(--muted); margin:.55rem auto 0; max-width: 42rem; line-height:1.45; }
+    .draft-cards { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .95rem; }
+    .draft-card {
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 24px;
+      padding: 1rem;
+      min-height: 13.5rem;
+      background: linear-gradient(150deg, rgba(18,22,42,.93), rgba(9,9,19,.87));
+      box-shadow: 0 24px 70px rgba(0,0,0,.38);
+      color: var(--text);
+      text-align:left;
+      cursor:pointer;
+      transform-origin:center;
+      transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease;
+    }
+    .draft-card:hover { transform: translateY(-4px); border-color: var(--card-color, rgba(255,255,255,.3)); box-shadow: 0 30px 95px rgba(0,0,0,.48), 0 0 38px color-mix(in srgb, var(--card-color, #fff) 26%, transparent); }
+    .card-type { color: var(--card-color); font-size:.7rem; font-weight:900; text-transform:uppercase; letter-spacing:.16em; }
+    .draft-card h3 { margin:.55rem 0 .45rem; font-size:1.35rem; letter-spacing:-.025em; }
+    .draft-card p { margin:0; color:rgba(244,247,255,.76); line-height:1.46; font-size:.94rem; }
+    .tags { display:flex; gap:.35rem; flex-wrap:wrap; margin-top:.8rem; }
+    .tag { font-size:.68rem; color:rgba(244,247,255,.78); border:1px solid rgba(255,255,255,.14); border-radius:999px; padding:.14rem .4rem; background:rgba(255,255,255,.06); }
+
+    #messageStack {
+      position: fixed;
+      left: 50%;
+      top: 17%;
+      transform: translateX(-50%);
+      z-index: 5;
+      display: grid;
+      gap: .35rem;
+      pointer-events:none;
+      text-align:center;
+    }
+    .toast {
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(7,8,16,.78);
+      backdrop-filter: blur(10px);
+      border-radius: 999px;
+      padding:.42rem .78rem;
+      color:rgba(244,247,255,.9);
+      box-shadow: 0 12px 48px rgba(0,0,0,.34);
+      font-weight:800;
+    }
+
+    @media (max-width: 760px) {
+      .hud { grid-template-columns: 1fr; gap:.45rem; }
+      .hud-mid { justify-self:start; order:-1; min-width:0; }
+      .hud-left, .hud-right { max-width: none; justify-self:stretch; text-align:left; }
+      .hud-right .hud-row, .grafts { justify-content:flex-start; }
+      .hud-panel { min-height:0; padding:.56rem .65rem; border-radius:16px; }
+      .hud-title { font-size:1rem; }
+      .hud-row { font-size:.76rem; }
+      .hero-panel { grid-template-columns: 1fr; max-height: calc(100vh - 28px); overflow:auto; }
+      .portrait { min-height: 14rem; border-left:0; border-top:1px solid rgba(255,255,255,.10); }
+      .portrait::before { inset: 1rem 15%; }
+      .draft-cards { grid-template-columns: 1fr; max-height: 58vh; overflow:auto; padding:.15rem; }
+      .draft-card { min-height: auto; }
+      .top-buttons { left:max(14px, env(safe-area-inset-left)); right:max(14px, env(safe-area-inset-right)); justify-content:space-between; }
+      #boonButton { min-width: 0; flex:1; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="No Moon Arcade game canvas"></canvas>
+
+  <div class="hud" aria-hidden="true">
+    <div class="hud-panel hud-left">
+      <div class="hud-kicker" id="roomKicker">Room 0</div>
+      <div class="hud-title" id="roomTitle">No Moon Arcade</div>
+      <div class="hud-row" id="roomMeta"><span class="pill">One cursed room warming up</span></div>
+      <div class="hpbar" id="hpBar"></div>
+    </div>
+    <div class="hud-panel hud-mid">
+      <div class="hud-kicker">Score</div>
+      <div class="hud-title" id="scoreText">0</div>
+      <div class="hud-row" style="justify-content:center"><span class="pill" id="comboText">x1.00 combo</span><span class="pill" id="bestText">Best 0</span></div>
+    </div>
+    <div class="hud-panel hud-right">
+      <div class="hud-kicker">Boon Moots</div>
+      <div class="hud-title" id="boonText">Lacing 0/2</div>
+      <div class="hud-row" id="statText"><span class="pill">Kills 0</span></div>
+      <div class="grafts" id="graftText"></div>
+    </div>
+  </div>
+
+  <div id="messageStack" aria-live="polite"></div>
+
+  <div id="draftUI" role="dialog" aria-modal="true" aria-labelledby="draftTitle">
+    <div class="draft-panel">
+      <div class="draft-head">
+        <p class="eyebrow" id="draftKicker">Graft Draft</p>
+        <h2 id="draftTitle">Choose the next bad idea</h2>
+        <p id="draftHint">Pick one. Boon Moots can reroll this mess when charged.</p>
+      </div>
+      <div class="draft-cards" id="draftCards"></div>
+    </div>
+  </div>
+
+  <div id="titleOverlay" class="overlay">
+    <section class="panel hero-panel">
+      <div class="panel-copy">
+        <p class="eyebrow">No Moon Arcade</p>
+        <h1>One Room. No Mercy.</h1>
+        <p class="lead">No Moon rebuilt as a one-room arcade roguelite. Clear the arena, the room mutates in the same spot, and Moots keeps lacing fate until the floor finally eats you.</p>
+        <div class="title-actions">
+          <button id="startButton" type="button">Start the room</button>
+          <button id="titleSfxButton" class="ghost" type="button">SFX On</button>
+        </div>
+        <p class="mini">Move with WASD/arrows or left thumb. Aim/fire with mouse or right thumb. Press <strong>E</strong> / <strong>Space</strong> / <strong>Boon</strong> to reroll fate when the Moots are ready.</p>
+      </div>
+      <div class="portrait" aria-hidden="true"></div>
+    </section>
+  </div>
+
+  <div id="gameOverOverlay" class="overlay hidden">
+    <section class="panel">
+      <div class="panel-copy">
+        <p class="eyebrow">Run ended</p>
+        <h2>The room learned your name.</h2>
+        <p class="lead" id="gameOverStats">Score 0. Room 0. Kills 0.</p>
+        <div class="title-actions">
+          <button id="restartButton" type="button">Run it back</button>
+          <button id="homeButton" class="ghost" type="button">Back to title</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="top-buttons">
+    <button id="boonButton" type="button" disabled>Boon</button>
+    <button id="sfxButton" class="ghost" type="button">SFX</button>
+  </div>
+
+  <script src="./game.js" defer></script>
+</body>
+</html>

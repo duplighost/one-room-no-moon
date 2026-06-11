@@ -1,0 +1,1051 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>No Moon</title>
+<meta name="description" content="No Moon is a fast browser twin-stick roguelike about moon-headed Passengers descending through sealed rooms beneath a missing sky.">
+<meta name="theme-color" content="#080b14">
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="No Moon" />
+  <meta property="og:description" content="Browser roguelite / cursed sky / cosmic descent." />
+  <meta property="og:url" content="https://qualiacology.com/no-moon/" />
+  <meta property="og:image" content="https://qualiacology.com/assets/og/no-moon-og-v280.png" />
+  <meta property="og:image:secure_url" content="https://qualiacology.com/assets/og/no-moon-og-v280.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="No Moon preview image" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="No Moon" />
+  <meta name="twitter:description" content="Browser roguelite / cursed sky / cosmic descent." />
+  <meta name="twitter:image" content="https://qualiacology.com/assets/og/twitter/no-moon-twitter-v280.png" />
+  <meta name="twitter:image:alt" content="No Moon preview image" />
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #05070b;
+    color: #eef3ff;
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    cursor: crosshair;
+    touch-action: none;
+  }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y pinch-zoom;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(18px, env(safe-area-inset-bottom));
+    background:
+      radial-gradient(circle at 50% 35%, rgba(46, 64, 99, 0.18), rgba(0, 0, 0, 0.62) 56%),
+      linear-gradient(180deg, rgba(3, 5, 8, 0.72), rgba(3, 5, 8, 0.88));
+    backdrop-filter: blur(8px);
+    z-index: 10;
+    transition: opacity 180ms ease;
+  }
+  #overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .panel {
+    width: min(1120px, calc(100vw - 24px));
+    margin: 0 auto;
+    touch-action: pan-y pinch-zoom;
+    max-height: none;
+    overflow: visible;
+    padding: 26px 24px 22px;
+    border-radius: 26px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      linear-gradient(180deg, rgba(18, 23, 35, 0.95), rgba(8, 11, 18, 0.97)),
+      radial-gradient(circle at top, rgba(120, 170, 255, 0.06), rgba(0,0,0,0));
+    box-shadow:
+      0 28px 80px rgba(0, 0, 0, 0.48),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(202, 214, 255, 0.62);
+    margin-bottom: 10px;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(34px, 6vw, 64px);
+    line-height: 0.92;
+    letter-spacing: 0.02em;
+  }
+  #overlayText {
+    margin: 14px 0 18px;
+    max-width: 900px;
+    color: rgba(230, 237, 255, 0.82);
+    font-size: clamp(15px, 2.2vw, 18px);
+    line-height: 1.45;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+    margin: 18px 0 18px;
+  }
+  .card {
+    position: relative;
+    padding: 18px 18px 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+      linear-gradient(180deg, rgba(8,12,20,0.7), rgba(5,8,14,0.88));
+    box-shadow:
+      0 10px 34px rgba(0,0,0,0.24),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+    color: inherit;
+    text-align: left;
+    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+    cursor: pointer;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+  }
+  .card.selected {
+    transform: translateY(-4px);
+    border-color: var(--accent, rgba(255,255,255,0.2));
+    box-shadow:
+      0 16px 40px rgba(0,0,0,0.36),
+      0 0 0 1px var(--accent, rgba(255,255,255,0.22)),
+      0 0 34px var(--glow, rgba(255,255,255,0.12)),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .cardTop {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .cardName {
+    font-size: 27px;
+    line-height: 0.95;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+  .cardRole {
+    margin-top: 4px;
+    font-size: 12px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: rgba(219, 229, 255, 0.66);
+  }
+  .swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    box-shadow: 0 0 16px currentColor;
+    flex: 0 0 auto;
+  }
+
+  .charPortrait {
+    position: relative;
+    height: 92px;
+    margin: 4px 0 12px;
+    border-radius: 17px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 38%, var(--glow, rgba(255,255,255,0.11)), rgba(255,255,255,0.025) 42%, rgba(0,0,0,0.22) 100%),
+      linear-gradient(180deg, rgba(255,255,255,0.035), rgba(0,0,0,0.15));
+    border: 1px solid rgba(255,255,255,0.075);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 10px 24px rgba(0,0,0,0.16);
+  }
+  .charPortraitSvg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .charArtPanel {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 92px;
+    gap: 10px;
+    height: 188px;
+    margin: 4px 0 12px;
+    border-radius: 18px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 32% 32%, var(--glow, rgba(255,255,255,0.10)), rgba(255,255,255,0.025) 45%, rgba(0,0,0,0.34) 100%),
+      linear-gradient(180deg, rgba(255,255,255,0.040), rgba(0,0,0,0.19));
+    border: 1px solid rgba(255,255,255,0.075);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 12px 28px rgba(0,0,0,0.22);
+  }
+  .charArtFigure {
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+    border-right: 1px solid rgba(255,255,255,0.055);
+    background: radial-gradient(circle at 50% 48%, var(--glow, rgba(255,255,255,0.09)), rgba(0,0,0,0) 58%);
+  }
+  .charArtFigure::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, rgba(0,0,0,0.38), rgba(0,0,0,0.02) 42%, rgba(0,0,0,0.30)),
+      linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.12));
+    pointer-events: none;
+  }
+  .charArtFigure img {
+    position: absolute;
+    left: 50%;
+    bottom: -8px;
+    transform: translateX(-50%);
+    height: calc(100% + 24px);
+    width: auto;
+    max-width: none;
+    display: block;
+    filter: saturate(1.08) contrast(1.06) drop-shadow(0 18px 20px rgba(0,0,0,0.56));
+  }
+  .charMiniPanel {
+    position: relative;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    align-items: center;
+    justify-items: center;
+    padding: 8px 7px 7px;
+    background:
+      radial-gradient(circle at 50% 43%, var(--glow, rgba(255,255,255,0.10)), rgba(0,0,0,0) 54%),
+      rgba(255,255,255,0.018);
+  }
+  .charMiniSvg {
+    width: 84px;
+    height: 122px;
+    display: block;
+    overflow: visible;
+  }
+  .charMiniLabel {
+    font-size: 9px;
+    line-height: 1.1;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(225,234,255,0.52);
+  }
+  .charLoadoutLine {
+    margin: 7px 0 10px;
+    color: var(--accent, rgba(255,255,255,0.84));
+    font-size: 11px;
+    line-height: 1.18;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .charIdentityLine {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 7px 0 10px;
+    color: rgba(225,234,255,0.66);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .charIdentityLine span:last-child {
+    color: var(--accent, rgba(255,255,255,0.84));
+  }
+  .cardDesc {
+    margin: 8px 0 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    color: rgba(234, 239, 255, 0.82);
+    min-height: 62px;
+  }
+  .statRow {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(212, 223, 255, 0.75);
+  }
+  .statPill, .tag {
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .tagRow {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .tag {
+    font-size: 12px;
+    color: rgba(240, 244, 255, 0.86);
+  }
+  .footerInfo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 6px;
+    color: rgba(217, 226, 252, 0.78);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .hintBox {
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 18px;
+    position: sticky;
+    bottom: -1px;
+    z-index: 3;
+    padding-top: 14px;
+    padding-bottom: 2px;
+    background: linear-gradient(180deg, rgba(8,11,18,0), rgba(8,11,18,0.94) 34%, rgba(8,11,18,0.98));
+    backdrop-filter: blur(6px);
+  }
+  button.launch {
+    appearance: none;
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 18px;
+    min-height: 48px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    color: #061018;
+    background: linear-gradient(180deg, #f2f6ff, #b7d1ff);
+    box-shadow: 0 12px 30px rgba(100, 140, 255, 0.24);
+    cursor: pointer;
+  }
+  .smallMeta {
+    font-size: 13px;
+    color: rgba(210, 221, 250, 0.66);
+  }
+  @media (max-width: 720px) {
+    .panel {
+      width: min(1120px, calc(100vw - 16px));
+      padding: 22px 18px 18px;
+      border-radius: 22px;
+    }
+    .cardDesc { min-height: 0; }
+    .charArtPanel { height: 200px; grid-template-columns: minmax(0, 1fr) 98px; }
+    .charMiniSvg { width: 88px; height: 126px; }
+    button.launch {
+      width: 100%;
+      justify-content: center;
+    }
+    .actions {
+      margin-left: -2px;
+      margin-right: -2px;
+      padding-bottom: max(4px, env(safe-area-inset-bottom));
+    }
+  }
+
+  #draftUI {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 16px;
+    display: flex;
+    justify-content: center;
+    padding: 0 12px;
+    z-index: 9;
+    pointer-events: none;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+  #draftUI.hidden {
+    opacity: 0;
+    transform: translateY(18px);
+    pointer-events: none;
+  }
+  /* #draftUI stays pointer-events:none even when shown (clicks fall through to
+     the canvas); .draftPanel re-enables pointer-events:auto so the panel itself
+     is clickable. When hidden the panel is only faded (opacity:0), not
+     display:none, so without this its invisible bottom-screen band keeps eating
+     clicks and can block buttons (e.g. the start/restart button on short or
+     landscape viewports). Keep the panel non-interactive while hidden. */
+  #draftUI.hidden .draftPanel { pointer-events: none; }
+  .draftPanel {
+    width: min(1120px, calc(100vw - 24px));
+    pointer-events: auto;
+    padding: 14px 14px 12px;
+    border-radius: 22px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background:
+      linear-gradient(180deg, rgba(11, 15, 24, 0.92), rgba(6, 9, 16, 0.96)),
+      radial-gradient(circle at 20% 0%, rgba(124, 170, 255, 0.08), rgba(0,0,0,0));
+    box-shadow:
+      0 20px 60px rgba(0,0,0,0.42),
+      inset 0 1px 0 rgba(255,255,255,0.04);
+    backdrop-filter: blur(12px);
+  }
+  .draftHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 12px;
+  }
+  .draftTitle {
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(208, 221, 255, 0.62);
+    margin-bottom: 4px;
+  }
+  .draftHint {
+    font-size: 13px;
+    color: rgba(226, 234, 255, 0.72);
+    line-height: 1.35;
+    max-width: 560px;
+  }
+  .draftCards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .draftCard {
+    appearance: none;
+    border: 0;
+    border-radius: 18px;
+    padding: 15px 15px 14px;
+    min-height: 156px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
+      linear-gradient(180deg, rgba(8,11,17,0.88), rgba(4,6,12,0.94));
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow:
+      0 12px 28px rgba(0,0,0,0.24),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+    color: inherit;
+    text-align: left;
+    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+    cursor: pointer;
+  }
+  .draftCard:hover,
+  .draftCard:focus-visible {
+    outline: none;
+    transform: translateY(-2px);
+    border-color: var(--accent, rgba(255,255,255,0.2));
+    box-shadow:
+      0 16px 34px rgba(0,0,0,0.34),
+      0 0 0 1px var(--accent, rgba(255,255,255,0.2)),
+      0 0 28px var(--glow, rgba(255,255,255,0.12)),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .draftTop {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: start;
+    margin-bottom: 10px;
+  }
+  .draftName {
+    font-size: 20px;
+    line-height: 1.0;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+  .draftType {
+    margin-top: 4px;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(214, 224, 255, 0.62);
+  }
+  .draftDesc {
+    color: rgba(232, 238, 255, 0.82);
+    font-size: 13px;
+    line-height: 1.42;
+    min-height: 58px;
+  }
+  .draftTagRow {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .draftSwatch {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    box-shadow: 0 0 18px currentColor;
+  }
+  .draftFooter {
+    margin-top: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    color: rgba(225, 234, 255, 0.76);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .draftFooter .tag {
+    padding: 6px 9px;
+  }
+  @media (max-width: 720px) {
+    #draftUI {
+      bottom: 8px;
+      padding: 0 8px;
+    }
+    .draftPanel {
+      width: min(1120px, calc(100vw - 16px));
+      border-radius: 18px;
+      padding: 12px 12px 10px;
+    }
+    .draftHeader {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .draftCards {
+      grid-template-columns: 1fr;
+    }
+    .draftCard {
+      min-height: 0;
+    }
+  }
+
+  .panel, .card, .draftPanel, .draftCard {
+    position: relative;
+  }
+  .card, .draftPanel, .draftCard {
+    overflow: hidden;
+  }
+  .panel {
+    overflow: visible !important;
+  }
+  .panel::before, .card::before, .draftPanel::before, .draftCard::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.00) 24%),
+      radial-gradient(circle at 18% 0%, rgba(186, 212, 255, 0.10), rgba(0,0,0,0) 34%);
+    opacity: 0.9;
+  }
+  .panel::after, .card::after, .draftPanel::after, .draftCard::after {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      linear-gradient(0deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00) 55%),
+      linear-gradient(90deg, rgba(255,255,255,0.015), rgba(255,255,255,0.00) 18%, rgba(255,255,255,0.018) 52%, rgba(255,255,255,0.00) 82%);
+    mix-blend-mode: screen;
+    opacity: 0.7;
+  }
+  .panel > *, .card > *, .draftPanel > *, .draftCard > * {
+    position: relative;
+    z-index: 1;
+  }
+  .card:hover, .draftCard:hover {
+    box-shadow:
+      0 18px 44px rgba(0,0,0,0.36),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  #audioToggle {
+    position: fixed;
+    right: 12px;
+    top: calc(env(safe-area-inset-top) + 132px);
+    z-index: 12;
+    min-width: 92px;
+    min-height: 40px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(11,15,24,0.88), rgba(6,9,16,0.92));
+    color: rgba(238,243,255,0.92);
+    box-shadow: 0 14px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06);
+    backdrop-filter: blur(10px);
+    font: 800 12px/1 Inter, system-ui, sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  #audioToggle[data-muted="1"] {
+    color: rgba(255,215,192,0.92);
+    border-color: rgba(255,196,156,0.18);
+    box-shadow: 0 14px 28px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,196,156,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  #audioToggle:active {
+    transform: translateY(1px) scale(0.99);
+  }
+  @media (max-width: 720px) {
+    #audioToggle {
+      right: 8px;
+      top: calc(env(safe-area-inset-top) + 108px);
+      min-width: 82px;
+      min-height: 36px;
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+  }
+
+  #musicToggle {
+    position: fixed;
+    right: 12px;
+    top: calc(env(safe-area-inset-top) + 180px);
+    z-index: 12;
+    min-width: 92px;
+    min-height: 40px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(11,15,24,0.88), rgba(6,9,16,0.92));
+    color: rgba(238,243,255,0.92);
+    box-shadow: 0 14px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06);
+    backdrop-filter: blur(10px);
+    font: 800 12px/1 Inter, system-ui, sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  #musicToggle[data-on="1"] {
+    color: rgba(226,255,214,0.96);
+    border-color: rgba(166,255,190,0.22);
+    box-shadow: 0 14px 28px rgba(0,0,0,0.28), 0 0 0 1px rgba(166,255,190,0.10), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  #musicToggle:active {
+    transform: translateY(1px) scale(0.99);
+  }
+  @media (max-width: 720px) {
+    #musicToggle {
+      right: 8px;
+      top: calc(env(safe-area-inset-top) + 152px);
+      min-width: 82px;
+      min-height: 36px;
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+  }
+
+
+  button.secondaryLaunch {
+    color: rgba(238,243,255,0.92);
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.035));
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  .codexOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
+    background:
+      radial-gradient(circle at 50% 20%, rgba(132,215,255,0.14), rgba(0,0,0,0.78) 56%),
+      rgba(2,4,8,0.82);
+    backdrop-filter: blur(12px);
+    transition: opacity 180ms ease;
+  }
+  .codexOverlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .codexPanel {
+    width: min(980px, calc(100vw - 28px));
+    max-height: min(840px, calc(100vh - 32px));
+    overflow-y: auto;
+    border-radius: 26px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background:
+      linear-gradient(180deg, rgba(18,23,35,0.97), rgba(6,9,16,0.98)),
+      radial-gradient(circle at 12% 0%, rgba(132,215,255,0.10), rgba(0,0,0,0));
+    box-shadow: 0 30px 90px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.05);
+    padding: clamp(18px, 4vw, 28px);
+    touch-action: pan-y;
+  }
+  .codexHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .codexHead h2 {
+    margin: 0;
+    font-size: clamp(32px, 6vw, 54px);
+    line-height: 0.94;
+  }
+  .codexClose {
+    width: 46px;
+    height: 46px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    color: #eef3ff;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .codexStats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 0 0 16px;
+  }
+  .codexStat {
+    padding: 12px 13px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  .codexStat strong {
+    display: block;
+    font-size: 22px;
+    line-height: 1;
+    margin-bottom: 5px;
+  }
+  .codexStat span {
+    color: rgba(226,234,255,0.68);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .codexGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 12px;
+  }
+  .codexGrid section {
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.035);
+    padding: 15px 16px;
+  }
+  .codexGrid h3 {
+    margin: 0 0 7px;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .codexGrid p {
+    margin: 0;
+    color: rgba(230,237,255,0.78);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  @media (max-width: 720px) {
+    button.secondaryLaunch { width: 100%; }
+    .codexPanel { border-radius: 20px; }
+  }
+
+
+  /* === v65 — First Real Game Polish: title art, opener discipline, and mobile card breathing === */
+  #overlay.v65TitleArt {
+    align-items: flex-start;
+    background:
+      radial-gradient(circle at 50% 18%, rgba(138, 178, 255, 0.10), rgba(0,0,0,0.00) 34%),
+      linear-gradient(90deg, rgba(2, 4, 10, 0.90), rgba(2, 4, 10, 0.54) 43%, rgba(2, 4, 10, 0.92)),
+      linear-gradient(180deg, rgba(2, 4, 10, 0.20), rgba(2, 4, 10, 0.88) 68%, rgba(2, 4, 10, 0.99)),
+      url('../assets/no-moon/title/no-moon-title-desktop.webp');
+    background-size: cover;
+    background-position: center center;
+    backdrop-filter: none;
+  }
+  #overlay.v65TitleArt::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 50% 27%, rgba(106, 167, 255, 0.09), transparent 45%),
+      linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.58));
+    mix-blend-mode: screen;
+    opacity: 0.72;
+  }
+  #overlay.v65TitleArt .panel {
+    position: relative;
+    width: min(1180px, calc(100vw - 28px));
+    margin-top: clamp(10px, 2.4vh, 24px);
+    background:
+      linear-gradient(180deg, rgba(8, 11, 18, 0.74), rgba(5, 7, 12, 0.90)),
+      radial-gradient(circle at 45% 0%, rgba(160, 194, 255, 0.12), rgba(0,0,0,0) 52%);
+    border-color: rgba(205, 224, 255, 0.14);
+    backdrop-filter: blur(10px) saturate(1.08);
+    box-shadow:
+      0 36px 110px rgba(0, 0, 0, 0.58),
+      0 0 0 1px rgba(255,255,255,0.026),
+      inset 0 1px 0 rgba(255, 255, 255, 0.070);
+  }
+  #overlay.v65TitleArt .eyebrow { color: rgba(218, 232, 255, 0.76); }
+  #overlay.v65TitleArt h1 {
+    letter-spacing: 0.055em;
+    text-shadow: 0 0 22px rgba(130, 180, 255, 0.36), 0 3px 24px rgba(0,0,0,0.82);
+  }
+  #overlay.v65TitleArt #overlayText {
+    max-width: 790px;
+    color: rgba(238, 244, 255, 0.88);
+  }
+  #overlay.v65TitleArt .card {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.060), rgba(255,255,255,0.018)),
+      linear-gradient(180deg, rgba(9,13,22,0.77), rgba(4,7,12,0.91));
+    border-color: rgba(232,239,255,0.10);
+  }
+  #overlay.v65TitleArt .charArtFigure::after {
+    background:
+      linear-gradient(90deg, rgba(0,0,0,0.16), rgba(0,0,0,0.00) 44%, rgba(0,0,0,0.16)),
+      linear-gradient(180deg, rgba(255,255,255,0.062), rgba(0,0,0,0.075));
+  }
+  #overlay.v65TitleArt .charArtFigure img {
+    filter: brightness(1.15) saturate(1.18) contrast(1.10) drop-shadow(0 18px 20px rgba(0,0,0,0.56));
+  }
+  #overlay.v65TitleArt .hintBox {
+    background: rgba(4, 7, 13, 0.48);
+    border-color: rgba(205, 224, 255, 0.080);
+  }
+  #overlay.v65TitleArt .actions {
+    background: linear-gradient(180deg, rgba(8,11,18,0), rgba(7,9,16,0.90) 34%, rgba(7,9,16,0.97));
+  }
+  @media (max-width: 720px) {
+    #overlay.v65TitleArt {
+      padding: max(8px, env(safe-area-inset-top)) 8px max(12px, env(safe-area-inset-bottom));
+      background:
+        radial-gradient(circle at 50% 14%, rgba(138, 178, 255, 0.10), rgba(0,0,0,0.00) 32%),
+        linear-gradient(180deg, rgba(2,4,10,0.30), rgba(2,4,10,0.67) 34%, rgba(2,4,10,0.94) 76%, rgba(2,4,10,0.99)),
+        url('../assets/no-moon/title/no-moon-title-mobile.webp');
+      background-size: cover;
+      background-position: center top;
+    }
+    #overlay.v65TitleArt .panel {
+      width: min(1120px, calc(100vw - 12px));
+      margin-top: 4px;
+      padding: 17px 14px 16px;
+      border-radius: 20px;
+      background:
+        linear-gradient(180deg, rgba(8, 11, 18, 0.68), rgba(5, 7, 12, 0.92)),
+        radial-gradient(circle at 50% 0%, rgba(160, 194, 255, 0.09), rgba(0,0,0,0) 46%);
+    }
+    #overlay.v65TitleArt h1 { font-size: clamp(38px, 12vw, 58px); }
+    #overlay.v65TitleArt #overlayText { font-size: 14px; line-height: 1.35; margin: 8px 0 12px; }
+    #overlay.v65TitleArt .cards { gap: 10px; margin: 10px 0 10px; }
+    #overlay.v65TitleArt .card { padding: 12px 12px 12px; border-radius: 17px; }
+    #overlay.v65TitleArt .cardTop { margin-bottom: 8px; }
+    #overlay.v65TitleArt .cardName { font-size: 23px; }
+    #overlay.v65TitleArt .cardRole { font-size: 10px; }
+    #overlay.v65TitleArt .charArtPanel {
+      height: 148px;
+      grid-template-columns: minmax(0, 1fr) 78px;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    #overlay.v65TitleArt .charMiniSvg { width: 72px; height: 108px; }
+    #overlay.v65TitleArt .charMiniLabel { font-size: 8px; }
+    #overlay.v65TitleArt .charLoadoutLine { margin: 5px 0 7px; font-size: 10px; }
+    #overlay.v65TitleArt .cardDesc { font-size: 13px; line-height: 1.34; margin-bottom: 10px; }
+    #overlay.v65TitleArt .statRow { gap: 7px; font-size: 10px; }
+    #overlay.v65TitleArt .statPill, #overlay.v65TitleArt .tag { padding: 5px 7px; }
+    #overlay.v65TitleArt .card:not(.selected) .cardDesc,
+    #overlay.v65TitleArt .card:not(.selected) .statRow,
+    #overlay.v65TitleArt .card:not(.selected) .tagRow { display: none; }
+    #overlay.v65TitleArt .card:not(.selected) .charArtPanel { height: 110px; }
+    #overlay.v65TitleArt .card:not(.selected) .charLoadoutLine { margin-bottom: 0; }
+    #overlay.v65TitleArt .footerInfo { grid-template-columns: 1fr; gap: 8px; font-size: 12px; }
+    #overlay.v65TitleArt .footerInfo .hintBox:nth-child(3) { display: none; }
+    #overlay.v65TitleArt .hintBox { padding: 9px 10px; }
+  }
+
+
+
+/* v268: first-paint title guard. Prevents the old overlay panel/card layout from flashing before title JS owns it. */
+body.nmBootTitle { overflow: hidden; touch-action: none; }
+body.nmBootTitle #overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  background: #03050b url('/assets/no-moon/title/no-moon-title-desktop.webp') center center / cover no-repeat;
+  background-image: url('/assets/no-moon/title/no-moon-title-desktop.webp'), url('../assets/no-moon/title/no-moon-title-desktop.webp');
+}
+body.nmBootTitle #overlay .panel {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+body.nmBootTitle #overlay .eyebrow,
+body.nmBootTitle #overlay h1,
+body.nmBootTitle #overlay #overlayText,
+body.nmBootTitle #overlay #characterGrid,
+body.nmBootTitle #overlay .footerInfo,
+body.nmBootTitle #overlay #codexBtn,
+body.nmBootTitle #overlay #overlayMeta,
+body.nmBootTitle #overlay #buildTagDisplay {
+  display: none !important;
+}
+body.nmBootTitle #overlay .actions {
+  position: fixed;
+  left: 50%;
+  top: 76%;
+  transform: translate(-50%, -50%);
+  width: min(360px, 72vw);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  pointer-events: none;
+}
+body.nmBootTitle #overlay #startBtn {
+  pointer-events: auto;
+  width: 100%;
+  min-height: 54px;
+  border-radius: 999px;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+@media (max-width: 720px), (hover: none) and (pointer: coarse) {
+  body.nmBootTitle #overlay {
+    background-image: url('/assets/no-moon/title/no-moon-title-mobile.webp'), url('../assets/no-moon/title/no-moon-title-mobile.webp');
+  }
+}
+
+</style>
+  <link rel="canonical" href="https://qualiacology.com/no-moon/" />
+</head>
+<body class="nmBootTitle">
+<canvas id="game"></canvas>
+
+<div id="overlay">
+  <div class="panel">
+    <div class="eyebrow">browser arcade descent</div>
+    <h1 id="overlayTitle">NO MOON</h1>
+    <p id="overlayText"></p>
+    <div id="characterGrid" class="cards"></div>
+    <div class="footerInfo">
+      <div class="hintBox"><strong>Touch</strong><br>Left thumb drag moves. Right thumb drag aims and fires.</div>
+      <div class="hintBox"><strong>Desktop fallback</strong><br>WASD or arrows move. Mouse aims. Hold left click to fire. M toggles SFX, B toggles BGM, and number keys pick draft cards.</div>
+      <div class="hintBox"><strong>No mid-run menu</strong><br>Clear chambers to unlock doors, find hidden reliquaries, and ride the Bellway when the descent opens.</div>
+    </div>
+    <div class="actions">
+      <button id="startBtn" class="launch">START</button>
+      <button id="codexBtn" class="launch secondaryLaunch" type="button">Field Guide</button>
+      <div id="overlayMeta" class="smallMeta"></div>
+      <div id="buildTagDisplay" style="font-size:10px;opacity:0.42;letter-spacing:0.06em;margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase">build: loading</div>
+    </div>
+  </div>
+</div>
+
+<div id="draftUI" class="hidden" aria-hidden="true">
+  <div class="draftPanel">
+    <div class="draftHeader">
+      <div>
+        <div class="draftTitle" id="draftTitle">Choose a module</div>
+        <div class="draftHint" id="draftHint">Tap a card to graft it into the hull. The room freezes while you choose; after the graft, ride the bellway when ready.</div>
+      </div>
+    </div>
+    <div id="draftCards" class="draftCards"></div>
+  </div>
+</div>
+
+<div id="codexOverlay" class="codexOverlay hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="codexTitle">
+  <div class="codexPanel">
+    <div class="codexHead">
+      <div>
+        <div class="eyebrow">run intelligence</div>
+        <h2 id="codexTitle">Field Guide</h2>
+      </div>
+      <button id="codexClose" class="codexClose" type="button" aria-label="Close field guide">×</button>
+    </div>
+    <div id="codexStats" class="codexStats"></div>
+    <div class="codexGrid">
+      <section>
+        <h3>Route</h3>
+        <p>Every run is ten main biome floors. Floor 5 is the Graven Warden; after it, a deliberate Starless Sky branch can replace the next two floors without skipping Moonkey-eligible indices. Floor 10 is still the Null Archon.</p>
+      </section>
+      <section>
+        <h3>Relics</h3>
+        <p>Reliquaries are optional trespass. Hush Compass, gravity-style grafts, and Mire’s nose make secrets easier to sniff out.</p>
+      </section>
+      <section>
+        <h3>Grafts</h3>
+        <p>Projectile modules stack, but the build has caps so the screen stays playable. Capped grafts stop appearing in the draft pool.</p>
+      </section>
+      <section>
+        <h3>Survival</h3>
+        <p>Guard layers absorb hits before integrity drops. A brief mercy window follows damage; if a hit seems ignored, your shield or i-frames probably saved you.</p>
+      </section>
+      <section>
+        <h3>Desktop</h3>
+        <p>WASD or arrows move. Mouse aims. Hold left click to fire. M toggles SFX, B toggles BGM, number keys pick draft cards.</p>
+      </section>
+      <section>
+        <h3>Touch</h3>
+        <p>Left thumb moves; right thumb aims and fires. The draft screen freezes the world so you can choose without drifting into soup.</p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<button id="audioToggle" type="button" aria-label="Toggle sound effects" data-muted="0">SFX ON</button>
+<button id="musicToggle" type="button" aria-label="Toggle background music" data-on="0">BGM OFF</button>
+
+<script>
+/* ── 71,771 lines of inline game JS removed from this shell; loaded from the sibling file instead (identical content). Read game_inline.js, run this file. ── */
+</script>
+<script src="./game_inline.js"></script>
+</body>
+</html>

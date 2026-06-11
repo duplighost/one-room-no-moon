@@ -1,0 +1,136 @@
+# Build Order
+
+Phased checklist for implementation. Each phase ends with: acceptance criteria met
+(verified via `window.oneRoomDebug` where possible), committed, pushed to
+`claude/bold-fermi-jio8q5`. Phases are sized so a session can land one or two
+whole phases. Don't start a phase until the previous one's bar is green —
+especially don't start Phase 3 content breadth before Phase 2's variety bar passes.
+
+## Phase 0 — Skeleton (the stable base)
+
+- [ ] `index.html` shell: canvas, HUD DOM stubs, title overlay, CSS baseline
+      (dark #05070b, Inter-stack font, glass panels — crib from `reference/no-moon/index-shell.html`)
+- [ ] `main.js` loop with dt clamp, mode state machine (`title → play → dead`)
+- [ ] `config.js`, `rng.js` (mulberry32 + hashString + bag dealer), `state.js`
+- [ ] `input.js`: keyboard + mouse (touch comes Phase 6, but structure the
+      move/aim abstraction now exactly like Boon Moots' `getMoveInput/getAimInput`)
+- [ ] `camera.js` + `draw.js` composition order + empty-room render (gradient bg, wall border, vignette)
+- [ ] `window.oneRoomDebug` v1: `state()`, `start(seed)`, `selfTest()`
+- [ ] **Bar:** placeholder circle moves with Boon Moots feel constants in an empty
+      room at 60fps; debug hooks respond; pushed.
+
+## Phase 1 — Combat core (make it feel right before making it big)
+
+- [ ] Moots: sprite load (`assets/moots.webp`), aim line, twin-relay fire,
+      spin-dash (full v50 spec: impulse/i-frames/afterimages/spin draw/dash damage),
+      pulse meter + pulse bomb, hp/i-frames/knockback/death
+- [ ] `bullets.js` with pierce/bounce hooks (empty hook table wired now)
+- [ ] 3 enemies: skitter, gunner, charger (No Moon AI specs incl. charger windup
+      telegraph + "LANE"-style float), contact damage, separation, wake = all-awake
+- [ ] Juice kit: hitstop, shake, flash, slow-mo, kill particles, floats, combo +
+      streak names, kill/hurt/dash/pulse SFX (Boon Moots synth recipes)
+- [ ] One hand-built test room (fixed obstacles) + `killAll`/`grant` debug hooks
+- [ ] **Bar:** 60 seconds in the test room is *fun* — dash-weaving through a
+      skitter swarm while a gunner strafes feels like Boon Moots. Honest check,
+      not a checkbox.
+
+## Phase 2 — The Room Roller (the heart; the anti-boring bar lives here)
+
+- [ ] `data/biomes.js` with the 8 early+mid biomes (palettes + hazard + bias from
+      the systems doc; remaining 13 biomes land in Phase 3 as data-only PRs)
+- [ ] `data/patterns.js`: first 14 decoration painters (2 per shipped biome,
+      ported from No Moon's recipes) + baked-background pipeline
+- [ ] Layout generators: courtyard, ring, lanesH/V, crossroads, spine, pockets,
+      edges, scatter — each consuming ≥4 rolled parameters; obstacle placement +
+      collision (circle/rect resolve from Boon Moots)
+- [ ] All 10 hazard kits (Boon Moots compact mechanics + No Moon parameters +
+      danger-stage escalation tables)
+- [ ] Breakables: 4 species first (marrowJar, bellHusk, blackGlass, falseIdol)
+- [ ] Sealed annex (30%) with secret/ambush
+- [ ] No-repeat bag dealer wired for biome/layout/recipe axes; axis cross-check pass
+- [ ] Round lifecycle: transition splash (biome + mechanic tag + round) → live →
+      clear (bullet wipe, tally, spark vacuum, portal) → portal touch → next round
+      (draft arrives Phase 4 — portal goes straight to next room for now)
+- [ ] `oneRoomDebug.roll(20)` axis-summary audit
+- [ ] **Bar:** play 10 consecutive rounds — every room visibly and mechanically
+      distinct (different bones, not different paint); `roll(50)` shows no
+      consecutive axis repeats; baked backgrounds keep frame time flat.
+
+## Phase 3 — Full roster + director
+
+- [ ] Remaining 5 enemies: turret, brute, sniper (with perch/aim telegraph),
+      hexer, myrmidon — full No Moon AI specs
+- [ ] Remaining 13 biomes + remaining ~20 decoration painters (data-only)
+- [ ] `director.js`: budgets, allowed-types-by-round, recipes (all 7), staged
+      waves with spawn telegraph glyphs, reinforcement triggers, MAX_ENEMIES caps
+- [ ] Captain system: 5 affixes, promotion odds, floated titles, on-death effects
+- [ ] Off-screen danger triangles (+telegraph brightening)
+- [ ] Danger-stage scaling formulas wired (hp/speed/cooldowns/hazard escalation)
+- [ ] **Bar:** rounds 1→15 ramp legibly; recipes are recognizable at a glance
+      ("that's a gunline room"); captains read as events, not stat noise.
+
+## Phase 4 — Drafts, items, economy, events
+
+- [ ] `data/items.js`: all 32 items on the hook table; stacking + maxStacks +
+      weight familiarity bump
+- [ ] Draft UI at portal (3 DOM cards, number keys, stack chips); world keeps
+      simulating particles behind it
+- [ ] Boon reroll: charge economy (1 per 2 clears, ×3 boss), draft re-deal, loose
+      core re-roll, HUD LACING chip
+- [ ] Pickups: sparks (combo score + pulse + meta bank), repair/heart/marrow,
+      amp/rapid/frame perk pickups, magnet, remaining 3 breakable species
+- [ ] Room events: all 7 (cache, gambit, market, nest, spring, vault, care objects)
+      with event-weight table and pity timer
+- [ ] Build chips in HUD (grafts + stacks)
+- [ ] **Bar:** a 15-round run produces a *build* (visible synergy moment, e.g.
+      ricochet+splitWake+graveCharge chain-clearing a swarm); gambit shrine causes
+      one audible decision per encounter.
+
+## Phase 5 — Bosses, route, win
+
+- [ ] Boss framework: intro card (webp art from `assets/bosses/`), boss bar,
+      arena enforcement (ring/crossroads), summon rings with placement rules
+- [ ] R10 Graven Warden + R20 Null Archon to full No Moon spec; R5 False Moon +
+      R15 Spiggot minibosses (one signature pattern each, ~40% boss HP)
+- [ ] Route win at R20: tally screen, "ROUTE BURNT OPEN" beat → Overdrive ∞
+      (uncapped danger slope, ×1.35 score, boss every 5, full biome bag)
+- [ ] Death/restart flow: one-tap Run it back; score/speed/no-hit bonuses final;
+      bests + daily best persisted
+- [ ] **Bar:** full route is beatable by a competent run (~20–25 min); Warden and
+      Archon phases match the No Moon spec; Overdrive scales until death.
+
+## Phase 6 — Meta, audio, mobile, voice
+
+- [ ] Shrine (5 upgrades, sparks costs), codex (bestiary/notices/stats/favorite
+      graft), behavior notices (all 8 from Boon Moots), achievements-lite
+- [ ] Daily seed mode (UTC date seed, separate best line on title)
+- [ ] Oaths (glass/hunger/blind) unlocked by first route clear
+- [ ] BGM: No Moon's 86 BPM stress sequencer (kick/snare/bass/arp/lead/chords,
+      stress = danger + boss + low HP); SFX/BGM toggles persisted
+- [ ] Mobile: two-thumbs-anywhere pads, flick dash + tap pulse (full v50 release
+      semantics + dash latch), viewScale, DPR 1.35, haptics, particle/entity
+      mobile budgets, input-suppression window on room load
+- [ ] Voice pass: wire `data/lines.js` everywhere (clear lines, mutator
+      announcements, event copy, boss intros, death lines) under the §10 rules
+- [ ] **Bar:** playable start-to-death on a phone with thumbs only;
+      `selfTest()` tap-target audit passes; sound on/off persists.
+
+## Phase 7 — QA, balance, deploy
+
+- [ ] Balance pass against the tuning sheet (combo cap, budget slope, hazard
+      escalation, item weights) — adjust `config.js` only
+- [ ] Perf pass: frame-time sample in `selfTest()` < 8ms p95 desktop / 14ms mobile
+      sim; particle/bullet cap audits
+- [ ] `?fresh=1` wipe; pagehide final-save; error-free console sweep
+- [ ] README gains play/dev instructions; deploy folder check against `_headers`/
+      `_redirects` conventions from the archive
+- [ ] Final full-route playtest log committed to `docs/playtest-notes.md`
+
+## Standing orders
+
+- Never edit `reference/`.
+- Commit per system, push per phase (branch `claude/bold-fermi-jio8q5`).
+- When a spec here conflicts with parent source, the parent source wins for *feel
+  constants*, these docs win for *structure* — note the divergence in the doc.
+- New flavor text goes through the voice rules (`game-design.md` §10) — when in
+  doubt, reuse a real line.

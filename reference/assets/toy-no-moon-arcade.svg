@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">No Moon Arcade toy art</title>
+  <desc id="desc">A glowing single-room arena with Moots in the center, enemies entering from the edges, and a crescent reset ripple behind it.</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="72%">
+      <stop offset="0" stop-color="#1f1a38"/>
+      <stop offset="0.48" stop-color="#090912"/>
+      <stop offset="1" stop-color="#020207"/>
+    </radialGradient>
+    <linearGradient id="floor" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#18253a"/>
+      <stop offset="0.42" stop-color="#101224"/>
+      <stop offset="1" stop-color="#170d1f"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" x2="1">
+      <stop offset="0" stop-color="#89e7ff"/>
+      <stop offset="0.5" stop-color="#f3dcff"/>
+      <stop offset="1" stop-color="#fff0b8"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.55  0 1 0 0 0.87  0 0 1 0 1  0 0 0 0.8 0" result="blue"/>
+      <feMerge><feMergeNode in="blue"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+  <rect width="960" height="540" fill="url(#bg)"/>
+  <g opacity="0.42" filter="url(#soft)">
+    <circle cx="479" cy="270" r="220" fill="#89e7ff" opacity="0.16"/>
+    <circle cx="554" cy="305" r="185" fill="#f3dcff" opacity="0.18"/>
+    <circle cx="404" cy="214" r="120" fill="#fff0b8" opacity="0.10"/>
+  </g>
+  <g opacity="0.28" fill="none" stroke="#f3dcff" stroke-width="8">
+    <path d="M628 102c-82 28-139 104-139 193 0 77 43 144 106 179-101-15-178-102-178-207 0-113 89-205 201-210 3 14 6 29 10 45Z"/>
+  </g>
+  <g transform="translate(480 282) rotate(-1)">
+    <rect x="-326" y="-188" width="652" height="376" rx="36" fill="#03040a" opacity="0.58"/>
+    <rect x="-304" y="-166" width="608" height="332" rx="28" fill="url(#floor)" stroke="url(#edge)" stroke-width="7" filter="url(#glow)"/>
+    <g opacity="0.22" stroke="#b9eaff" stroke-width="2">
+      <path d="M-250-114H250M-250-57H250M-250 0H250M-250 57H250M-250 114H250"/>
+      <path d="M-228-134V134M-152-134V134M-76-134V134M0-134V134M76-134V134M152-134V134M228-134V134"/>
+    </g>
+    <g opacity="0.8">
+      <rect x="-218" y="-40" width="60" height="80" rx="16" fill="#89e7ff" opacity="0.18" stroke="#89e7ff" stroke-width="3"/>
+      <rect x="158" y="-40" width="60" height="80" rx="16" fill="#f3dcff" opacity="0.16" stroke="#f3dcff" stroke-width="3"/>
+      <circle cx="0" cy="-102" r="26" fill="#fff0b8" opacity="0.16" stroke="#fff0b8" stroke-width="3"/>
+      <circle cx="0" cy="104" r="28" fill="#89e7ff" opacity="0.13" stroke="#89e7ff" stroke-width="3"/>
+    </g>
+    <g filter="url(#glow)">
+      <ellipse cx="0" cy="0" rx="29" ry="36" fill="#f3dcff" opacity="0.94"/>
+      <path d="M8-15 32 0 8 15Z" fill="#fff0b8"/>
+      <path d="M-17-24 16 23M-17 24 16-23" stroke="#fff0b8" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="11" cy="-10" r="6" fill="#070812"/>
+      <circle cx="11" cy="10" r="6" fill="#070812"/>
+    </g>
+    <g filter="url(#glow)">
+      <circle cx="-255" cy="-118" r="19" fill="#9fffd0"/>
+      <circle cx="257" cy="-102" r="21" fill="#ffad7d"/>
+      <path d="M-266 126h36l-18 32Z" fill="#d4dcff"/>
+      <circle cx="234" cy="122" r="23" fill="#d894ff"/>
+      <circle cx="-95" cy="-150" r="14" fill="#ffd98c"/>
+      <circle cx="105" cy="151" r="16" fill="#ff8f9f"/>
+    </g>
+    <g fill="none" stroke-linecap="round" filter="url(#glow)">
+      <path d="M28-4C110-42 154-62 246-92" stroke="#f3dcff" stroke-width="5" opacity="0.82"/>
+      <path d="M29 7C122 48 165 76 226 117" stroke="#fff0b8" stroke-width="4" opacity="0.72"/>
+      <path d="M-22-8C-96-39-148-76-242-113" stroke="#89e7ff" stroke-width="4" opacity="0.68"/>
+    </g>
+  </g>
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif" text-anchor="middle">
+    <text x="480" y="468" fill="#f4f7ff" font-size="42" font-weight="900" letter-spacing="-1.5">NO MOON ARCADE</text>
+    <text x="480" y="500" fill="#b9eaff" font-size="18" font-weight="800" letter-spacing="4">ONE ROOM / ENDLESS RESET</text>
+  </g>
+</svg>
