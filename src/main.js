@@ -21,6 +21,10 @@ import { startRun, updateRound, updateTransition, beginRound } from './systems/r
 import { ensure as ensureAudio, toggleSfx, sfx } from './audio/sfx.js';
 import { rollRoom } from './systems/roomRoller.js';
 import { damageEnemy } from './systems/combat.js';
+import { wireDraftUi, pickCard, boonReroll, grantItem } from './systems/draft.js';
+import { updateCare } from './systems/events.js';
+import { stacks } from './systems/items.js';
+import { renderDraft, updateBuildChips } from './ui/overlays.js';
 import { FX, VERSION } from './config.js';
 
 let canvas, bloomCanvas, last = 0;
@@ -43,6 +47,11 @@ export function boot() {
   initInput(canvas, actions);
   wirePauseButtons(togglePause, actions.toggleSfx);
   wireSfxButton(actions.toggleSfx);
+  wireDraftUi(
+    (choices, canReroll) => renderDraft(choices, canReroll, pickCard, boonReroll,
+      (id) => stacks(state.run?.player, id)),
+    (player) => updateBuildChips(player),
+  );
   showTitle(actions.start);
   updateHud();
   installDebug(actions);
@@ -105,6 +114,7 @@ export function step(raw) {
       updateBullets(room, dt);
       updateHazards(room, dt);
       updatePickups(room, dt);
+      updateCare(room, dt);
       updateParticles(room, raw);
       tickCombo(raw);
       updateRound(dt);
@@ -165,6 +175,8 @@ function installDebug(actions) {
       for (const e of room.enemies.slice()) damageEnemy(e, 99999, 0, 0, 'shot');
       return window.oneRoomDebug.state();
     },
+    grant: (id) => { grantItem(id, 'debug'); return state.run?.player.modules; },
+    pick: (i = 0) => { pickCard(i); return window.oneRoomDebug.state(); },
     // headless variety audit: generate n rooms, return axis summaries
     roll: (n = 20) => {
       if (!state.run) startRun('audit');

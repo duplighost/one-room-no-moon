@@ -4,6 +4,7 @@ import { state } from '../state.js';
 import { norm, dist } from '../rng.js';
 import { screenToWorld } from '../render/camera.js';
 import { tryDash, tryPulse } from '../systems/player.js';
+import { pickCard, boonReroll } from '../systems/draft.js';
 
 const keys = Object.create(null);
 const mouse = { x: 0, y: 0, down: false, seen: false };
@@ -45,6 +46,11 @@ function onKeyDown(e) {
   if (state.mode === 'play' && !suppressed()) {
     if (k === 'shift') tryDash(null, null, getMove());
     if (k === 'e' || k === 'x') tryPulse();
+    if (k === 'r') boonReroll();
+  }
+  if (state.mode === 'portalDraft') {
+    if (k === '1' || k === '2' || k === '3') pickCard(Number(k) - 1);
+    if (k === 'r') boonReroll();
   }
   if (k === 'escape' || k === 'p') actions?.pause?.();
   if (k === 'm') actions?.toggleSfx?.();

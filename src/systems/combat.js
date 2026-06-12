@@ -10,6 +10,7 @@ import { hooks } from './items.js';
 
 export function damageEnemy(e, dmg, kx = 0, ky = 0, kind = 'shot') {
   if (e.hp <= 0) return;
+  dmg = hooks.reduce('modDamage', dmg, e, kind);
   e.hp -= dmg;
   e.vx += kx; e.vy += ky;
   e.hit = 0.11;

@@ -126,7 +126,9 @@ p.x = state.room.portal.x; p.y = state.room.portal.y;
 try {
   for (let i = 0; i < 30; i++) tick(1 / 60);
 } catch (e) { failures++; console.error('FAIL portal entry', e); }
-check('transition started', state.mode === 'transition' || state.run.round === 2, `mode=${state.mode}`);
+check('portal opens the draft', state.mode === 'portalDraft', `mode=${state.mode}`);
+window.oneRoomDebug.pick(0);
+check('pick starts transition', state.mode === 'transition', `mode=${state.mode}`);
 try {
   for (let i = 0; i < 120; i++) tick(1 / 60);
 } catch (e) { failures++; console.error('FAIL transition frames', e); }
@@ -168,6 +170,67 @@ const bands = window.oneRoomDebug.roll(20).rooms;
 check('rounds 1-4 early', bands.slice(0, 4).every(r => ['verdigris', 'fen', 'mirror', 'rosewire'].includes(r.biome)));
 check('rounds 5-8 mid', bands.slice(4, 8).every(r => ['ember', 'mycelium', 'shardreef', 'coilroot'].includes(r.biome)));
 check('round 20 final', ['empyrean', 'nullthrone'].includes(bands[19].biome), bands[19].biome);
+
+// ── Phase 4: items, draft, events ───────────────────────────────────────────
+const { grantItem, chooseCards } = await import('../src/systems/draft.js');
+const { stacks } = await import('../src/systems/items.js');
+startRun('phase4');
+const p4 = state.run.player;
+p4.maxHp = 9999; p4.hp = 9999;
+
+grantItem('ricochet'); grantItem('phaseDrill'); grantItem('hunterMycelia');
+check('grants stack', stacks(p4, 'ricochet') === 1 && stacks(p4, 'phaseDrill') === 1);
+
+// bullet hooks apply on spawn
+const { spawnBullet } = await import('../src/systems/bullets.js');
+const tb = spawnBullet(state.room, 'player', p4.x, p4.y, 100, 0, 4, 1, 1, '#fff');
+check('onBulletSpawn hooks ran', tb.bounces === 1 && tb.pierce === 1 && tb.turn > 4, JSON.stringify({ bounces: tb.bounces, pierce: tb.pierce, turn: tb.turn }));
+
+// maxStacks → overflow converts to repair
+grantItem('aegisLattice'); grantItem('aegisLattice');
+check('aegis capped at 2', p4.shieldMax === 2 && stacks(p4, 'aegisLattice') === 2);
+grantItem('aegisLattice');
+check('overflow does not raise stacks', stacks(p4, 'aegisLattice') === 2);
+
+// companions tick without exception
+grantItem('orbitalHalo'); grantItem('scavengerDrone'); grantItem('gigi'); grantItem('emberMine');
+let p4err = null;
+try { for (let i = 0; i < 300; i++) tick(1 / 60); } catch (e) { p4err = e; }
+check('companion items tick', !p4err, p4err ? p4err.stack.split('\n')[0] : '');
+check('orbitals exist', (p4._orbitals || []).length === 1);
+
+// draft flow: clear room → portal → draft → pick → transition → next round
+const roundBefore = state.run.round;
+for (let attempt = 0; attempt < 6 && !state.room.portal; attempt++) {
+  window.oneRoomDebug.killAll();
+  for (let i = 0; i < 120 && !state.room.portal; i++) tick(1 / 60);
+}
+check('phase4 room cleared', !!state.room.portal);
+p4.x = state.room.portal.x; p4.y = state.room.portal.y; p4.vx = p4.vy = 0;
+for (let i = 0; i < 30 && state.mode !== 'portalDraft'; i++) tick(1 / 60);
+check('portal opens draft', state.mode === 'portalDraft', 'mode=' + state.mode);
+window.oneRoomDebug.pick(0);
+for (let i = 0; i < 120; i++) tick(1 / 60);
+check('draft pick advances round', state.run.round === roundBefore + 1 && state.mode === 'play',
+  `round=${state.run.round} mode=${state.mode}`);
+check('a module was granted via draft', Object.keys(p4.modules).length >= 8);
+
+// boon reroll economy: charges accrue from clears
+check('boon lacing progressed', p4.boon.progress >= 1 || p4.boon.charges >= 1);
+
+// events present across a long audit
+startRun('events-audit');
+const evAudit = window.oneRoomDebug.roll(40).rooms;
+// roll() does not record events; count via a direct roll pass
+const { rollRoom: rr } = await import('../src/systems/roomRoller.js');
+startRun('events-audit-2');
+let evCount = 0; const evKinds = new Set();
+for (let i = 1; i <= 40; i++) {
+  const r = rr(state.run, i);
+  if (r.eventId) { evCount++; evKinds.add(r.eventId); }
+}
+check('events roll on ~45% of rooms (±pity)', evCount >= 12 && evCount <= 32, 'count=' + evCount);
+check('event variety ≥ 4 kinds', evKinds.size >= 4, [...evKinds].join(','));
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

@@ -5,6 +5,7 @@ import { dist, norm } from '../rng.js';
 import { burst, addFloat } from '../render/particles.js';
 import { sfx } from '../audio/sfx.js';
 import { sparkScore } from './score.js';
+import { grantItem } from './draft.js';
 
 export function dropPickup(room, type, x, y, opts = {}) {
   room.pickups.push({
@@ -55,6 +56,25 @@ function collect(room, p, q) {
       p.maxHp += 1; p.hp = Math.min(p.maxHp, p.hp + 2);
       addFloat(room, p.x, p.y - 40, 'MARROW', '#f7d7ff', true);
       sfx('care');
+      break;
+    case 'amp':
+      p.perks.damage += 1;
+      addFloat(room, p.x, p.y - 40, 'AMBER SIGIL +15% DMG', '#ffbe73');
+      sfx('care');
+      break;
+    case 'rapid':
+      p.perks.fire += 1;
+      addFloat(room, p.x, p.y - 40, 'CADENCE COIL +FIRE', '#9fd2ff');
+      sfx('care');
+      break;
+    case 'frame':
+      p.perks.speed += 1;
+      p.speed = PLAYER.SPEED * (1 + 0.08 * p.perks.speed);
+      addFloat(room, p.x, p.y - 40, 'LOPE LATTICE +SPEED', '#b6f69d');
+      sfx('care');
+      break;
+    case 'core':
+      grantItem(q.itemId, 'found');
       break;
     default:
       sfx('pickup');

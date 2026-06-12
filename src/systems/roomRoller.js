@@ -11,6 +11,8 @@ import { seedHazards } from './hazards.js';
 import { buildWaves, availableRecipes, dangerStage, depthIdx, RECIPES } from './director.js';
 import { view } from '../render/camera.js';
 import { ANNEX } from '../config.js';
+import { rollEvent } from './events.js';
+import { stacks } from './items.js';
 
 export function rollRoom(run, round) {
   const rng = run.rng;
@@ -106,7 +108,8 @@ export function rollRoom(run, round) {
   }
 
   // ── sealed annex (one-room version of No Moon's secret pockets) ──
-  if (chance(rng, ANNEX.CHANCE)) buildAnnex(room, rng);
+  const compass = stacks(run.player, 'cacheCompass');
+  if (chance(rng, ANNEX.CHANCE + compass * 0.12)) buildAnnex(room, rng);
 
   // ── axis 3: hazard kit ──
   seedHazards(room, rng);
@@ -122,6 +125,9 @@ export function rollRoom(run, round) {
 
   // ── axis 4: waves ──
   buildWaves(room, rng);
+
+  // ── axis 5: room event (the spice slot) ──
+  rollEvent(room, rng);
 
   // ── bake the background once ──
   room.background = bakeBackground(room, rng);

@@ -36,6 +36,24 @@ export function drawPlayer(ctx, p, room) {
     ctx.beginPath(); ctx.ellipse(0, 7, 32 + ring * 8, 8, 0, 0, TAU); ctx.stroke();
     ctx.restore();
   }
+  // companions (item visuals)
+  if (p._orbitals) for (const o of p._orbitals) {
+    if (o.x === undefined) continue;
+    ctx.save();
+    ctx.fillStyle = '#f3dcff'; ctx.shadowColor = '#f3dcff'; ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.arc(o.x, o.y, 7, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  if (p._drones) for (const d of p._drones) {
+    if (d.x === undefined) continue;
+    ctx.save();
+    ctx.fillStyle = '#ffd36e'; ctx.shadowColor = '#ffd36e'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(d.x, d.y, 6, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#3a2c10';
+    ctx.fillRect(d.x - 2, d.y - 2, 4, 4);
+    ctx.restore();
+  }
+  if (p._cat) drawCat(ctx, p._cat.x, p._cat.y, 0.58, pal);
   drawPlayerBody(ctx, p.x, p.y, p.face, pal, 1, false, spin);
   if (p.hurt > 0) {
     ctx.strokeStyle = pal.bad + 'cc'; ctx.lineWidth = 4;
@@ -90,6 +108,66 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
     ctx.fillRect(-17, 19, 14, 16); ctx.fillRect(4, 19, 14, 16);
   }
   ctx.restore(); ctx.globalAlpha = 1;
+}
+
+// Gigi (Boon Moots index.html:1420)
+export function drawCat(ctx, x, y, s, pal) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  shadow(ctx, 0, 14, 20, 6, 0.25);
+  ctx.fillStyle = '#11131b';
+  ctx.beginPath(); ctx.ellipse(0, 0, 26, 18, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#f9f6ee';
+  ctx.beginPath(); ctx.ellipse(-8, 1, 12, 16, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#11131b';
+  ctx.beginPath();
+  ctx.moveTo(-18, -10); ctx.lineTo(-10, -30); ctx.lineTo(-2, -9);
+  ctx.moveTo(8, -9); ctx.lineTo(16, -30); ctx.lineTo(22, -8);
+  ctx.fill();
+  ctx.fillStyle = pal.accent3;
+  ctx.beginPath(); ctx.arc(-7, -3, 2.8, 0, TAU); ctx.arc(9, -3, 2.8, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+// care / market objects
+export function drawCare(ctx, c, pal) {
+  const t = performance.now() / 1000;
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.globalAlpha = c.used ? 0.35 : 1;
+  shadow(ctx, 0, 22, 26, 8, 0.28);
+  const glow = c.used ? 0 : 10 + Math.sin(t * 2.4 + c.phase) * 5;
+  ctx.shadowColor = c.kind === 'market' ? '#ffd47a' : '#9bffd1';
+  ctx.shadowBlur = glow;
+  if (c.kind === 'lamp') {
+    ctx.strokeStyle = '#d8c979'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(0, 20); ctx.lineTo(0, -26); ctx.stroke();
+    ctx.fillStyle = '#ffe9a8';
+    ctx.beginPath(); ctx.arc(0, -32, 9, 0, TAU); ctx.fill();
+  } else if (c.kind === 'bench') {
+    ctx.fillStyle = '#9b8c6a';
+    ctx.fillRect(-24, -4, 48, 8);
+    ctx.fillRect(-20, 4, 6, 14); ctx.fillRect(14, 4, 6, 14);
+  } else if (c.kind === 'umbrella') {
+    ctx.strokeStyle = '#b6a8d8'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, 22); ctx.lineTo(0, -18); ctx.stroke();
+    ctx.fillStyle = pal.accent2;
+    ctx.beginPath(); ctx.arc(0, -18, 22, Math.PI, TAU); ctx.fill();
+  } else if (c.kind === 'pie') {
+    ctx.fillStyle = '#e8b06a';
+    ctx.beginPath(); ctx.ellipse(0, 0, 18, 11, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#a8763a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(0, -2, 13, 7, 0, 0, TAU); ctx.stroke();
+  } else if (c.kind === 'market') {
+    ctx.fillStyle = '#241a10';
+    ctx.strokeStyle = '#ffd47a'; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.moveTo(-22, 18); ctx.lineTo(0, -24); ctx.lineTo(22, 18); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffd47a';
+    ctx.font = '900 14px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('1♥', 0, 10);
+  }
+  ctx.restore();
 }
 
 // ── enemies ─────────────────────────────────────────────────────────────────

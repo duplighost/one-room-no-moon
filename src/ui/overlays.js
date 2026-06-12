@@ -106,8 +106,60 @@ export function updateHud() {
     const pct = clamp(p.pulse, 0, 100);
     ui.pulseFill.style.width = pct + '%';
     ui.pulseWrap.classList.toggle('ready', pct >= 100);
+    const boonEl = document.getElementById('boonChip');
+    if (boonEl) {
+      boonEl.textContent = p.boon.charges > 0 ? '⇄ BOON READY' : `⇄ lacing ${p.boon.progress}/${p.boon.need}`;
+      boonEl.style.color = p.boon.charges > 0 ? '#f3dcff' : '';
+    }
   }
   if (ui.sfxBtn) ui.sfxBtn.textContent = state.save.settings.sfx ? 'sfx on' : 'sfx off';
+}
+
+// ── draft cards ──────────────────────────────────────────────────────────────
+export function renderDraft(choices, canReroll, onPick, onReroll, getStacks) {
+  if (!ui?.draft) return;
+  if (!choices) { ui.draft.classList.remove('show'); return; }
+  ui.draftTitle.textContent = 'Pick what changes.';
+  ui.draftCards.innerHTML = '';
+  choices.forEach((item, i) => {
+    const b = document.createElement('button');
+    b.className = 'draftCard';
+    b.type = 'button';
+    const have = getStacks(item.id);
+    b.innerHTML =
+      `<span class="tag" style="color:${item.color}">${esc(item.type)}</span>` +
+      `<b>${esc(item.name)}</b>` +
+      `<p>${esc(item.desc)}</p>` +
+      `<span class="stacks">${have ? `owned ×${have}` : 'fresh graft'}${item.maxStacks ? ` · max ${item.maxStacks}` : ''}</span>`;
+    b.onclick = () => onPick(i);
+    ui.draftCards.appendChild(b);
+  });
+  ui.draftMeta.innerHTML = '';
+  if (canReroll) {
+    const r = document.createElement('button');
+    r.type = 'button';
+    r.textContent = 'Boon Reroll (R)';
+    r.onclick = onReroll;
+    ui.draftMeta.appendChild(r);
+  } else {
+    ui.draftMeta.textContent = '1 / 2 / 3 to choose';
+  }
+  ui.draft.classList.add('show');
+}
+
+export function updateBuildChips(player) {
+  if (!ui?.buildChips || !player) return;
+  ui.buildChips.innerHTML = '';
+  for (const [id, n] of Object.entries(player.modules)) {
+    const chip = document.createElement('span');
+    chip.className = 'graft';
+    chip.textContent = id + (n > 1 ? ` ×${n}` : '');
+    ui.buildChips.appendChild(chip);
+  }
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
 export function setSfxLabels() {

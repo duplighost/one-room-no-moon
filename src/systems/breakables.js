@@ -10,6 +10,7 @@ import { spawnBullet } from './bullets.js';
 import { addPulseHazard, addSlowFog } from './hazards.js';
 import { spawnTelegraphed } from './enemies.js';
 import { hurtPlayer, damageEnemy } from './combat.js';
+import { cacheAltarBreak, gambitAltarBreak } from './events.js';
 
 export const SPECIES = {
   marrowJar:      { hp: 3, label: 'Marrow Jar' },
@@ -20,6 +21,8 @@ export const SPECIES = {
   moonseedUrn:    { hp: 4, label: 'Moonseed Urn' },
   annexDoor:      { hp: 9, label: 'Sealed Door' },
   volatileShard:  { hp: 2, label: 'Volatile Shard' },
+  cacheAltar:     { hp: 8, label: 'Moon Cache' },
+  gambitAltar:    { hp: 11, label: 'Gambit Shrine' },
 };
 
 export function damageObstacle(room, o, dmg) {
@@ -74,6 +77,8 @@ const effects = {
   moonseedUrn(room, o, x, y) {
     scatterSparks(room, x, y, Math.random() < 0.22 ? 5 : 3);
   },
+  cacheAltar(room, o, x, y) { cacheAltarBreak(room, x, y); },
+  gambitAltar(room, o, x, y) { gambitAltarBreak(room, x, y); },
   annexDoor(room, o, x, y) {
     const annex = room.annex;
     if (!annex || annex.opened) return;

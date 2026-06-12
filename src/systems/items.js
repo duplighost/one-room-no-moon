@@ -16,6 +16,13 @@ export const hooks = {
     if (!list) return;
     for (const h of list) h.fn(...args);
   },
+  // reducer form: each hook returns the new value (e.g. modDamage)
+  reduce(name, value, ...args) {
+    const list = registry.get(name);
+    if (!list) return value;
+    for (const h of list) value = h.fn(value, ...args);
+    return value;
+  },
   clear() { registry.clear(); },
 };
 

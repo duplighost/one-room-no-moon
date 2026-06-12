@@ -71,18 +71,18 @@ especially don't start Phase 3 content breadth before Phase 2's variety bar pass
 
 ## Phase 4 — Drafts, items, economy, events
 
-- [ ] `data/items.js`: all 32 items on the hook table; stacking + maxStacks +
+- [x] `data/items.js`: all 32 items on the hook table; stacking + maxStacks +
       weight familiarity bump
-- [ ] Draft UI at portal (3 DOM cards, number keys, stack chips); world keeps
+- [x] Draft UI at portal (3 DOM cards, number keys, stack chips); world keeps
       simulating particles behind it
-- [ ] Boon reroll: charge economy (1 per 2 clears, ×3 boss), draft re-deal, loose
+- [x] Boon reroll: charge economy (1 per 2 clears, ×3 boss), draft re-deal, loose
       core re-roll, HUD LACING chip
-- [ ] Pickups: sparks (combo score + pulse + meta bank), repair/heart/marrow,
+- [x] Pickups: sparks (combo score + pulse + meta bank), repair/heart/marrow,
       amp/rapid/frame perk pickups, magnet, remaining 3 breakable species
-- [ ] Room events: all 7 (cache, gambit, market, nest, spring, vault, care objects)
+- [x] Room events: all 7 (cache, gambit, market, nest, spring, vault, care objects)
       with event-weight table and pity timer
-- [ ] Build chips in HUD (grafts + stacks)
-- [ ] **Bar:** a 15-round run produces a *build* (visible synergy moment, e.g.
+- [x] Build chips in HUD (grafts + stacks)
+- [x] **Bar:** a 15-round run produces a *build* (visible synergy moment, e.g.
       ricochet+splitWake+graveCharge chain-clearing a swarm); gambit shrine causes
       one audible decision per encounter.
 

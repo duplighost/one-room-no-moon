@@ -85,7 +85,16 @@ export function updateHazards(room, dt) {
     h.hitCd = Math.max(0, (h.hitCd || 0) - dt);
     const d = dist(h.x, h.y, p.x, p.y);
 
-    if (h.type === 'fog' || h.type === 'spore') {
+    if (h.type === 'lotus') {
+      // slows ENEMIES only (marrowSpring's gift / blackLotus load-in bloom)
+      if (h.life !== undefined) { h.life -= dt; }
+      for (const e of room.enemies) {
+        if (e.hp > 0 && dist(h.x, h.y, e.x, e.y) < h.r + e.r) {
+          e.slowTimer = Math.max(e.slowTimer || 0, 0.2);
+          e.slowMul = Math.min(e.slowMul, h.slow);
+        }
+      }
+    } else if (h.type === 'fog' || h.type === 'spore') {
       if (d < h.r + p.r) {
         p.vx *= Math.pow(h.slow, dt * 8); p.vy *= Math.pow(h.slow, dt * 8);
         p.pulse = Math.max(0, p.pulse - dt * (h.type === 'spore' ? 7 : 3));
@@ -132,6 +141,10 @@ export function updateHazards(room, dt) {
         hurtPlayer(1, h.x, h.y, 'hazard');
       }
     }
+  }
+
+  for (let i = room.hazards.length - 1; i >= 0; i--) {
+    if (room.hazards[i].life !== undefined && room.hazards[i].life <= 0) room.hazards.splice(i, 1);
   }
 
   for (const l of room.lanes) {

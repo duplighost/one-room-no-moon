@@ -5,7 +5,7 @@ import { TAU, BLOOM } from '../config.js';
 import { state } from '../state.js';
 import { clamp } from '../rng.js';
 import { view, cam, applyWorldTransform, uiTransform } from './camera.js';
-import { drawPlayer, drawEnemy, drawObstacle, roundRectPath, starPath, heartPath } from './sprites.js';
+import { drawPlayer, drawEnemy, drawObstacle, drawCare, roundRectPath, starPath, heartPath } from './sprites.js';
 import { drawParticles, drawFloats } from './particles.js';
 import { ENEMY_TYPES } from '../data/enemies.js';
 import { reduced } from '../systems/juice.js';
@@ -47,8 +47,10 @@ export function drawFrame() {
   ctx.globalAlpha = 1;
 
   drawHazardsUnder(room, pal);
+  drawMines(room);
   drawSpawnGlyphs(room);
   if (room.portal) drawPortal(room, pal);
+  if (room.care) for (const c of room.care) drawCare(ctx, c, pal);
   drawPickups(room, pal);
 
   // y-sorted entities
@@ -108,12 +110,16 @@ export function drawFrame() {
 function drawHazardsUnder(room, pal) {
   const t = performance.now() / 1000;
   for (const h of room.hazards) {
-    if (h.type === 'fog' || h.type === 'spore') {
+    if (h.type === 'fog' || h.type === 'spore' || h.type === 'lotus') {
       const g = ctx.createRadialGradient(h.x, h.y, h.r * 0.2, h.x, h.y, h.r);
-      g.addColorStop(0, hexA(h.color, h.type === 'spore' ? 0.22 : 0.16));
+      g.addColorStop(0, hexA(h.color, h.type === 'spore' ? 0.22 : h.type === 'lotus' ? 0.12 : 0.16));
       g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(h.x, h.y, h.r + Math.sin(t * 1.4 + h.phase) * 6, 0, TAU); ctx.fill();
+      if (h.type === 'lotus') {
+        ctx.strokeStyle = hexA(h.color, 0.4); ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(h.x, h.y, h.r * 0.96, 0, TAU); ctx.stroke();
+      }
       if (h.type === 'spore') {
         ctx.strokeStyle = hexA(h.color, 0.5); ctx.lineWidth = 1.4;
         ctx.beginPath(); ctx.arc(h.x, h.y, h.r * h.coreFrac, 0, TAU); ctx.stroke();
@@ -223,7 +229,41 @@ function drawPickups(room, pal) {
       const c = q.type === 'heart' ? '#ff8ea6' : '#f7d7ff';
       ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 12;
       heartPath(ctx, 0, 0, 11); ctx.fill();
+    } else if (q.type === 'core') {
+      ctx.strokeStyle = '#f3dcff'; ctx.shadowColor = '#f3dcff'; ctx.shadowBlur = 14;
+      ctx.lineWidth = 2.4;
+      ctx.rotate(t * 0.8);
+      ctx.strokeRect(-9, -9, 18, 18);
+      ctx.fillStyle = '#f3dcff';
+      ctx.beginPath(); ctx.arc(0, 0, 4, 0, TAU); ctx.fill();
+    } else if (q.type === 'amp' || q.type === 'rapid' || q.type === 'frame') {
+      const c = q.type === 'amp' ? '#ffbe73' : q.type === 'rapid' ? '#9fd2ff' : '#b6f69d';
+      ctx.fillStyle = c; ctx.shadowColor = c; ctx.shadowBlur = 11;
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-7, -7, 14, 14);
+      ctx.fillStyle = '#0a0d12';
+      ctx.font = '900 9px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.rotate(-Math.PI / 4);
+      ctx.fillText(q.type === 'amp' ? '+' : q.type === 'rapid' ? '»' : '↟', 0, 3);
     }
+    ctx.restore();
+  }
+}
+
+function drawMines(room) {
+  if (!room.mines) return;
+  const t = performance.now() / 1000;
+  for (const m of room.mines) {
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    const armed = m.arm <= 0;
+    ctx.fillStyle = armed ? '#ff8864' : '#7a4634';
+    ctx.shadowColor = '#ff8864';
+    ctx.shadowBlur = armed ? 10 + Math.sin(t * 8) * 5 : 0;
+    ctx.beginPath(); ctx.arc(0, 0, m.r, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#2a130a';
+    ctx.beginPath(); ctx.arc(0, 0, m.r * 0.4, 0, TAU); ctx.fill();
     ctx.restore();
   }
 }

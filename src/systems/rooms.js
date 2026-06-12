@@ -14,6 +14,8 @@ import { sfx } from '../audio/sfx.js';
 import { suppressInput } from '../ui/input.js';
 import { showDeath, hideOverlays, updateHud } from '../ui/overlays.js';
 import { hooks } from './items.js';
+import { openDraft } from './draft.js';
+import { dropPickup } from './pickups.js';
 
 export function startRun(seedText = Date.now()) {
   hooks.clear();
@@ -39,6 +41,7 @@ function applyRoom(room) {
   if (room.captainRound) {
     addFloat(room, room.w / 2, room.wall + 104, 'CAPTAINS IN THE ROOM', room.biome.pal.bad, true, 1.3);
   }
+  hooks.run('onRoomStart', room);
 }
 
 export function beginRound(n) {
@@ -66,6 +69,10 @@ export function clearRoom(room) {
   boon.progress++;
   if (boon.progress >= boon.need) { boon.progress = 0; boon.charges = Math.min(1, boon.charges + 1); }
   room.portal = { x: room.w / 2, y: room.h * 0.20, r: 55, t: 0 };
+  if (room.eventId === 'ambushNest') {
+    dropPickup(room, 'heart', room.portal.x, room.portal.y + 80);
+    addFloat(room, room.portal.x, room.portal.y + 60, 'NEST PAID OUT', '#ff8ea6');
+  }
   for (let i = 0; i < 40; i++) {
     const a = (i / 40) * Math.PI * 2, rr = 40 + Math.random() * 150;
     burst(room, room.portal.x, room.portal.y, room.biome.pal.accent3, 1, rr * 1.6, 0.75, 3);
@@ -94,9 +101,8 @@ export function updateRound(dt) {
 }
 
 function enterPortal() {
-  // Phase 4 inserts the draft here (portal → draft → transition).
   sfx('portal');
-  startTransition();
+  openDraft(() => startTransition());
 }
 
 export function startTransition() {
