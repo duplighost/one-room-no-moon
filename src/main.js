@@ -99,6 +99,11 @@ function frame(t) {
   last = t;
   state.frameTimes.push(raw);
   if (state.frameTimes.length > 120) state.frameTimes.shift();
+  // adaptive quality: sustained slow frames in play → shed bloom + particles (sticky)
+  if (!state.lowFx && state.mode === 'play' && state.frameTimes.length === 120) {
+    const avg = state.frameTimes.reduce((a, b) => a + b, 0) / 120;
+    if (avg > 0.024) state.lowFx = true;
+  }
 
   decayFx(raw);
   step(raw);
@@ -231,6 +236,7 @@ function installDebug(actions) {
         ok: small.length === 0,
         version: VERSION,
         frameP95ms: +(p95 * 1000).toFixed(2),
+        lowFx: state.lowFx,
         smallTargets: small,
         overflow: typeof document !== 'undefined' ? document.documentElement.scrollWidth - innerWidth : 0,
       };

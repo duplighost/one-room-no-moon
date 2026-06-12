@@ -70,7 +70,7 @@ export function drawFrame() {
   drawFloats(ctx, room);
 
   // bloom composite (No Moon recipe: half-res, screen blend)
-  if (!reduced() && bloomCanvas) {
+  if (!reduced() && !state.lowFx && bloomCanvas) {
     bloomCtx.setTransform(1, 0, 0, 1, 0, 0);
     bloomCtx.clearRect(0, 0, bloomCanvas.width, bloomCanvas.height);
     bloomCtx.drawImage(canvas, 0, 0, bloomCanvas.width, bloomCanvas.height);
@@ -98,6 +98,7 @@ export function drawFrame() {
   ctx.fillRect(0, 0, view.W, view.H);
 
   if (p && state.mode === 'play' && state.run?.oath !== 'blind') drawDangerTriangles(room, p);
+  if (room.portal) drawPortalArrow(room);
   drawBossBar(room);
   if (state.mode === 'play') { drawPad(moveTouch, '#7dfdff'); drawPad(aimTouch, '#ffd36e'); }
 
@@ -329,6 +330,32 @@ function drawPad(pad, color) {
     ctx.globalAlpha = 0.5;
     ctx.beginPath(); ctx.arc(pad.startX, pad.startY, 82, 0, TAU); ctx.stroke();
   }
+  ctx.restore();
+}
+
+// when the room is cleared and the portal is off-screen, point the way home
+function drawPortalArrow(room) {
+  const po = room.portal;
+  const sx = (po.x - cam.x) * view.scale, sy = (po.y - cam.y) * view.scale;
+  const margin = 46;
+  if (sx > margin && sx < view.W - margin && sy > margin && sy < view.H - margin) return;
+  const cx = clamp(sx, margin, view.W - margin), cy = clamp(sy, margin, view.H - margin);
+  const angle = Math.atan2(sy - view.H / 2, sx - view.W / 2);
+  const t = performance.now() / 1000;
+  const pal = room.biome.pal;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.globalAlpha = 0.7 + Math.sin(t * 5) * 0.25;
+  ctx.fillStyle = pal.accent3;
+  ctx.shadowColor = pal.accent3; ctx.shadowBlur = 14;
+  ctx.rotate(angle);
+  const s = 16;
+  ctx.beginPath();
+  ctx.moveTo(s, 0); ctx.lineTo(-s * 0.6, -s * 0.7); ctx.lineTo(-s * 0.25, 0); ctx.lineTo(-s * 0.6, s * 0.7);
+  ctx.closePath(); ctx.fill();
+  ctx.rotate(-angle);
+  starPath(ctx, -22 * Math.cos(angle), -22 * Math.sin(angle), 7, 3, 6);
+  ctx.fill();
   ctx.restore();
 }
 

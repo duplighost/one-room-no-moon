@@ -2,8 +2,12 @@
 import { CAPS, TAU } from '../config.js';
 import { view } from './camera.js';
 import { clamp } from '../rng.js';
+import { state } from '../state.js';
 
-export const budget = () => view.mobile ? CAPS.PARTICLES.mobile : CAPS.PARTICLES.desktop;
+export const budget = () => {
+  const base = view.mobile ? CAPS.PARTICLES.mobile : CAPS.PARTICLES.desktop;
+  return state.lowFx ? base >> 1 : base;
+};
 
 export function particle(room, x, y, color, vx, vy, life = 0.45, r = 3, kind = 'dot') {
   if (!room || room.particles.length > budget()) return;

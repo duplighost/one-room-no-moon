@@ -40,6 +40,7 @@ export const state = {
   transition: null,        // {timer, duration, title, sub, tag, swapped, onSwap}
   fx: { shake: 0, flash: 0, slowMo: 0, hitPause: 0 },
   frameTimes: [],          // ring buffer for selfTest
+  lowFx: false,            // adaptive quality: set when frames stay slow; drops bloom + halves particles
   oldMode: 'title',
 };
 

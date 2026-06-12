@@ -18,6 +18,25 @@ A 12-round auto-play stress harness (drives the real loop, picks random draft
 cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
 
+## Visual verification pass (real Chromium, headless)
+
+Performed with Playwright after Phase 7: zero page/console errors on desktop
+(1280×720) and mobile (390×844, touch) loads; `selfTest()` ok on both (no
+sub-44px tap targets, no overflow). Screenshots confirmed: title, round-1
+combat with telegraphs, Shardreef volatile shards + whisper line, draft cards,
+Graven Warden with boss bar + escorts, Crownworks with double active lane
+beams + Starved Floor mutator + full companion build, mobile portrait layout
+with danger triangles, death flow reached organically at round 17.
+
+Two findings, both fixed:
+1. **Off-screen portal had no pointer** → cleared rooms now draw a pulsing
+   portal arrow + star at the screen edge (suppressed only by screen bounds,
+   not by the Blind oath — finding the door isn't the oath's business).
+2. **Bloom is the expensive draw** (confirmed: p95 50ms → 16.8ms without it
+   under software rendering) → adaptive quality gate: if average frame time
+   stays >24ms across 120 frames of play, `state.lowFx` flips (sticky for the
+   session) — bloom off, particle budget halved. `selfTest()` reports it.
+
 ## What needs human eyes (open items for the next playtest)
 
 1. **The fun bars.** Phase 1's "60 seconds is fun" and Phase 2's "10 consecutive
