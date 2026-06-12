@@ -5,7 +5,7 @@ import { TAU, BLOOM } from '../config.js';
 import { state } from '../state.js';
 import { clamp } from '../rng.js';
 import { view, cam, applyWorldTransform, uiTransform } from './camera.js';
-import { drawPlayer, drawEnemy, drawObstacle, drawCare, roundRectPath, starPath, heartPath } from './sprites.js';
+import { drawPlayer, drawEnemy, drawObstacle, drawCare, roundRectPath, starPath, heartPath, bossCards } from './sprites.js';
 import { drawParticles, drawFloats } from './particles.js';
 import { ENEMY_TYPES } from '../data/enemies.js';
 import { reduced } from '../systems/juice.js';
@@ -97,6 +97,7 @@ export function drawFrame() {
   ctx.fillRect(0, 0, view.W, view.H);
 
   if (p && state.mode === 'play') drawDangerTriangles(room, p);
+  drawBossBar(room);
 
   if (state.fx.flash > 0) {
     ctx.fillStyle = `rgba(255,235,245,${clamp(state.fx.flash * 0.5, 0, 0.5)})`;
@@ -312,6 +313,27 @@ function drawDangerTriangles(room, p) {
   }
 }
 
+function drawBossBar(room) {
+  const boss = room.enemies.find(e => e.boss && e.hp > 0);
+  if (!boss) return;
+  const w = Math.min(420, view.W * 0.6), h = 10;
+  const x = (view.W - w) / 2, y = 64;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = '900 14px Inter, system-ui, sans-serif';
+  ctx.fillStyle = boss.color;
+  ctx.shadowColor = boss.color; ctx.shadowBlur = 12;
+  ctx.fillText(boss.display.toUpperCase(), view.W / 2, y - 8);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(0,0,0,.5)';
+  ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+  ctx.fillStyle = boss.color;
+  ctx.fillRect(x, y, w * clamp(boss.hp / boss.maxHp, 0, 1), h);
+  ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1;
+  ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+  ctx.restore();
+}
+
 // ── transition (Boon Moots' three-beat fade, index.html:928-948) ────────────
 function drawTransition() {
   const t = state.transition;
@@ -326,6 +348,11 @@ function drawTransition() {
     ctx.save();
     ctx.globalAlpha = a;
     ctx.textAlign = 'center';
+    if (t.bossId && bossCards[t.bossId]?.ready) {
+      const card = bossCards[t.bossId].img;
+      const ch = Math.min(220, view.H * 0.32), cw = ch * (card.width / Math.max(1, card.height));
+      ctx.drawImage(card, view.W / 2 - cw / 2, view.H / 2 - ch - 52, cw, ch);
+    }
     ctx.fillStyle = '#fff7ff';
     ctx.font = '900 42px Inter, system-ui, sans-serif';
     ctx.fillText(t.title, view.W / 2, view.H / 2 - 8);

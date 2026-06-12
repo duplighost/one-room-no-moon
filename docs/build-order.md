@@ -88,15 +88,15 @@ especially don't start Phase 3 content breadth before Phase 2's variety bar pass
 
 ## Phase 5 — Bosses, route, win
 
-- [ ] Boss framework: intro card (webp art from `assets/bosses/`), boss bar,
+- [x] Boss framework: intro card (webp art from `assets/bosses/`), boss bar,
       arena enforcement (ring/crossroads), summon rings with placement rules
-- [ ] R10 Graven Warden + R20 Null Archon to full No Moon spec; R5 False Moon +
+- [x] R10 Graven Warden + R20 Null Archon to full No Moon spec; R5 False Moon +
       R15 Spiggot minibosses (one signature pattern each, ~40% boss HP)
-- [ ] Route win at R20: tally screen, "ROUTE BURNT OPEN" beat → Overdrive ∞
+- [x] Route win at R20: tally screen, "ROUTE BURNT OPEN" beat → Overdrive ∞
       (uncapped danger slope, ×1.35 score, boss every 5, full biome bag)
-- [ ] Death/restart flow: one-tap Run it back; score/speed/no-hit bonuses final;
-      bests + daily best persisted
-- [ ] **Bar:** full route is beatable by a competent run (~20–25 min); Warden and
+- [x] Death/restart flow: one-tap Run it back; score/speed/no-hit bonuses final;
+      bests persisted (daily-best line ships with the daily mode in Phase 6)
+- [x] **Bar:** full route is beatable by a competent run (~20–25 min); Warden and
       Archon phases match the No Moon spec; Overdrive scales until death.
 
 ## Phase 6 — Meta, audio, mobile, voice

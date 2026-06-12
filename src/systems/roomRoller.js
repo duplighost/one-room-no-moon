@@ -13,6 +13,7 @@ import { view } from '../render/camera.js';
 import { ANNEX } from '../config.js';
 import { rollEvent } from './events.js';
 import { stacks } from './items.js';
+import { bossForRound } from './bosses.js';
 
 export function rollRoom(run, round) {
   const rng = run.rng;
@@ -37,20 +38,21 @@ export function rollRoom(run, round) {
     const r = bags.recipe.deal(rng);
     if (avail.includes(r)) { recipeId = r; break; }
   }
-  const layoutId = bags.layout.deal(rng);
+  const bossId = bossForRound(round, run.overdrive);
+  const layoutId = bossId ? pick(rng, ['ring', 'crossroads']) : bags.layout.deal(rng);
 
   const portrait = view.mobile && view.portrait;
   const room = {
     round, idx: depthIdx(round), stage: dangerStage(round, run.overdrive),
-    biome, layoutId, recipeId, mutatorId: null, eventId: null,
-    w: Math.round(rand(rng, 1380, 1560)),
-    h: Math.round(portrait ? rand(rng, 1400, 1520) : rand(rng, 980, 1100)),
+    biome, layoutId, recipeId, mutatorId: null, eventId: null, bossId,
+    w: Math.round(rand(rng, bossId ? 1480 : 1380, bossId ? 1620 : 1560)),
+    h: Math.round(portrait ? rand(rng, 1400, 1520) : rand(rng, bossId ? 1040 : 980, bossId ? 1140 : 1100)),
     wall: ROOM.WALL,
     obstacles: [], annex: null, hazards: [], lanes: [],
     enemies: [], bullets: [], pickups: [], particles: [], floats: [],
     ambient: [], spawnQueue: [], pendingWaves: null,
     cleared: false, clearT: 0, portal: null, time: 0,
-    background: null, captainRound: false,
+    background: null,
   };
   const px = room.w / 2, py = room.h * 0.66; // player spawn
 
@@ -109,7 +111,7 @@ export function rollRoom(run, round) {
 
   // ── sealed annex (one-room version of No Moon's secret pockets) ──
   const compass = stacks(run.player, 'cacheCompass');
-  if (chance(rng, ANNEX.CHANCE + compass * 0.12)) buildAnnex(room, rng);
+  if (!bossId && chance(rng, ANNEX.CHANCE + compass * 0.12)) buildAnnex(room, rng);
 
   // ── axis 3: hazard kit ──
   seedHazards(room, rng);

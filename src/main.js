@@ -157,7 +157,8 @@ function installDebug(actions) {
         hazards: state.room.hazards.length, lanes: state.room.lanes.length,
         particles: state.room.particles.length, cleared: state.room.cleared,
         annex: state.room.annex ? state.room.annex.kind : null,
-        captainRound: state.room.captainRound,
+        bossId: state.room.bossId, eventId: state.room.eventId,
+        overdrive: state.run?.overdrive || false,
       } : null,
       save: { bestScore: state.save.bestScore, bestRound: state.save.bestRound, sparks: state.save.sparks, runs: state.save.runs },
     }),
@@ -189,12 +190,14 @@ function installDebug(actions) {
           stage: r.stage, obstacles: r.obstacles.length,
           hazards: r.hazards.length + r.lanes.length,
           waves: r.pendingWaves?.length || 0, annex: r.annex?.kind || null,
+          boss: r.bossId || null, event: r.eventId || null,
         });
       }
       let repeats = 0;
       for (let i = 1; i < out.length; i++) {
         if (out[i].biome === out[i - 1].biome) repeats++;
-        if (out[i].layout === out[i - 1].layout) repeats++;
+        // boss arenas force ring/crossroads outside the bag — exempt from the audit
+        if (!out[i].boss && !out[i - 1].boss && out[i].layout === out[i - 1].layout) repeats++;
       }
       return { rooms: out, consecutiveRepeats: repeats };
     },

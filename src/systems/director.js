@@ -7,6 +7,7 @@ import { CAPS, DIRECTOR } from '../config.js';
 import { clamp, dist, rand, randi, weightedPick, chance } from '../rng.js';
 import { ENEMY_TYPES, POOL_WEIGHTS, CAPTAINS } from '../data/enemies.js';
 import { spawnTelegraphed } from './enemies.js';
+import { makeBoss } from './bosses.js';
 import { addFloat } from '../render/particles.js';
 import { addPulseHazard, addSlowFog } from './hazards.js';
 import { view } from '../render/camera.js';
@@ -16,7 +17,7 @@ export const dangerStage = (round, overdrive) => {
   return overdrive ? s : Math.min(DIRECTOR.STAGE_CAP, s);
 };
 export const depthIdx = (round) => Math.min(9, Math.floor((round - 1) / 2));
-export const isCaptainRound = (round) => round % 5 === 0; // boss fights proper land in Phase 5
+export const isBossRound = (round) => round % 5 === 0;
 
 // Recipes: weight multipliers over the base pool + density hints for the roller.
 export const RECIPES = {
@@ -48,7 +49,7 @@ function buildPool(round, recipe) {
 
 export function rollComposition(rng, round, recipe, overdrive) {
   const stage = dangerStage(round, overdrive);
-  let budget = 5 + round * 1.3 + stage + (isCaptainRound(round) ? 3 : 0) + (RECIPES[recipe]?.countAdj || 0);
+  let budget = 5 + round * 1.3 + stage + (RECIPES[recipe]?.countAdj || 0);
   const cap = view.mobile ? CAPS.ENEMIES.mobile : CAPS.ENEMIES.desktop;
   const pool = buildPool(round, recipe);
   const list = [];
@@ -92,6 +93,27 @@ function spawnPoints(room, rng, n) {
 
 export function buildWaves(room, rng) {
   const round = room.round;
+
+  if (room.bossId) {
+    // boss arena: the boss is present as the room reveals; two escort waves follow
+    room.enemies.push(makeBoss(room.bossId, room));
+    const escortPool = room.biome.bias.filter(t => ENEMY_TYPES[t] && ENEMY_TYPES[t].from <= round);
+    const escorts = escortPool.length ? escortPool : ['skitter'];
+    room.pendingWaves = [];
+    for (const at of [5, 8.5]) {
+      const clusters = spawnPoints(room, rng, 2);
+      const n = 2 + Math.floor(room.stage * 0.5);
+      room.pendingWaves.push({
+        at, fired: false,
+        spawns: Array.from({ length: n }, (_, i) => {
+          const c = clusters[i % clusters.length];
+          return { type: escorts[i % escorts.length], x: c.x + rand(rng, -60, 60), y: c.y + rand(rng, -50, 50), delay: i * 0.15 };
+        }),
+      });
+    }
+    return;
+  }
+
   const comp = rollComposition(rng, round, room.recipeId, state.run.overdrive);
   const splitAt = Math.max(2, Math.round(comp.length * DIRECTOR.REINFORCE_AT));
   const first = comp.slice(0, splitAt);
@@ -115,21 +137,13 @@ export function buildWaves(room, rng) {
   // captain promotion (No Moon odds by depth, game_inline.js:14813-14826)
   const idx = room.idx;
   const baseChance = idx <= 1 ? 0.02 : idx <= 4 ? 0.07 : idx <= 7 ? 0.11 : 0.14;
-  const forced = isCaptainRound(round) ? 2 : 0;
-  let promoted = 0;
-  const allSpawns = firstSpawns;
-  for (const s of allSpawns) {
-    if (promoted >= (forced || 1)) break;
-    if (forced ? true : chance(rng, baseChance)) {
-      const eligible = CAPTAINS.filter(c => c.hosts.includes(s.type));
-      if (!eligible.length) continue;
-      const affix = eligible[Math.floor(rng() * eligible.length)];
-      s.captain = (e) => applyCaptain(e, affix);
-      promoted++;
-    }
-  }
-  if (isCaptainRound(round)) {
-    room.captainRound = true;
+  for (const s of firstSpawns) {
+    if (!chance(rng, baseChance)) continue;
+    const eligible = CAPTAINS.filter(c => c.hosts.includes(s.type));
+    if (!eligible.length) continue;
+    const affix = eligible[Math.floor(rng() * eligible.length)];
+    s.captain = (e) => applyCaptain(e, affix);
+    break; // one captain per room
   }
 }
 

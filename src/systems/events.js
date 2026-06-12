@@ -24,7 +24,7 @@ const EVENTS = [
 
 export function rollEvent(room, rng) {
   const run = state.run;
-  if (room.captainRound) return; // boss-cadence rounds stay clean
+  if (room.bossId) return; // boss arenas stay clean
   run.sinceEvent = run.sinceEvent ?? 99;
   const force = run.sinceEvent >= 3;
   if (!force && !chance(rng, 0.45)) { run.sinceEvent++; return; }

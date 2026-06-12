@@ -12,7 +12,7 @@ import { addFloat, burst } from '../render/particles.js';
 import { snapCamera } from '../render/camera.js';
 import { sfx } from '../audio/sfx.js';
 import { suppressInput } from '../ui/input.js';
-import { showDeath, hideOverlays, updateHud } from '../ui/overlays.js';
+import { showDeath, showOverlay, hideOverlays, updateHud } from '../ui/overlays.js';
 import { hooks } from './items.js';
 import { openDraft } from './draft.js';
 import { dropPickup } from './pickups.js';
@@ -38,8 +38,9 @@ function applyRoom(room) {
   suppressInput(160);
   snapCamera();
   addFloat(room, room.w / 2, room.wall + 64, room.biome.mech, room.biome.pal.accent3, true, 1.2);
-  if (room.captainRound) {
-    addFloat(room, room.w / 2, room.wall + 104, 'CAPTAINS IN THE ROOM', room.biome.pal.bad, true, 1.3);
+  if (room.bossId) {
+    const boss = room.enemies.find(e => e.boss);
+    if (boss) addFloat(room, room.w / 2, room.wall + 110, boss.display.toUpperCase() + ' HOLDS THE ROOM', room.biome.pal.bad, true, 1.6);
   }
   hooks.run('onRoomStart', room);
 }
@@ -64,10 +65,10 @@ export function clearRoom(room) {
   }
   vacuumSparks(room);
   sfx('clear');
-  // boon reroll lacing (full reroll lands with the draft in Phase 4)
   const boon = p.boon;
-  boon.progress++;
+  boon.progress += room.bossId ? boon.need : 1; // bosses pay full lacing
   if (boon.progress >= boon.need) { boon.progress = 0; boon.charges = Math.min(1, boon.charges + 1); }
+  if (room.bossId === 'archon' && !state.run.overdrive && !state.run.won) routeWin();
   room.portal = { x: room.w / 2, y: room.h * 0.20, r: 55, t: 0 };
   if (room.eventId === 'ambushNest') {
     dropPickup(room, 'heart', room.portal.x, room.portal.y + 80);
@@ -109,10 +110,11 @@ export function startTransition() {
   const run = state.run;
   const next = rollRoom(run, run.round + 1);
   state.transition = {
-    timer: 0, duration: 1.4, swapped: false, next,
-    title: next.biome.name,
+    timer: 0, duration: next.bossId ? 2.0 : 1.4, swapped: false, next,
+    title: next.bossId ? (next.enemies.find(e => e.boss)?.display || next.biome.name) : next.biome.name,
     sub: 'round ' + (run.round + 1) + (run.overdrive ? ' ∞' : ''),
-    tag: next.biome.mech,
+    tag: next.bossId ? next.biome.name : next.biome.mech,
+    bossId: next.bossId,
   };
   state.mode = 'transition';
 }
@@ -131,6 +133,24 @@ export function updateTransition(raw) {
     state.transition = null;
     state.mode = 'play';
   }
+}
+
+function routeWin() {
+  const run = state.run;
+  run.won = true;
+  run.overdrive = true;
+  state.save.lifetime.wins++;
+  bankBests();
+  state.oldMode = 'play';
+  state.mode = 'pause'; // freeze the world under the overlay; portal waits
+  showOverlay(
+    'ROUTE BURNT OPEN',
+    `The throne cracked. Score ${Math.floor(run.score).toLocaleString()} · round ${run.round}. ` +
+    'The room does not stop. It just stops pretending there was a bottom.',
+    [['Descend deeper ∞', () => { hideOverlays(); state.mode = 'play'; }],
+     ['Run it back', () => startRun()]],
+    'overdrive: ×1.35 score · the whole biome deck · no ceiling',
+  );
 }
 
 export function die() {

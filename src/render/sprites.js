@@ -4,6 +4,7 @@ import { clamp } from '../rng.js';
 import { dashSpinPhase } from '../systems/player.js';
 
 export const moots = { img: null, ready: false };
+export const bossCards = {}; // bossId -> {img, ready}
 
 export function loadSprites() {
   if (typeof Image === 'undefined') return;
@@ -11,6 +12,14 @@ export function loadSprites() {
   img.onload = () => { moots.ready = true; };
   img.src = './assets/moots.webp';
   moots.img = img;
+  for (const [id, file] of Object.entries({
+    falseMoon: 'false-moon-card', warden: 'warden-card', spiggot: 'spiggot-card', archon: 'archon-card',
+  })) {
+    const card = new Image();
+    bossCards[id] = { img: card, ready: false };
+    card.onload = () => { bossCards[id].ready = true; };
+    card.src = `./assets/bosses/${file}.webp`;
+  }
 }
 
 function shadow(ctx, x, y, w, h, a) {
@@ -273,6 +282,46 @@ export function drawEnemy(ctx, e, room) {
       ctx.beginPath();
       ctx.moveTo(e.r * 0.95, 0); ctx.lineTo(-e.r * 0.5, -e.r * 0.6); ctx.lineTo(-e.r * 0.2, 0); ctx.lineTo(-e.r * 0.5, e.r * 0.6);
       ctx.closePath(); ctx.fill();
+      break;
+    }
+    case 'boss': {
+      const t = performance.now() / 1000;
+      ctx.shadowBlur = 26;
+      ctx.strokeStyle = body; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, e.r * 0.72, 0, TAU); ctx.stroke();
+      ctx.fillStyle = body; ctx.globalAlpha = 0.22;
+      ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+      if (e.bossId === 'archon' || e.bossId === 'falseMoon') {
+        ctx.save(); ctx.rotate(t * 0.18);
+        ctx.fillStyle = body;
+        starPath(ctx, 0, 0, e.r * 0.52, e.r * 0.22, 6); ctx.fill();
+        ctx.restore();
+        for (let k = 0; k < 4; k++) {
+          const a = t * 0.6 + (k / 4) * TAU;
+          ctx.beginPath(); ctx.arc(Math.cos(a) * e.r * 0.86, Math.sin(a) * e.r * 0.86, 4, 0, TAU);
+          ctx.fillStyle = body; ctx.fill();
+        }
+      } else if (e.bossId === 'spiggot') {
+        ctx.fillStyle = body;
+        ctx.beginPath(); ctx.ellipse(0, -e.r * 0.18, e.r * 0.5, e.r * 0.34, 0, Math.PI, TAU); ctx.fill();
+        ctx.strokeStyle = body; ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, e.r * 0.5); ctx.stroke();
+        for (let k = 0; k < 5; k++) {
+          const a = t * 0.9 + (k / 5) * TAU;
+          ctx.beginPath(); ctx.arc(Math.cos(a) * e.r * 0.6, Math.sin(a) * e.r * 0.6, 3, 0, TAU); ctx.fill();
+        }
+      } else { // warden
+        ctx.save(); ctx.rotate(Math.atan2(e.vy, e.vx));
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.moveTo(e.r * 0.55, 0); ctx.lineTo(-e.r * 0.2, -e.r * 0.3); ctx.lineTo(-e.r * 0.2, e.r * 0.3);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+        ctx.beginPath(); ctx.moveTo(0, -e.r * 1.05); ctx.lineTo(-7, -e.r * 0.8); ctx.lineTo(7, -e.r * 0.8); ctx.closePath();
+        ctx.fillStyle = body; ctx.fill();
+      }
       break;
     }
     default: {

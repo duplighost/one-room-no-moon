@@ -29,6 +29,11 @@ export function damageEnemy(e, dmg, kx = 0, ky = 0, kind = 'shot') {
 export function killEnemy(e) {
   const room = state.room, run = state.run, p = run.player;
   e.hp = 0;
+  if (e.boss && room.pendingWaves) {
+    // the head dies, the summons stop coming (live escorts still fight)
+    for (const w of room.pendingWaves) w.fired = true;
+    room.spawnQueue.length = 0;
+  }
   killScore(e);
   p.pulse = Math.min(100, p.pulse + (e.boss ? PLAYER.PULSE_PER_BOSS : PLAYER.PULSE_PER_KILL) * p.pulseGain);
   // spark scatter (meta currency + pulse food)

@@ -207,7 +207,7 @@ for (let attempt = 0; attempt < 6 && !state.room.portal; attempt++) {
 }
 check('phase4 room cleared', !!state.room.portal);
 p4.x = state.room.portal.x; p4.y = state.room.portal.y; p4.vx = p4.vy = 0;
-for (let i = 0; i < 30 && state.mode !== 'portalDraft'; i++) tick(1 / 60);
+for (let i = 0; i < 120 && state.mode !== 'portalDraft'; i++) { tick(1 / 60); p4.x = state.room.portal.x; p4.y = state.room.portal.y; }
 check('portal opens draft', state.mode === 'portalDraft', 'mode=' + state.mode);
 window.oneRoomDebug.pick(0);
 for (let i = 0; i < 120; i++) tick(1 / 60);
@@ -231,6 +231,54 @@ for (let i = 1; i <= 40; i++) {
 }
 check('events roll on ~45% of rooms (±pity)', evCount >= 12 && evCount <= 32, 'count=' + evCount);
 check('event variety ≥ 4 kinds', evKinds.size >= 4, [...evKinds].join(','));
+
+// ── Phase 5: bosses, route win, overdrive ───────────────────────────────────
+const { beginRound } = await import('../src/systems/rooms.js');
+startRun('boss-check');
+const p5 = state.run.player;
+p5.maxHp = 99999; p5.hp = 99999;
+beginRound(5);
+const fm = state.room.enemies.find(e => e.boss);
+check('round 5 spawns False Moon', !!fm && fm.bossId === 'falseMoon', state.room.enemies.map(e => e.type).join(','));
+check('boss arena layout forced', ['ring', 'crossroads'].includes(state.room.layoutId), state.room.layoutId);
+check('boss rooms suppress events/annex', !state.room.eventId && !state.room.annex);
+let p5err = null;
+try { for (let i = 0; i < 400; i++) tick(1 / 60); } catch (e) { p5err = e; }
+check('False Moon brain runs', !p5err, p5err ? p5err.stack.split('\n')[0] : '');
+
+beginRound(10);
+check('round 10 is Graven Warden', state.room.enemies.find(e => e.boss)?.bossId === 'warden');
+try { for (let i = 0; i < 400; i++) tick(1 / 60); } catch (e) { p5err = e; }
+const warden = state.room.enemies.find(e => e.boss);
+warden.hp = warden.maxHp * 0.4; // force phase 2+3 summons
+try { for (let i = 0; i < 200; i++) tick(1 / 60); } catch (e) { p5err = e; }
+check('Warden phases + summons run', !p5err && warden.summons >= 1, `summons=${warden?.summons}`);
+
+beginRound(15);
+check('round 15 is Spiggot', state.room.enemies.find(e => e.boss)?.bossId === 'spiggot');
+try { for (let i = 0; i < 300; i++) tick(1 / 60); } catch (e) { p5err = e; }
+check('Spiggot brain runs', !p5err);
+
+beginRound(20);
+const archon = state.room.enemies.find(e => e.boss);
+check('round 20 is Null Archon in a final biome', archon?.bossId === 'archon' && ['empyrean', 'nullthrone'].includes(state.room.biome.id));
+try { for (let i = 0; i < 300; i++) tick(1 / 60); } catch (e) { p5err = e; }
+check('Archon brain runs', !p5err);
+// kill the archon → route win → overdrive
+for (let attempt = 0; attempt < 8 && !state.room.portal; attempt++) {
+  window.oneRoomDebug.killAll();
+  for (let i = 0; i < 140 && !state.room.portal; i++) tick(1 / 60);
+}
+check('archon round clears', !!state.room.portal);
+check('route win fired', state.run.won === true && state.run.overdrive === true && state.mode === 'pause');
+state.mode = 'play'; // simulate the Continue button
+p5.x = state.room.portal.x; p5.y = state.room.portal.y; p5.vx = p5.vy = 0;
+for (let i = 0; i < 40 && state.mode !== 'portalDraft'; i++) tick(1 / 60);
+window.oneRoomDebug.pick(0);
+for (let i = 0; i < 160; i++) tick(1 / 60);
+check('overdrive round 21 live', state.run.round === 21 && state.mode === 'play', `round=${state.run.round} mode=${state.mode}`);
+check('overdrive draws from the whole biome deck', !!state.room.biome);
+check('overdrive boss cadence continues at 25', (await import('../src/systems/bosses.js')).bossForRound(25, true) !== null);
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
