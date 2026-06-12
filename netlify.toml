@@ -1,0 +1,19 @@
+# One Room No Moon — Netlify config.
+# Publishes the dist/ folder only (the game: index.html + src + assets).
+# reference/, docs/, and tests/ stay out of the deploy on purpose —
+# reference/ holds full copies of the parent games that already live on the
+# main site. Build dist with: node tools/make-dist.mjs
+
+[build]
+  publish = "dist"
+  command = "node tools/make-dist.mjs"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
