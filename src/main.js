@@ -1,0 +1,211 @@
+// Boot + frame loop + mode state machine + debug API.
+import { state, saveNow } from './state.js';
+import { decayFx } from './systems/juice.js';
+import { resize, updateCamera, view } from './render/camera.js';
+import { initDraw, drawFrame } from './render/draw.js';
+import { loadSprites } from './render/sprites.js';
+import { updateParticles } from './render/particles.js';
+import { initInput, getMove, getAim, suppressInput } from './ui/input.js';
+import {
+  initOverlays, showTitle, showPause, wirePauseButtons, wireSfxButton,
+  hideOverlays, updateHud, setSfxLabels,
+} from './ui/overlays.js';
+import { updatePlayer } from './systems/player.js';
+import { updateEnemies, updateSpawnQueue } from './systems/enemies.js';
+import { updateBullets } from './systems/bullets.js';
+import { updateHazards } from './systems/hazards.js';
+import { updatePickups } from './systems/pickups.js';
+import { tickDirector } from './systems/director.js';
+import { tickCombo } from './systems/score.js';
+import { startRun, updateRound, updateTransition, beginRound } from './systems/rooms.js';
+import { ensure as ensureAudio, toggleSfx, sfx } from './audio/sfx.js';
+import { rollRoom } from './systems/roomRoller.js';
+import { damageEnemy } from './systems/combat.js';
+import { FX, VERSION } from './config.js';
+
+let canvas, bloomCanvas, last = 0;
+
+export function boot() {
+  canvas = document.getElementById('game');
+  bloomCanvas = document.createElement('canvas');
+  initDraw(canvas, bloomCanvas);
+  resize(canvas, bloomCanvas);
+  addEventListener('resize', () => resize(canvas, bloomCanvas), { passive: true });
+  loadSprites();
+  initOverlays();
+
+  const actions = {
+    start: () => { ensureAudio(); startRun(); updateHud(); },
+    pause: togglePause,
+    toggleSfx: () => { toggleSfx(); setSfxLabels(); },
+    firstInteract: () => ensureAudio(),
+  };
+  initInput(canvas, actions);
+  wirePauseButtons(togglePause, actions.toggleSfx);
+  wireSfxButton(actions.toggleSfx);
+  showTitle(actions.start);
+  updateHud();
+  installDebug(actions);
+
+  addEventListener('pagehide', finalSave);
+  addEventListener('beforeunload', finalSave);
+
+  last = performance.now();
+  requestAnimationFrame(frame);
+}
+
+function togglePause() {
+  if (state.mode === 'pause') {
+    state.mode = state.oldMode || 'play';
+    showPause(false);
+  } else if (state.mode === 'play') {
+    state.oldMode = state.mode;
+    state.mode = 'pause';
+    showPause(true, state.save.settings.sfx ? 'sfx on' : 'sfx off');
+  }
+}
+
+function finalSave() {
+  if (state.run) {
+    state.save.bestScore = Math.max(state.save.bestScore || 0, Math.floor(state.run.score));
+    state.save.bestRound = Math.max(state.save.bestRound || 0, state.run.round);
+  }
+  saveNow();
+}
+
+function frame(t) {
+  const raw = Math.min(0.05, Math.max(0.0005, (t - last) / 1000));
+  last = t;
+  state.frameTimes.push(raw);
+  if (state.frameTimes.length > 120) state.frameTimes.shift();
+
+  decayFx(raw);
+  step(raw);
+  drawFrame();
+  updateHud();
+  requestAnimationFrame(frame);
+}
+
+export function step(raw) {
+  const room = state.room;
+  switch (state.mode) {
+    case 'play': {
+      if (!state.run || !room) break;
+      if (state.fx.hitPause > 0) {
+        updateParticles(room, raw * 0.55);
+        break;
+      }
+      const dt = Math.min(0.033, raw) * (state.fx.slowMo > 0 ? FX.SLOWMO_SCALE : 1);
+      const move = getMove(), aim = getAim();
+      const p = state.run.player;
+      updatePlayer(p, move, aim, room, dt);
+      updateSpawnQueue(room, dt);
+      tickDirector(room, dt);
+      updateEnemies(room, dt);
+      updateBullets(room, dt);
+      updateHazards(room, dt);
+      updatePickups(room, dt);
+      updateParticles(room, raw);
+      tickCombo(raw);
+      updateRound(dt);
+      updateCamera(dt);
+      break;
+    }
+    case 'transition': {
+      if (room) {
+        updateParticles(room, raw);
+        updateCamera(Math.min(0.033, raw));
+      }
+      updateTransition(raw);
+      break;
+    }
+    default: {
+      if (room) updateParticles(room, raw);
+    }
+  }
+}
+
+// ── console verification API (Boon Moots' passengerTactile* pattern) ─────────
+function installDebug(actions) {
+  if (typeof window === 'undefined') return;
+  window.oneRoomDebug = {
+    version: VERSION,
+    state: () => ({
+      version: VERSION, mode: state.mode,
+      view: { W: view.W, H: view.H, dpr: view.DPR, mobile: view.mobile, scale: view.scale },
+      run: state.run ? {
+        seed: state.run.seedText, round: state.run.round,
+        score: Math.floor(state.run.score), combo: +state.run.combo.toFixed(2),
+        kills: state.run.kills, hp: state.run.player?.hp, maxHp: state.run.player?.maxHp,
+        pulse: Math.floor(state.run.player?.pulse || 0),
+      } : null,
+      room: state.room ? {
+        round: state.room.round, biome: state.room.biome.id, layout: state.room.layoutId,
+        recipe: state.room.recipeId, stage: state.room.stage,
+        enemies: state.room.enemies.length, queued: state.room.spawnQueue.length,
+        bullets: state.room.bullets.length, obstacles: state.room.obstacles.filter(o => !o.gone).length,
+        hazards: state.room.hazards.length, lanes: state.room.lanes.length,
+        particles: state.room.particles.length, cleared: state.room.cleared,
+        annex: state.room.annex ? state.room.annex.kind : null,
+        captainRound: state.room.captainRound,
+      } : null,
+      save: { bestScore: state.save.bestScore, bestRound: state.save.bestRound, sparks: state.save.sparks, runs: state.save.runs },
+    }),
+    start: (seed) => { actions.start ? (seed != null ? startRun(seed) : startRun()) : startRun(seed); updateHud(); return window.oneRoomDebug.state(); },
+    skipRound: () => {
+      if (!state.run) startRun();
+      else { hideOverlays(); state.mode = 'play'; state.transition = null; beginRound(state.run.round + 1); }
+      return window.oneRoomDebug.state();
+    },
+    killAll: () => {
+      const room = state.room;
+      if (!room) return null;
+      room.spawnQueue.length = 0;
+      if (room.pendingWaves) for (const w of room.pendingWaves) w.fired = true;
+      for (const e of room.enemies.slice()) damageEnemy(e, 99999, 0, 0, 'shot');
+      return window.oneRoomDebug.state();
+    },
+    // headless variety audit: generate n rooms, return axis summaries
+    roll: (n = 20) => {
+      if (!state.run) startRun('audit');
+      const out = [];
+      const run = state.run;
+      for (let i = 1; i <= n; i++) {
+        const r = rollRoom(run, i);
+        out.push({
+          round: i, biome: r.biome.id, layout: r.layoutId, recipe: r.recipeId,
+          stage: r.stage, obstacles: r.obstacles.length,
+          hazards: r.hazards.length + r.lanes.length,
+          waves: r.pendingWaves?.length || 0, annex: r.annex?.kind || null,
+        });
+      }
+      let repeats = 0;
+      for (let i = 1; i < out.length; i++) {
+        if (out[i].biome === out[i - 1].biome) repeats++;
+        if (out[i].layout === out[i - 1].layout) repeats++;
+      }
+      return { rooms: out, consecutiveRepeats: repeats };
+    },
+    selfTest: () => {
+      const small = [];
+      if (typeof document !== 'undefined') {
+        for (const n of document.querySelectorAll('button')) {
+          const r = n.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0 && (r.width < 44 || r.height < 44)) {
+            small.push({ text: (n.textContent || '').trim().slice(0, 30), w: Math.round(r.width), h: Math.round(r.height) });
+          }
+        }
+      }
+      const times = state.frameTimes.slice().sort((a, b) => a - b);
+      const p95 = times.length ? times[Math.floor(times.length * 0.95)] : 0;
+      return {
+        ok: small.length === 0,
+        version: VERSION,
+        frameP95ms: +(p95 * 1000).toFixed(2),
+        smallTargets: small,
+        overflow: typeof document !== 'undefined' ? document.documentElement.scrollWidth - innerWidth : 0,
+      };
+    },
+    sfxTest: () => { sfx('kill'); return 'played kill'; },
+  };
+}

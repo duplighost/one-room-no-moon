@@ -1,0 +1,65 @@
+// All tuning lives here. Feel constants come from Boon Moots v50; content stats
+// come from No Moon. Anchors refer to docs/ inventories.
+
+export const TAU = Math.PI * 2;
+export const SAVE_KEY = 'oneRoomNoMoon.v1';
+export const VERSION = '0.2.0';
+
+export const ROOM = {
+  W: 1500, H: 1050, H_PORTRAIT: 1480,
+  WALL: 56,                 // playfield inset
+  SPAWN_CLEAR: 260,         // radius around player spawn kept obstacle-free
+};
+
+export const PLAYER = {
+  R: 20, MAX_HP: 6,
+  SPEED: 304, ACCEL: 24.5, STOP: 37.5, TURN: 30, LATERAL: 13.5,
+  MAX_SPEED_MULT: 1.055, DASH_SPEED_MULT: 4.65,
+  FIRE_DELAY: 0.20, DAMAGE: 0.88, SHOT_MULT: 0.78, SHOT_SPEED: 860,
+  SHOT_R: 4.2, SHOT_LIFE: 0.82, TWIN_OFFSET: 7, MUZZLE_Y: -30,
+  CRIT: 0.03, CRIT_MULT: 1.8,
+  DASH_IMPULSE: 1325, DASH_DUR: 0.295, DASH_CD: 0.43, DASH_IFRAMES: 0.36,
+  DASH_HIT_RANGE: 124, DASH_HIT_MULT: 0.73, DASH_KNOCK: 390,
+  PULSE_RADIUS: 305, PULSE_MULT: 2.2, PULSE_GAIN_RATE: 4.8,
+  PULSE_PER_KILL: 5.2, PULSE_PER_BOSS: 18, PULSE_PER_SPARK: 2.1,
+  HURT_IFRAMES: 0.92, HURT_KNOCK: 370,
+  PICKUP_RANGE: 104,
+};
+
+export const COMBO = { PER_KILL: 0.14, PER_BOSS: 0.9, CAP: 12, WINDOW: 2.6 };
+
+export const SCORE = {
+  CLEAR_BASE: 300, CLEAR_PER_ROUND: 82, NO_HIT: 400,
+  SPEED_MAX: 900, SPEED_DRAIN: 20, SPEED_FROM_ROUND: 3,
+  SPARK: 18, OVERDRIVE_MULT: 1.35,
+};
+
+export const CAPS = {
+  ENEMIES: { mobile: 22, desktop: 32 },
+  ENEMY_BULLETS: { mobile: 110, desktop: 170 },
+  PLAYER_BULLETS: { mobile: 90, desktop: 160 },
+  PARTICLES: { mobile: 150, desktop: 260 },
+};
+
+export const DIRECTOR = {
+  // spawn count: clamp(BASE + round*PER_ROUND + rand(0,2) , MIN, cap)
+  BASE: 4, PER_ROUND: 1.05, MIN: 4,
+  TELEGRAPH: 0.55,            // warning glyph time before a spawn lands
+  REINFORCE_AT: 0.62,         // fraction of count held for the second wave
+  REINFORCE_DELAY: [4.5, 7],  // seconds (or when 2 enemies remain)
+  // danger stage = min(5, floor(round / 4)) during the route
+  STAGE_DIV: 4, STAGE_CAP: 5,
+  // non-boss scaling per No Moon: hp ×(1 + stageIdx*0.13 + stage*0.08)
+  HP_IDX: 0.13, HP_STAGE: 0.08, SPD_IDX: 0.02, SPD_STAGE: 0.02,
+};
+
+export const FX = {
+  SHAKE_DECAY: 2.25, FLASH_DECAY: 1.7, SLOWMO_SCALE: 0.55,
+  HIT_PAUSE: { shot: 10, chain: 16, dash: 18, pulse: 30, kill: 24, boss: 58, hurt: 72 }, // ms
+};
+
+export const BLOOM = { ALPHA: 0.20, FILTER: 'blur(11px) saturate(1.16)' };
+
+export const ANNEX = { CHANCE: 0.30, AMBUSH: 0.35 };
+
+export const STREAK_NAMES = ['', '', 'DOUBLE BOOT', 'TRIPLE STAMP', '', 'RAMPAGE RECEIPT', '', '', 'UNSTOPPABLE PASSENGER'];

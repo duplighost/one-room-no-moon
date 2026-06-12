@@ -1,0 +1,129 @@
+// Breakable obstacle species — No Moon's pots with consequences
+// (docs/no-moon-systems.md §5, game_inline.js:14440-14714). Volatile shards chain.
+import { state } from '../state.js';
+import { dist, norm } from '../rng.js';
+import { burst, addFloat } from '../render/particles.js';
+import { sfx } from '../audio/sfx.js';
+import { addShake, hitPause } from './juice.js';
+import { dropPickup } from './pickups.js';
+import { spawnBullet } from './bullets.js';
+import { addPulseHazard, addSlowFog } from './hazards.js';
+import { spawnTelegraphed } from './enemies.js';
+import { hurtPlayer, damageEnemy } from './combat.js';
+
+export const SPECIES = {
+  marrowJar:      { hp: 3, label: 'Marrow Jar' },
+  bellHusk:       { hp: 4, label: 'Bell Husk' },
+  blackGlass:     { hp: 3, label: 'Black Glass' },
+  rootCyst:       { hp: 4, label: 'Root Cyst' },
+  falseIdol:      { hp: 7, label: 'False Idol' },
+  moonseedUrn:    { hp: 4, label: 'Moonseed Urn' },
+  annexDoor:      { hp: 9, label: 'Sealed Door' },
+  volatileShard:  { hp: 2, label: 'Volatile Shard' },
+};
+
+export function damageObstacle(room, o, dmg) {
+  if (!o.breakable || o.gone) return;
+  o.hp -= dmg;
+  o.shake = 0.12;
+  if (o.hp <= 0) breakObstacle(room, o);
+}
+
+export function breakObstacle(room, o) {
+  if (o.gone) return;
+  o.gone = true;
+  const x = o.type === 'circle' ? o.x : o.x + o.w / 2;
+  const y = o.type === 'circle' ? o.y : o.y + o.h / 2;
+  sfx('break');
+  addShake(0.08); hitPause('shot');
+  burst(room, x, y, room.biome.pal.accent2, 14, 160, 0.45, 3);
+  const fx = effects[o.species];
+  if (fx) fx(room, o, x, y);
+}
+
+const effects = {
+  marrowJar(room, o, x, y) {
+    if (Math.random() < 0.25 && state.run.player.hp < state.run.player.maxHp) dropPickup(room, 'repair', x, y);
+    scatterSparks(room, x, y, 2);
+  },
+  bellHusk(room, o, x, y) {
+    addFloat(room, x, y - 20, 'THE BELL', room.biome.pal.accent2);
+    if (Math.random() < 0.35) addPulseHazard(room, x, y, { r: 26, span: 220 });
+    scatterSparks(room, x, y, Math.random() < 0.55 ? 4 : 2);
+  },
+  blackGlass(room, o, x, y) {
+    const n = 5 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      spawnBullet(room, 'enemy', x, y, Math.cos(a) * 260, Math.sin(a) * 260, 4.6, 1, 1.4, room.biome.pal.accent2);
+    }
+    scatterSparks(room, x, y, 2);
+  },
+  rootCyst(room, o, x, y) {
+    if (Math.random() < 0.55) addSlowFog(room, x, y, { r: 82 + Math.random() * 40 });
+    if (Math.random() < 0.30) debtAmbush(room, x, y, 1);
+    scatterSparks(room, x, y, 2);
+  },
+  falseIdol(room, o, x, y) {
+    addFloat(room, x, y - 22, 'CURSED BARGAIN', '#ffd47a', true);
+    debtAmbush(room, x, y, 1 + (room.idx >= 3 ? 1 : 0));
+    if (Math.random() < 0.55) addPulseHazard(room, x, y, { r: 30, span: 260 });
+    scatterSparks(room, x, y, 6);
+    if (state.run.player.hp < state.run.player.maxHp) dropPickup(room, 'repair', x, y);
+  },
+  moonseedUrn(room, o, x, y) {
+    scatterSparks(room, x, y, Math.random() < 0.22 ? 5 : 3);
+  },
+  annexDoor(room, o, x, y) {
+    const annex = room.annex;
+    if (!annex || annex.opened) return;
+    annex.opened = true;
+    if (annex.kind === 'ambush') {
+      addFloat(room, x, y - 24, 'AMBUSH', room.biome.pal.bad, true);
+      for (let i = 0; i < annex.ambushCount; i++) {
+        spawnTelegraphed(room, annex.ambushType, annex.cx + (Math.random() * 60 - 30), annex.cy + (Math.random() * 40 - 20), 0.5);
+      }
+    } else {
+      addFloat(room, x, y - 24, 'CACHE', '#ffd36e', true);
+      dropPickup(room, annex.reward, annex.cx, annex.cy);
+      scatterSparks(room, annex.cx, annex.cy, 5);
+    }
+  },
+  volatileShard(room, o, x, y) {
+    // chain reaction (No Moon game_inline.js:9887)
+    const radius = 92 + 1.2 * (o.rad || 24);
+    const p = state.run.player;
+    if (dist(x, y, p.x, p.y) < radius + p.r) hurtPlayer(1, x, y, 'volatile');
+    const dmg = p.damage * (1 + p.perks.damage * 0.15) * 0.85;
+    for (const e of room.enemies) {
+      const d = dist(x, y, e.x, e.y);
+      if (e.hp > 0 && d < radius + e.r) {
+        const k = norm(e.x - x, e.y - y);
+        damageEnemy(e, dmg * (1 - (d / radius) * 0.45), k.x * 200, k.y * 200, 'chain');
+      }
+    }
+    burst(room, x, y, '#bfe8ff', 18, 240, 0.5, 3);
+    addShake(0.18);
+    for (const other of room.obstacles) {
+      if (other !== o && !other.gone && other.species === 'volatileShard') {
+        const ox = other.type === 'circle' ? other.x : other.x + other.w / 2;
+        const oyy = other.type === 'circle' ? other.y : other.y + other.h / 2;
+        if (dist(x, y, ox, oyy) < radius + (other.rad || 24)) {
+          setTimeout(() => { if (!other.gone && state.room === room) breakObstacle(room, other); }, 90);
+        }
+      }
+    }
+  },
+};
+
+function scatterSparks(room, x, y, n) {
+  for (let i = 0; i < n; i++) dropPickup(room, 'spark', x + Math.random() * 20 - 10, y + Math.random() * 20 - 10);
+}
+
+function debtAmbush(room, x, y, n) {
+  const pool = ['skitter', 'skitter', 'gunner'];
+  for (let i = 0; i < n; i++) {
+    const type = pool[Math.floor(Math.random() * pool.length)];
+    spawnTelegraphed(room, type, x + Math.random() * 120 - 60, y + Math.random() * 90 - 45, 0.6 + i * 0.2);
+  }
+}
