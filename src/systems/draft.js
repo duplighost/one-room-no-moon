@@ -93,6 +93,8 @@ export function grantItem(id, source = 'found') {
   p.modules[id] = have + 1;
   installItem(id, p);
   state.save.seenItems[id] = true;
+  state.save.graftPicks = state.save.graftPicks || {};
+  state.save.graftPicks[id] = (state.save.graftPicks[id] || 0) + 1;
   if (state.room && source !== 'draft') {
     addFloat(state.room, p.x, p.y - 52, item.name.toUpperCase(), item.color, true, 0.9);
   }

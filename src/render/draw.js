@@ -9,6 +9,7 @@ import { drawPlayer, drawEnemy, drawObstacle, drawCare, roundRectPath, starPath,
 import { drawParticles, drawFloats } from './particles.js';
 import { ENEMY_TYPES } from '../data/enemies.js';
 import { reduced } from '../systems/juice.js';
+import { moveTouch, aimTouch } from '../ui/input.js';
 
 let canvas = null, ctx = null, bloomCanvas = null, bloomCtx = null;
 
@@ -96,8 +97,9 @@ export function drawFrame() {
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, view.W, view.H);
 
-  if (p && state.mode === 'play') drawDangerTriangles(room, p);
+  if (p && state.mode === 'play' && state.run?.oath !== 'blind') drawDangerTriangles(room, p);
   drawBossBar(room);
+  if (state.mode === 'play') { drawPad(moveTouch, '#7dfdff'); drawPad(aimTouch, '#ffd36e'); }
 
   if (state.fx.flash > 0) {
     ctx.fillStyle = `rgba(255,235,245,${clamp(state.fx.flash * 0.5, 0, 0.5)})`;
@@ -313,6 +315,23 @@ function drawDangerTriangles(room, p) {
   }
 }
 
+// touch pad glyphs (Boon Moots index.html:1443-1444)
+function drawPad(pad, color) {
+  if (pad.id === null) return;
+  ctx.save();
+  ctx.globalAlpha = 0.46;
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(pad.startX, pad.startY, 70, 0, TAU); ctx.stroke();
+  ctx.globalAlpha = 0.82;
+  ctx.fillStyle = color + '44';
+  ctx.beginPath(); ctx.arc(pad.startX + pad.dx * 70, pad.startY + pad.dy * 70, 26, 0, TAU); ctx.fill();
+  if (pad.len > 0.80) {
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.arc(pad.startX, pad.startY, 82, 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawBossBar(room) {
   const boss = room.enemies.find(e => e.boss && e.hp > 0);
   if (!boss) return;
@@ -363,6 +382,11 @@ function drawTransition() {
       ctx.fillStyle = '#8fa3c8';
       ctx.font = '800 13px Inter, system-ui, sans-serif';
       ctx.fillText(t.tag, view.W / 2, view.H / 2 + 52);
+    }
+    if (t.mut) {
+      ctx.fillStyle = '#ff8fa3';
+      ctx.font = '900 15px Inter, system-ui, sans-serif';
+      ctx.fillText(t.mut, view.W / 2, view.H / 2 + 78);
     }
     ctx.restore();
   } else {

@@ -5,10 +5,13 @@ import { resize, updateCamera, view } from './render/camera.js';
 import { initDraw, drawFrame } from './render/draw.js';
 import { loadSprites } from './render/sprites.js';
 import { updateParticles } from './render/particles.js';
-import { initInput, getMove, getAim, suppressInput } from './ui/input.js';
+import { initInput, getMove, getAim, tickTouchDash } from './ui/input.js';
+import { updateBehavior } from './systems/notices.js';
+import { ensureBgm, toggleBgm } from './audio/bgm.js';
+import { todaySeed } from './rng.js';
 import {
-  initOverlays, showTitle, showPause, wirePauseButtons, wireSfxButton,
-  hideOverlays, updateHud, setSfxLabels,
+  initOverlays, showTitle, showCodex, showPause, wirePauseButtons, wireSfxButton,
+  wireBgmButton, setMenu, hideOverlays, updateHud, setSfxLabels,
 } from './ui/overlays.js';
 import { updatePlayer } from './systems/player.js';
 import { updateEnemies, updateSpawnQueue } from './systems/enemies.js';
@@ -38,21 +41,30 @@ export function boot() {
   loadSprites();
   initOverlays();
 
+  const menu = {
+    start: (oath) => { ensureAudio(); ensureBgm(); startRun(Date.now(), { oath }); updateHud(); },
+    daily: (oath) => { ensureAudio(); ensureBgm(); startRun(todaySeed(), { daily: true, oath }); updateHud(); },
+    restart: () => { startRun(); updateHud(); },
+  };
+  setMenu(menu);
   const actions = {
-    start: () => { ensureAudio(); startRun(); updateHud(); },
+    start: () => menu.start('none'),
     pause: togglePause,
+    codex: () => { if (state.mode === 'title' || state.mode === 'dead') showCodex(); },
     toggleSfx: () => { toggleSfx(); setSfxLabels(); },
-    firstInteract: () => ensureAudio(),
+    toggleBgm: () => { toggleBgm(); updateHud(); },
+    firstInteract: () => { ensureAudio(); ensureBgm(); },
   };
   initInput(canvas, actions);
   wirePauseButtons(togglePause, actions.toggleSfx);
   wireSfxButton(actions.toggleSfx);
+  wireBgmButton(actions.toggleBgm);
   wireDraftUi(
     (choices, canReroll) => renderDraft(choices, canReroll, pickCard, boonReroll,
       (id) => stacks(state.run?.player, id)),
     (player) => updateBuildChips(player),
   );
-  showTitle(actions.start);
+  showTitle(menu);
   updateHud();
   installDebug(actions);
 
@@ -105,9 +117,11 @@ export function step(raw) {
         break;
       }
       const dt = Math.min(0.033, raw) * (state.fx.slowMo > 0 ? FX.SLOWMO_SCALE : 1);
+      tickTouchDash();
       const move = getMove(), aim = getAim();
       const p = state.run.player;
       updatePlayer(p, move, aim, room, dt);
+      updateBehavior(room, p, move, aim, raw);
       updateSpawnQueue(room, dt);
       tickDirector(room, dt);
       updateEnemies(room, dt);

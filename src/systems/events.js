@@ -11,6 +11,7 @@ import { chooseCards } from './draft.js';
 import { addFloat, burst } from '../render/particles.js';
 import { sfx } from '../audio/sfx.js';
 import { stacks } from './items.js';
+import { notice } from './notices.js';
 
 const EVENTS = [
   { id: 'care',         w: 5, from: 1 },
@@ -27,7 +28,8 @@ export function rollEvent(room, rng) {
   if (room.bossId) return; // boss arenas stay clean
   run.sinceEvent = run.sinceEvent ?? 99;
   const force = run.sinceEvent >= 3;
-  if (!force && !chance(rng, 0.45)) { run.sinceEvent++; return; }
+  const odds = room.mutator?.eventBoost ? 0.8 : 0.45;
+  if (!force && !chance(rng, odds)) { run.sinceEvent++; return; }
   const pool = EVENTS.filter(e => e.from <= room.round)
     .map(e => ({ item: e.id, w: e.w + (room.round >= 7 && (e.id === 'blackMarket' || e.id === 'mirrorVault') ? 2 : 0) }));
   if (!pool.length) { run.sinceEvent++; return; }
@@ -176,6 +178,7 @@ export function updateCare(room, dt) {
       p.shield = Math.min(Math.max(1, p.shieldMax || 1), p.shield + 1);
       p.pulse = Math.min(100, p.pulse + 22);
       addFloat(room, c.x, c.y - 40, 'CARE', '#9bffd1', true);
+      if (!state.run.flags.care) { state.run.flags.care = true; notice('care'); }
       sfx('care');
     }
     burst(room, c.x, c.y, '#9bffd1', 24, 160, 0.6, 3);

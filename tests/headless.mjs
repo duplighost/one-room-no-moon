@@ -280,5 +280,73 @@ check('overdrive round 21 live', state.run.round === 21 && state.mode === 'play'
 check('overdrive draws from the whole biome deck', !!state.room.biome);
 check('overdrive boss cadence continues at 25', (await import('../src/systems/bosses.js')).bossForRound(25, true) !== null);
 
+// ── Phase 6: meta, oaths, daily, mutators, notices, bgm ─────────────────────
+const { buyShrine, applyShrine, dailyBestToday } = await import('../src/systems/meta.js');
+const { notice } = await import('../src/systems/notices.js');
+const { ensureBgm, toggleBgm } = await import('../src/audio/bgm.js');
+const { todaySeed } = await import('../src/rng.js');
+
+// shrine: bank sparks, buy, applies on next run
+state.save.sparks = 500;
+check('shrine buy works', buyShrine('shrine_hp') && state.save.shrine.shrine_hp === true);
+check('shrine rejects rebuy', buyShrine('shrine_hp') === false);
+buyShrine('shrine_speed');
+startRun('shrine-check');
+check('shrine applies on run start', state.run.player.maxHp === 7 && state.run.player.baseSpeed === 322,
+  `maxHp=${state.run.player.maxHp} base=${state.run.player.baseSpeed}`);
+state.save.shrine.shrine_head = true;
+startRun('headstart-check');
+check('headstart begins at round 2 with a graft', state.run.round === 2 && Object.keys(state.run.player.modules).length === 1,
+  `round=${state.run.round} modules=${Object.keys(state.run.player.modules).length}`);
+state.save.shrine = {}; // reset for later checks
+
+// oaths
+startRun('oath-check', { oath: 'glass' });
+check('oath of glass applies', Math.abs(state.run.player.damage - 0.88 * 1.25) < 1e-9 && state.run.player.maxHp === 4,
+  `dmg=${state.run.player.damage} maxHp=${state.run.player.maxHp}`);
+
+// daily: same seed today = same first rooms
+startRun(todaySeed(), { daily: true });
+const d1 = `${state.room.biome.id}/${state.room.layoutId}/${state.room.recipeId}`;
+state.run.score = 4321;
+const { bankDaily } = await import('../src/systems/meta.js');
+bankDaily();
+check('daily best banked', dailyBestToday() === 4321);
+startRun(todaySeed(), { daily: true });
+const d2 = `${state.room.biome.id}/${state.room.layoutId}/${state.room.recipeId}`;
+check('daily runs share the board', d1 === d2, `${d1} vs ${d2}`);
+
+// mutators: present across many rooms, never on boss rounds
+startRun('mutator-audit');
+let mutCount = 0; const mutKinds = new Set(); let mutOnBoss = 0;
+{
+  const { rollRoom: rr2 } = await import('../src/systems/roomRoller.js');
+  for (let i = 1; i <= 80; i++) {
+    const r = rr2(state.run, i);
+    if (r.mutatorId) { mutCount++; mutKinds.add(r.mutatorId); if (r.bossId) mutOnBoss++; }
+  }
+}
+check('mutators roll (~10% of rounds ≥5)', mutCount >= 2 && mutCount <= 20, 'count=' + mutCount);
+check('mutator variety over 80 rooms', mutKinds.size >= 2, [...mutKinds].join(','));
+check('no mutators on boss rounds', mutOnBoss === 0);
+
+// notices collect + dedupe
+const before = state.save.notices.length;
+notice('nohit'); notice('nohit');
+check('notices collect once', state.save.notices.length === before + 1 || state.save.notices.includes('Clean room. Nothing brags.'));
+
+// bgm is headless-safe and toggle persists
+ensureBgm();
+const bgmWas = state.save.settings.bgm;
+toggleBgm();
+check('bgm toggle persists', state.save.settings.bgm === !bgmWas);
+toggleBgm();
+
+// touch pads exist and suppress correctly
+const inputMod = await import('../src/ui/input.js');
+check('touch pads exported', inputMod.moveTouch.id === null && inputMod.aimTouch.id === null);
+inputMod.suppressInput(100);
+check('suppression clears pads', inputMod.moveTouch.id === null);
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

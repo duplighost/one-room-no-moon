@@ -14,6 +14,7 @@ import { ANNEX } from '../config.js';
 import { rollEvent } from './events.js';
 import { stacks } from './items.js';
 import { bossForRound } from './bosses.js';
+import { MUTATORS } from '../data/mutators.js';
 
 export function rollRoom(run, round) {
   const rng = run.rng;
@@ -41,12 +42,17 @@ export function rollRoom(run, round) {
   const bossId = bossForRound(round, run.overdrive);
   const layoutId = bossId ? pick(rng, ['ring', 'crossroads']) : bags.layout.deal(rng);
 
+  // ── axis 6: mutator (rare, loud) ──
+  const mutator = (!bossId && round >= 5 && chance(rng, 0.10))
+    ? MUTATORS[Math.floor(rng() * MUTATORS.length)] : null;
+  const sizeScale = mutator?.sizeScale || 1;
+
   const portrait = view.mobile && view.portrait;
   const room = {
     round, idx: depthIdx(round), stage: dangerStage(round, run.overdrive),
-    biome, layoutId, recipeId, mutatorId: null, eventId: null, bossId,
-    w: Math.round(rand(rng, bossId ? 1480 : 1380, bossId ? 1620 : 1560)),
-    h: Math.round(portrait ? rand(rng, 1400, 1520) : rand(rng, bossId ? 1040 : 980, bossId ? 1140 : 1100)),
+    biome, layoutId, recipeId, mutatorId: mutator?.id || null, mutator, eventId: null, bossId,
+    w: Math.round(rand(rng, bossId ? 1480 : 1380, bossId ? 1620 : 1560) * sizeScale),
+    h: Math.round((portrait ? rand(rng, 1400, 1520) : rand(rng, bossId ? 1040 : 980, bossId ? 1140 : 1100)) * sizeScale),
     wall: ROOM.WALL,
     obstacles: [], annex: null, hazards: [], lanes: [],
     enemies: [], bullets: [], pickups: [], particles: [], floats: [],
@@ -100,21 +106,30 @@ export function rollRoom(run, round) {
   }
 
   // ── breakable conversion (species weights with biome bumps) ──
-  const breakN = randi(rng, 1, 3);
+  const breakN = randi(rng, 1, 3) + (mutator?.breakBonus || 0) + (run.oath === 'hunger' ? 1 : 0);
   const candidates = room.obstacles.filter(o => !o.breakable && o.type === 'circle' && o.rad < 60);
   for (let i = 0; i < breakN && candidates.length; i++) {
     const o = candidates.splice(Math.floor(rng() * candidates.length), 1)[0];
     o.breakable = true;
-    o.species = rollSpecies(rng, biome, room.idx);
+    o.species = rollSpecies(rng, biome, room.idx, mutator?.idolBump || run.oath === 'hunger');
     o.hp = SPECIES[o.species].hp + room.idx * 0.8;
   }
 
   // ── sealed annex (one-room version of No Moon's secret pockets) ──
   const compass = stacks(run.player, 'cacheCompass');
-  if (!bossId && chance(rng, ANNEX.CHANCE + compass * 0.12)) buildAnnex(room, rng);
+  const annexChance = ANNEX.CHANCE + compass * 0.12 + (run.oath === 'blind' ? 0.15 : 0);
+  if (!bossId && chance(rng, annexChance)) buildAnnex(room, rng);
 
   // ── axis 3: hazard kit ──
   seedHazards(room, rng);
+  if (mutator?.extraLane) {
+    const pos = rand(rng, room.wall + 220, room.w - room.wall - 220);
+    room.lanes.push({
+      type: 'sightline', vertical: true, x1: pos, y1: room.wall + 40, x2: pos, y2: room.h - room.wall - 40,
+      width: 26, t: rng() * 2, period: 3.2, telegraphFrom: 0.40, activeFrom: 0.74, activeTo: 0.98,
+      active: false, tele: false, hitCd: 0, color: biome.pal.accent2,
+    });
+  }
 
   // ── ambient particles ──
   const ambN = view.mobile ? 24 : 40;
@@ -155,8 +170,9 @@ function fits(room, o) {
   return true;
 }
 
-function rollSpecies(rng, biome, idx) {
+function rollSpecies(rng, biome, idx, idolBump = false) {
   const w = { marrowJar: 18, bellHusk: 12, blackGlass: 12, rootCyst: 10, moonseedUrn: 7, falseIdol: 3 };
+  if (idolBump) { w.falseIdol += 8; w.moonseedUrn += 6; }
   if (['mirror', 'shardreef', 'frostreliquary'].includes(biome.id)) w.blackGlass += 18;
   if (['verdigris', 'fen', 'mycelium', 'coilroot', 'rosewire', 'blacksungarden'].includes(biome.id)) { w.rootCyst += 14; w.marrowJar += 8; }
   if (['basilica', 'ossuary', 'empyrean', 'nullthrone', 'auricspire'].includes(biome.id)) { w.falseIdol += 7; w.bellHusk += 10; }

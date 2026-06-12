@@ -69,7 +69,7 @@ function collect(room, p, q) {
       break;
     case 'frame':
       p.perks.speed += 1;
-      p.speed = PLAYER.SPEED * (1 + 0.08 * p.perks.speed);
+      p.speed = p.baseSpeed * (1 + 0.08 * p.perks.speed);
       addFloat(room, p.x, p.y - 40, 'LOPE LATTICE +SPEED', '#b6f69d');
       sfx('care');
       break;

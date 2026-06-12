@@ -66,6 +66,25 @@ button:hover{border-color:rgba(255,255,255,.22)}
 .draftCard .tag{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em}
 .draftCard p{margin:0; font-size:12.5px; color:var(--dim); flex:1}
 .draftCard .stacks{font-size:11px; color:#ffd36e}
+
+#overlayBody{text-align:left; margin-bottom:16px}
+#overlayBody:empty{display:none}
+.shrineCard{display:flex; gap:12px; align-items:center; width:100%; text-align:left;
+  margin-bottom:8px; padding:11px 14px; min-height:48px}
+.shrineCard.owned{opacity:.55}
+.shrineCard b{min-width:128px}
+.shrineCard p{margin:0; flex:1; font-size:12.5px; color:var(--dim)}
+.shrineCard .cost{font-size:12px; color:#ffd36e; white-space:nowrap}
+.codexGrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin:10px 0}
+.codexCard{padding:9px 11px; border:1px solid var(--line); border-radius:10px; font-size:12px}
+.codexCard b{display:block; font-size:13px}
+.codexCard p{margin:3px 0 0; color:var(--dim)}
+.codexCard .kills{color:#ffd36e; font-size:11px}
+.noticeList{font-size:12.5px; color:var(--dim); line-height:1.7; max-height:160px; overflow:auto}
+.oathRow{display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-bottom:14px}
+.oathBtn{font-size:12px; padding:8px 12px; min-height:44px; border-radius:10px; color:var(--dim)}
+.oathBtn.sel{color:var(--ink); border-color:#bfa3ff; box-shadow:0 0 12px rgba(190,160,255,.25)}
+.miniBtn{min-height:44px; min-width:44px}
 </style>
 </head>
 <body>
@@ -83,6 +102,7 @@ button:hover{border-color:rgba(255,255,255,.22)}
     <span id="comboChip">x1.0</span>
     <span id="boonChip" style="font-size:12px;color:var(--dim)"></span>
     <button class="miniBtn" id="sfxBtn" type="button">sfx on</button>
+    <button class="miniBtn" id="bgmBtn" type="button">bgm on</button>
   </div>
 </div>
 <div id="buildChips"></div>
@@ -90,6 +110,7 @@ button:hover{border-color:rgba(255,255,255,.22)}
 
 <div id="overlay" class="modalHost"><div class="modal panel">
   <h1 id="overlayTitle"></h1><p id="overlayCopy"></p>
+  <div id="overlayBody"></div>
   <div class="buttonRow" id="overlayButtons"></div>
   <div class="meta" id="overlayMeta"></div>
 </div></div>

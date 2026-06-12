@@ -12,18 +12,31 @@ import { addFloat, burst } from '../render/particles.js';
 import { snapCamera } from '../render/camera.js';
 import { sfx } from '../audio/sfx.js';
 import { suppressInput } from '../ui/input.js';
-import { showDeath, showOverlay, hideOverlays, updateHud } from '../ui/overlays.js';
+import { showDeath, showOverlay, hideOverlays, updateHud, whisper } from '../ui/overlays.js';
 import { hooks } from './items.js';
-import { openDraft } from './draft.js';
+import { openDraft, chooseCards, grantItem } from './draft.js';
 import { dropPickup } from './pickups.js';
+import { applyShrine, applyOath, bankDaily } from './meta.js';
+import { notice } from './notices.js';
+import { CLEAR_LINES, DEATH_LINES, MUTATOR_LINES } from '../data/lines.js';
 
-export function startRun(seedText = Date.now()) {
+export function startRun(seedText = Date.now(), opts = {}) {
   hooks.clear();
   const run = newRun(seedText);
+  run.daily = !!opts.daily;
+  run.oath = opts.oath && opts.oath !== 'none' ? opts.oath : null;
   run.player = makePlayer();
+  applyShrine(run.player);
+  applyOath(run, run.player);
   hideOverlays();
   state.mode = 'play';
-  beginRound(1);
+  if (state.save.shrine?.shrine_head) {
+    const free = chooseCards(1)[0];
+    if (free) grantItem(free.id, 'found');
+    beginRound(2);
+  } else {
+    beginRound(1);
+  }
   saveNow();
 }
 
@@ -38,6 +51,10 @@ function applyRoom(room) {
   suppressInput(160);
   snapCamera();
   addFloat(room, room.w / 2, room.wall + 64, room.biome.mech, room.biome.pal.accent3, true, 1.2);
+  if (room.mutator) {
+    addFloat(room, room.w / 2, room.wall + 104, room.mutator.name, room.biome.pal.bad, true, 1.5);
+    whisper(MUTATOR_LINES[room.mutator.id] || '');
+  }
   if (room.bossId) {
     const boss = room.enemies.find(e => e.boss);
     if (boss) addFloat(room, room.w / 2, room.wall + 110, boss.display.toUpperCase() + ' HOLDS THE ROOM', room.biome.pal.bad, true, 1.6);
@@ -65,6 +82,9 @@ export function clearRoom(room) {
   }
   vacuumSparks(room);
   sfx('clear');
+  if (!p.roomHit && !state.run.flags.nohit) { state.run.flags.nohit = true; notice('nohit'); }
+  if (state.run.round === 13 && !state.run.flags.truth) { state.run.flags.truth = true; notice('truth'); }
+  else whisper(CLEAR_LINES[(state.run.round - 1) % CLEAR_LINES.length]);
   const boon = p.boon;
   boon.progress += room.bossId ? boon.need : 1; // bosses pay full lacing
   if (boon.progress >= boon.need) { boon.progress = 0; boon.charges = Math.min(1, boon.charges + 1); }
@@ -114,6 +134,7 @@ export function startTransition() {
     title: next.bossId ? (next.enemies.find(e => e.boss)?.display || next.biome.name) : next.biome.name,
     sub: 'round ' + (run.round + 1) + (run.overdrive ? ' ∞' : ''),
     tag: next.bossId ? next.biome.name : next.biome.mech,
+    mut: next.mutator?.name || null,
     bossId: next.bossId,
   };
   state.mode = 'transition';
@@ -141,6 +162,7 @@ function routeWin() {
   run.overdrive = true;
   state.save.lifetime.wins++;
   bankBests();
+  notice('endless');
   state.oldMode = 'play';
   state.mode = 'pause'; // freeze the world under the overlay; portal waits
   showOverlay(
@@ -158,10 +180,12 @@ export function die() {
   state.mode = 'dead';
   state.save.lifetime.deaths++;
   bankBests();
+  bankDaily();
   updateHud();
   showDeath({
     score: Math.floor(run.score), round: run.round,
     best: state.save.bestScore, bestRound: state.save.bestRound,
-    kills: run.kills,
-  }, () => startRun());
+    kills: run.kills, daily: run.daily,
+    title: DEATH_LINES[Math.floor(Math.random() * DEATH_LINES.length)],
+  }, () => startRun(Date.now(), { oath: run.oath || 'none' }));
 }

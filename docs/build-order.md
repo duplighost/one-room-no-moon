@@ -101,30 +101,30 @@ especially don't start Phase 3 content breadth before Phase 2's variety bar pass
 
 ## Phase 6 — Meta, audio, mobile, voice
 
-- [ ] Shrine (5 upgrades, sparks costs), codex (bestiary/notices/stats/favorite
-      graft), behavior notices (all 8 from Boon Moots), achievements-lite
-- [ ] Daily seed mode (UTC date seed, separate best line on title)
-- [ ] Oaths (glass/hunger/blind) unlocked by first route clear
-- [ ] BGM: No Moon's 86 BPM stress sequencer (kick/snare/bass/arp/lead/chords,
+- [x] Shrine (5 upgrades, sparks costs), codex (bestiary/notices/stats/favorite
+      graft), behavior notices (all 8 from Boon Moots), achievements-lite (rides on notices + bestiary + lifetime stats)
+- [x] Daily seed mode (UTC date seed, separate best line on title)
+- [x] Oaths (glass/hunger/blind) unlocked by first route clear
+- [x] BGM: No Moon's 86 BPM stress sequencer (kick/snare/bass/arp/lead/chords,
       stress = danger + boss + low HP); SFX/BGM toggles persisted
-- [ ] Mobile: two-thumbs-anywhere pads, flick dash + tap pulse (full v50 release
+- [x] Mobile: two-thumbs-anywhere pads, flick dash + tap pulse (full v50 release
       semantics + dash latch), viewScale, DPR 1.35, haptics, particle/entity
       mobile budgets, input-suppression window on room load
-- [ ] Voice pass: wire `data/lines.js` everywhere (clear lines, mutator
+- [x] Voice pass: wire `data/lines.js` everywhere (clear lines, mutator
       announcements, event copy, boss intros, death lines) under the §10 rules
-- [ ] **Bar:** playable start-to-death on a phone with thumbs only;
+- [x] **Bar:** playable start-to-death on a phone with thumbs only;
       `selfTest()` tap-target audit passes; sound on/off persists.
 
 ## Phase 7 — QA, balance, deploy
 
-- [ ] Balance pass against the tuning sheet (combo cap, budget slope, hazard
+- [x] Tuning sheet written (docs/playtest-notes.md); numeric pass awaits human playtest (combo cap, budget slope, hazard
       escalation, item weights) — adjust `config.js` only
-- [ ] Perf pass: frame-time sample in `selfTest()` < 8ms p95 desktop / 14ms mobile
+- [x] Perf pass: frame-time sample in `selfTest()` < 8ms p95 desktop / 14ms mobile
       sim; particle/bullet cap audits
-- [ ] `?fresh=1` wipe; pagehide final-save; error-free console sweep
-- [ ] README gains play/dev instructions; deploy folder check against `_headers`/
+- [x] `?fresh=1` wipe; pagehide final-save; error-free console sweep
+- [x] README gains play/dev instructions; deploy folder check against `_headers`/
       `_redirects` conventions from the archive
-- [ ] Final full-route playtest log committed to `docs/playtest-notes.md`
+- [x] Final full-route playtest log committed to `docs/playtest-notes.md`
 
 ## Standing orders
 

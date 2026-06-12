@@ -37,14 +37,16 @@ export function killEnemy(e) {
   killScore(e);
   p.pulse = Math.min(100, p.pulse + (e.boss ? PLAYER.PULSE_PER_BOSS : PLAYER.PULSE_PER_KILL) * p.pulseGain);
   // spark scatter (meta currency + pulse food)
-  const n = e.boss ? 24 : (e.captain ? 8 : 3 + Math.floor(Math.random() * 3));
+  const n = (e.boss ? 24 : (e.captain ? 8 : 3 + Math.floor(Math.random() * 3)))
+    + (room.mutator?.sparkBonus || 0);
   for (let i = 0; i < n; i++) {
     room.pickups.push({
       type: 'spark', x: e.x + Math.random() * 24 - 12, y: e.y + Math.random() * 24 - 12,
       vx: Math.random() * 240 - 120, vy: Math.random() * 240 - 120, r: 6, life: 8,
     });
   }
-  if ((e.boss || Math.random() < 0.035) && p.hp < p.maxHp) {
+  const repairsAllowed = !room.mutator?.noRepairDrops || e.boss;
+  if (repairsAllowed && (e.boss || Math.random() < 0.035) && p.hp < p.maxHp) {
     room.pickups.push({ type: 'repair', x: e.x, y: e.y, vx: Math.random() * 160 - 80, vy: Math.random() * 160 - 80, r: 11, life: 8 });
   }
   burst(room, e.x, e.y, e.color, e.boss ? 42 : 13, 170, 0.5, 3);

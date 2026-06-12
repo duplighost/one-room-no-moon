@@ -47,9 +47,9 @@ function buildPool(round, recipe) {
   return pool;
 }
 
-export function rollComposition(rng, round, recipe, overdrive) {
+export function rollComposition(rng, round, recipe, overdrive, budgetMult = 1) {
   const stage = dangerStage(round, overdrive);
-  let budget = 5 + round * 1.3 + stage + (RECIPES[recipe]?.countAdj || 0);
+  let budget = (5 + round * 1.3 + stage + (RECIPES[recipe]?.countAdj || 0)) * budgetMult;
   const cap = view.mobile ? CAPS.ENEMIES.mobile : CAPS.ENEMIES.desktop;
   const pool = buildPool(round, recipe);
   const list = [];
@@ -114,7 +114,19 @@ export function buildWaves(room, rng) {
     return;
   }
 
-  const comp = rollComposition(rng, round, room.recipeId, state.run.overdrive);
+  let comp;
+  if (room.mutator?.doubleRecipe) {
+    // the room deals the hand twice: two compositions at reduced budget each
+    comp = [
+      ...rollComposition(rng, round, room.recipeId, state.run.overdrive, 0.62),
+      ...rollComposition(rng, round, room.recipeId, state.run.overdrive, 0.62),
+    ];
+  } else {
+    comp = rollComposition(rng, round, room.recipeId, state.run.overdrive);
+  }
+  if (room.mutator?.extraSniper) {
+    comp.push(ENEMY_TYPES.sniper.from <= round ? 'sniper' : 'gunner');
+  }
   const splitAt = Math.max(2, Math.round(comp.length * DIRECTOR.REINFORCE_AT));
   const first = comp.slice(0, splitAt);
   const second = comp.slice(splitAt);
@@ -137,13 +149,16 @@ export function buildWaves(room, rng) {
   // captain promotion (No Moon odds by depth, game_inline.js:14813-14826)
   const idx = room.idx;
   const baseChance = idx <= 1 ? 0.02 : idx <= 4 ? 0.07 : idx <= 7 ? 0.11 : 0.14;
+  const forced = room.mutator?.forceCaptains || 0;
+  let promoted = 0;
   for (const s of firstSpawns) {
-    if (!chance(rng, baseChance)) continue;
+    if (promoted >= Math.max(1, forced)) break;
+    if (!forced && !chance(rng, baseChance)) continue;
     const eligible = CAPTAINS.filter(c => c.hosts.includes(s.type));
     if (!eligible.length) continue;
     const affix = eligible[Math.floor(rng() * eligible.length)];
     s.captain = (e) => applyCaptain(e, affix);
-    break; // one captain per room
+    promoted++;
   }
 }
 

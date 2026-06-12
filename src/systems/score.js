@@ -19,7 +19,9 @@ export function killScore(e) {
   const run = state.run;
   run.combo = Math.min(COMBO.CAP, run.combo + (e.boss ? COMBO.PER_BOSS : COMBO.PER_KILL));
   run.comboT = COMBO.WINDOW;
-  const pts = Math.floor(e.score * run.combo * (run.overdrive ? SCORE.OVERDRIVE_MULT : 1));
+  const pts = Math.floor(e.score * run.combo
+    * (run.overdrive ? SCORE.OVERDRIVE_MULT : 1)
+    * (state.room?.mutator?.scoreMult || 1));
   run.score += pts;
   run.kills++; run.roomKills++;
   state.save.lifetime.kills++;
