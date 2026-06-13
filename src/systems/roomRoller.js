@@ -15,6 +15,7 @@ import { rollEvent } from './events.js';
 import { stacks } from './items.js';
 import { bossForRound } from './bosses.js';
 import { MUTATORS } from '../data/mutators.js';
+import { FLOORPLANS, FLOORPLAN_IDS } from '../data/floorplans.js';
 
 export function rollRoom(run, round) {
   const rng = run.rng;
@@ -51,6 +52,7 @@ export function rollRoom(run, round) {
   const room = {
     round, idx: depthIdx(round), stage: dangerStage(round, run.overdrive),
     biome, layoutId, recipeId, mutatorId: mutator?.id || null, mutator, eventId: null, bossId,
+    floorplanId: 'none', openings: [], sanctum: null,
     w: Math.round(rand(rng, bossId ? 1480 : 1380, bossId ? 1620 : 1560) * sizeScale),
     h: Math.round((portrait ? rand(rng, 1400, 1520) : rand(rng, bossId ? 1040 : 980, bossId ? 1140 : 1100)) * sizeScale),
     wall: ROOM.WALL,
@@ -61,10 +63,32 @@ export function rollRoom(run, round) {
     background: null,
   };
   const px = room.w / 2, py = room.h * 0.66; // player spawn
+  const portalX = room.w / 2, portalY = room.h * 0.20;
+
+  // ── floorplan (Phase 8a): partition walls before the cover scatter ──
+  if (!bags.floorplan) bags.floorplan = new Bag(FLOORPLAN_IDS, 2);
+  let floorplanId = bossId ? 'none' : bags.floorplan.deal(rng);
+  if (floorplanId !== 'none') {
+    const plan = FLOORPLANS[floorplanId](room, rng, room.idx);
+    const trial = plan.walls;
+    // place, then validate: spawn must be clear of walls and the portal reachable
+    const spawnInWall = trial.some(o => px > o.x - 24 && px < o.x + o.w + 24 && py > o.y - 24 && py < o.y + o.h + 24);
+    room.obstacles.push(...trial);
+    const reach = reachableFrom(room, px, py);
+    if (spawnInWall || !reach.has(portalX, portalY)) {
+      room.obstacles.length = 0;   // fall back to an open room rather than risk a softlock
+      floorplanId = 'none';
+    } else {
+      room.openings = plan.openings;
+      room.sanctum = plan.sanctum || null;
+    }
+  }
+  room.floorplanId = floorplanId;
+  const partitioned = floorplanId !== 'none';
 
   // ── axis 2 continued: obstacles from the layout generator ──
   const density = (RECIPES[recipeId]?.density || 0);
-  const count = clamp(5 + density + Math.floor(room.stage * 0.4) + randi(rng, 0, 2), 3, 10);
+  const count = clamp(5 + density + Math.floor(room.stage * 0.4) + randi(rng, 0, 2) - (partitioned ? 2 : 0), partitioned ? 1 : 3, 10);
   const spots = LAYOUTS[layoutId](room, rng, count);
   for (const s of spots) {
     if (dist(s.x, s.y, px, py) < ROOM.SPAWN_CLEAR) continue;
@@ -115,10 +139,10 @@ export function rollRoom(run, round) {
     o.hp = SPECIES[o.species].hp + room.idx * 0.8;
   }
 
-  // ── sealed annex (one-room version of No Moon's secret pockets) ──
+  // ── sealed annex (skip when a floorplan already partitions the room) ──
   const compass = stacks(run.player, 'cacheCompass');
   const annexChance = ANNEX.CHANCE + compass * 0.12 + (run.oath === 'blind' ? 0.15 : 0);
-  if (!bossId && chance(rng, annexChance)) buildAnnex(room, rng);
+  if (!bossId && !partitioned && chance(rng, annexChance)) buildAnnex(room, rng);
 
   // ── axis 3: hazard kit ──
   seedHazards(room, rng);
@@ -151,23 +175,55 @@ export function rollRoom(run, round) {
   return room;
 }
 
-function fits(room, o) {
-  const w = room.wall;
-  if (o.type === 'circle') {
-    if (o.x - o.rad < w + 14 || o.x + o.rad > room.w - w - 14 || o.y - o.rad < w + 14 || o.y + o.rad > room.h - w - 14) return false;
-  } else {
-    if (o.x < w + 14 || o.x + o.w > room.w - w - 14 || o.y < w + 14 || o.y + o.h > room.h - w - 14) return false;
-  }
-  const cx = o.type === 'circle' ? o.x : o.x + o.w / 2;
-  const cy = o.type === 'circle' ? o.y : o.y + o.h / 2;
-  const cr = o.type === 'circle' ? o.rad : Math.max(o.w, o.h) / 2;
+function aabb(o) {
+  return o.type === 'circle'
+    ? { x: o.x - o.rad, y: o.y - o.rad, w: o.rad * 2, h: o.rad * 2 }
+    : { x: o.x, y: o.y, w: o.w, h: o.h };
+}
+
+// AABB overlap with a margin (correct for long walls; the old center-distance
+// test rejected most of the room around a partition wall).
+function fits(room, o, margin = 20) {
+  const w = room.wall, b = aabb(o);
+  if (b.x < w + 10 || b.y < w + 10 || b.x + b.w > room.w - w - 10 || b.y + b.h > room.h - w - 10) return false;
   for (const other of room.obstacles) {
-    const ox = other.type === 'circle' ? other.x : other.x + other.w / 2;
-    const oy = other.type === 'circle' ? other.y : other.y + other.h / 2;
-    const or = other.type === 'circle' ? other.rad : Math.max(other.w, other.h) / 2;
-    if (dist(cx, cy, ox, oy) < cr + or + 26) return false;
+    const a = aabb(other);
+    if (b.x < a.x + a.w + margin && b.x + b.w + margin > a.x &&
+        b.y < a.y + a.h + margin && b.y + b.h + margin > a.y) return false;
   }
   return true;
+}
+
+// Coarse-grid flood-fill from the player spawn. Breakable walls count as passable
+// (the player can smash them). Used to guarantee no unclearable/softlocked rooms.
+const CELL = 44;
+export function reachableFrom(room, sx, sy) {
+  const cols = Math.ceil(room.w / CELL), rows = Math.ceil(room.h / CELL);
+  const solids = room.obstacles.filter(o => o.wall && !o.breakable);
+  const inset = room.wall + 8;
+  const blocked = (cx, cy) => {
+    if (cx < inset || cy < inset || cx > room.w - inset || cy > room.h - inset) return true;
+    for (const o of solids) {
+      if (cx > o.x - 16 && cx < o.x + o.w + 16 && cy > o.y - 16 && cy < o.y + o.h + 16) return true;
+    }
+    return false;
+  };
+  const key = (c, r) => c + ',' + r;
+  const seen = new Set();
+  const start = [Math.floor(sx / CELL), Math.floor(sy / CELL)];
+  const stack = [start];
+  seen.add(key(...start));
+  while (stack.length) {
+    const [c, r] = stack.pop();
+    for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nc = c + dc, nr = r + dr;
+      if (nc < 0 || nr < 0 || nc >= cols || nr >= rows || seen.has(key(nc, nr))) continue;
+      if (blocked(nc * CELL + CELL / 2, nr * CELL + CELL / 2)) continue;
+      seen.add(key(nc, nr));
+      stack.push([nc, nr]);
+    }
+  }
+  return { has: (x, y) => seen.has(key(Math.floor(x / CELL), Math.floor(y / CELL))), cells: seen };
 }
 
 function rollSpecies(rng, biome, idx, idolBump = false) {

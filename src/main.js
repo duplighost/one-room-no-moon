@@ -22,7 +22,7 @@ import { tickDirector } from './systems/director.js';
 import { tickCombo } from './systems/score.js';
 import { startRun, updateRound, updateTransition, beginRound } from './systems/rooms.js';
 import { ensure as ensureAudio, toggleSfx, sfx } from './audio/sfx.js';
-import { rollRoom } from './systems/roomRoller.js';
+import { rollRoom, reachableFrom } from './systems/roomRoller.js';
 import { damageEnemy } from './systems/combat.js';
 import { wireDraftUi, pickCard, boonReroll, grantItem } from './systems/draft.js';
 import { updateCare } from './systems/events.js';
@@ -176,6 +176,7 @@ function installDebug(actions) {
         hazards: state.room.hazards.length, lanes: state.room.lanes.length,
         particles: state.room.particles.length, cleared: state.room.cleared,
         annex: state.room.annex ? state.room.annex.kind : null,
+        floorplan: state.room.floorplanId,
         bossId: state.room.bossId, eventId: state.room.eventId,
         overdrive: state.run?.overdrive || false,
       } : null,
@@ -205,12 +206,15 @@ function installDebug(actions) {
       const run = state.run;
       for (let i = 1; i <= n; i++) {
         const r = rollRoom(run, i);
+        const reach = reachableFrom(r, r.w / 2, r.h * 0.66);
         out.push({
           round: i, biome: r.biome.id, layout: r.layoutId, recipe: r.recipeId,
           stage: r.stage, obstacles: r.obstacles.length,
           hazards: r.hazards.length + r.lanes.length,
           waves: r.pendingWaves?.length || 0, annex: r.annex?.kind || null,
           boss: r.bossId || null, event: r.eventId || null,
+          floorplan: r.floorplanId,
+          portalReachable: reach.has(r.w / 2, r.h * 0.20),
         });
       }
       let repeats = 0;

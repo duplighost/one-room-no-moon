@@ -370,7 +370,7 @@ const STYLE_GROUPS = {
   glassNode: 'glass', bloomBulb: 'bloom', mycoCap: 'bloom',
   machineHub: 'machine', kilnPillar: 'machine',
   archivePillar: 'idol', basilicaIdol: 'idol',
-  boundary: 'boundary', door: 'door',
+  boundary: 'boundary', door: 'door', wall: 'wall',
 };
 
 export function drawObstacle(ctx, o, room) {
@@ -387,6 +387,31 @@ export function drawObstacle(ctx, o, room) {
     ctx.fillStyle = pal.bg;
     ctx.strokeStyle = pal.accent3; ctx.lineWidth = 2;
     roundRectPath(ctx, o.x, o.y, o.w, o.h, 4); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  if (group === 'wall') {
+    // architectural partition: solid slab with a lit cap edge + drop shadow
+    shadow(ctx, o.x + o.w / 2, o.y + o.h + 4, o.w / 2, 7, 0.32);
+    const horizontal = o.w >= o.h;
+    const g = horizontal
+      ? ctx.createLinearGradient(0, o.y, 0, o.y + o.h)
+      : ctx.createLinearGradient(o.x, 0, o.x + o.w, 0);
+    g.addColorStop(0, mix(pal.floor, '#ffffff', 0.10));
+    g.addColorStop(0.5, pal.floor);
+    g.addColorStop(1, pal.bg);
+    ctx.fillStyle = g;
+    roundRectPath(ctx, o.x, o.y, o.w, o.h, 5); ctx.fill();
+    ctx.strokeStyle = pal.accent3; ctx.lineWidth = 2;
+    ctx.stroke();
+    // lit top edge
+    ctx.strokeStyle = mix(pal.accent, '#ffffff', 0.3);
+    ctx.globalAlpha = 0.5; ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (horizontal) { ctx.moveTo(o.x + 4, o.y + 1.5); ctx.lineTo(o.x + o.w - 4, o.y + 1.5); }
+    else { ctx.moveTo(o.x + 1.5, o.y + 4); ctx.lineTo(o.x + 1.5, o.y + o.h - 4); }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
     ctx.restore();
     return;
   }
@@ -468,6 +493,14 @@ export function drawObstacle(ctx, o, room) {
 }
 
 // ── shared paths ────────────────────────────────────────────────────────────
+export function mix(a, b, t) {
+  const pa = parseInt(a.replace('#', ''), 16), pb = parseInt(b.replace('#', ''), 16);
+  const ar = (pa >> 16) & 255, ag = (pa >> 8) & 255, ab = pa & 255;
+  const br = (pb >> 16) & 255, bg = (pb >> 8) & 255, bb = pb & 255;
+  const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
 export function roundRectPath(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   ctx.beginPath();

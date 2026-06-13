@@ -383,5 +383,27 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   check('deliberate slam from rest DOES dash', dp.dashT > 0, 'dashT=' + dp.dashT);
 }
 
+// ── Phase 8a: floorplans + connectivity invariant ──────────────────────────
+{
+  startRun('floorplan-audit');
+  const big = window.oneRoomDebug.roll(250).rooms;
+  check('every generated room has a reachable portal', big.every(r => r.portalReachable),
+    'unreachable: ' + big.filter(r => !r.portalReachable).length);
+  const fp = new Set(big.map(r => r.floorplan));
+  check('floorplan variety (>=4 kinds incl. none)', fp.size >= 4, [...fp].join(','));
+  check('partitioned rooms occur', big.some(r => r.floorplan !== 'none'));
+  // partitioned rooms must actually carry wall obstacles
+  const { rollRoom } = await import('../src/systems/roomRoller.js');
+  startRun('floorplan-walls');
+  let sawWalls = false;
+  for (let i = 1; i <= 60 && !sawWalls; i++) {
+    const r = rollRoom(state.run, i);
+    if (r.floorplanId !== 'none') {
+      sawWalls = r.obstacles.some(o => o.wall);
+      check('a ' + r.floorplanId + ' room carries solid walls', sawWalls);
+    }
+  }
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

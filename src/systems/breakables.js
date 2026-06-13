@@ -20,6 +20,7 @@ export const SPECIES = {
   falseIdol:      { hp: 7, label: 'False Idol' },
   moonseedUrn:    { hp: 4, label: 'Moonseed Urn' },
   annexDoor:      { hp: 9, label: 'Sealed Door' },
+  wallSegment:    { hp: 7, label: 'Cracked Wall' },
   volatileShard:  { hp: 2, label: 'Volatile Shard' },
   cacheAltar:     { hp: 8, label: 'Moon Cache' },
   gambitAltar:    { hp: 11, label: 'Gambit Shrine' },
@@ -76,6 +77,12 @@ const effects = {
   },
   moonseedUrn(room, o, x, y) {
     scatterSparks(room, x, y, Math.random() < 0.22 ? 5 : 3);
+  },
+  wallSegment(room, o, x, y) {
+    // the divider is breached — a wide passage opens
+    addFloat(room, x, y - 20, 'BREACHED', room.biome.pal.accent2, true);
+    burst(room, x, y, room.biome.pal.accent3, 22, 220, 0.5, 4);
+    addShake(0.14);
   },
   cacheAltar(room, o, x, y) { cacheAltarBreak(room, x, y); },
   gambitAltar(room, o, x, y) { gambitAltarBreak(room, x, y); },
