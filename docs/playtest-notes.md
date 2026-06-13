@@ -18,6 +18,19 @@ A 12-round auto-play stress harness (drives the real loop, picks random draft
 cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
 
+## Enemy visual pass (player feedback, 2026-06-13 pm)
+
+Replaced the geometric enemy primitives with characterful "haunted arcade
+object-monster" sprites, adapted (re-implemented + scaled to our radii, not
+copy-pasted) from the Boon Moots reference draw functions
+(`reference/boon-moots/index.html` drawPewling/Censer/Lectern/LongCandle/
+Antiphon/OxWarden/CrownSworn/Charger). Each type now has a distinct silhouette:
+skitter=bug, gunner=smoking incense box, charger=streaked triangle, turret=
+haunted book stand, brute=horned ox, sniper=flaring candle, hexer=ritual wheel,
+myrmidon=crowned knight — all with glowing eyes. Behavior untouched; pure render.
+Added a shape-agnostic white hit-flash and `oneRoomDebug.lineup()` for art
+inspection. Verified the full row in real Chromium.
+
 ## Polish pass 2 (player feedback, 2026-06-13 pm)
 
 - **Removed the mobile DASH/PULSE buttons.** Player preferred the bare

@@ -196,108 +196,151 @@ export function drawCare(ctx, c, pal) {
 }
 
 // ── enemies ─────────────────────────────────────────────────────────────────
+// Glowing eyes give the object-monsters personality (adapted from Boon Moots'
+// drawEnemyEyes, index.html:1387). A near-black body tint keyed to the biome.
+function enemyEyes(ctx, x, y, rx, ry, color) {
+  ctx.save();
+  ctx.shadowColor = color; ctx.shadowBlur = 12; ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, -0.18, 0, TAU);
+  ctx.ellipse(-x, y, rx, ry, 0.18, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+}
+const darkOf = (pal) => mix(pal.bg, '#000000', 0.35);
+
 export function drawEnemy(ctx, e, room) {
   const pal = room.biome.pal;
   shadow(ctx, e.x, e.y + e.r * 0.85, e.r * 1.15, e.r * 0.34, 0.26);
   ctx.save();
   ctx.translate(e.x, e.y);
-  const glow = e.captain ? 18 : 10;
-  ctx.shadowColor = e.color; ctx.shadowBlur = glow;
-  const hitFlash = e.hit > 0;
-  const body = hitFlash ? '#ffffff' : e.color;
+  ctx.shadowColor = e.color; ctx.shadowBlur = e.captain ? 12 : 5;
+  const flash = e.hit > 0;
+  const body = flash ? '#ffffff' : e.color;     // boss case still uses this
+  const dark = darkOf(pal);
+  const A = pal.accent, B = pal.accent2;          // bright biome accents for detail/eyes
 
   switch (e.type) {
-    case 'skitter': {
-      ctx.strokeStyle = body; ctx.lineWidth = 2.4;
-      for (let i = 0; i < 4; i++) {
-        const a = (i / 4) * TAU + e.phase * 1.6;
-        ctx.beginPath(); ctx.moveTo(Math.cos(a) * e.r * 0.5, Math.sin(a) * e.r * 0.5);
-        ctx.lineTo(Math.cos(a) * e.r * 1.45, Math.sin(a) * e.r * 1.45); ctx.stroke();
+    case 'skitter': { // Pewling — twitchy little bug-body
+      ctx.rotate(Math.sin(e.phase * 9) * 0.18);
+      const s = e.r / 15;
+      ctx.strokeStyle = e.color; ctx.globalAlpha = 0.7; ctx.lineWidth = 3;
+      for (let k = -1; k <= 1; k++) {
+        ctx.beginPath();
+        ctx.moveTo(-6 * s, k * 6 * s); ctx.lineTo(-25 * s, k * 11 * s + Math.sin(e.phase * 8 + k) * 4);
+        ctx.moveTo(6 * s, k * 6 * s); ctx.lineTo(25 * s, k * 11 * s - Math.sin(e.phase * 8 + k) * 4);
+        ctx.stroke();
       }
-      ctx.fillStyle = body;
-      ctx.beginPath(); ctx.arc(0, 0, e.r * 0.92, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#1a0d12';
-      ctx.beginPath(); ctx.arc(0, 0, e.r * 0.4, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.fill();
+      ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(0, 0, e.r * 0.62, 0, TAU); ctx.fill();
+      enemyEyes(ctx, -5 * s, -3 * s, 4, 3, B);
       break;
     }
-    case 'gunner': {
-      ctx.fillStyle = body;
-      roundRectPath(ctx, -e.r, -e.r * 0.85, e.r * 2, e.r * 1.7, 5); ctx.fill();
-      ctx.fillStyle = '#190f08';
-      ctx.fillRect(-e.r * 0.42, -e.r * 0.3, e.r * 0.84, e.r * 0.6);
-      ctx.fillStyle = body;
-      ctx.fillRect(-e.r * 0.16, -e.r * 0.12, e.r * 0.32, e.r * 0.24);
+    case 'gunner': { // Censer — squat incense/shrine box trailing smoke
+      ctx.rotate(Math.sin(e.phase * 1.3) * 0.12);
+      const s = e.r / 18;
+      ctx.fillStyle = dark; ctx.strokeStyle = e.color; ctx.lineWidth = 3;
+      roundRectPath(ctx, -20 * s, -24 * s, 40 * s, 44 * s, 8 * s); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = e.color; roundRectPath(ctx, -12 * s, -14 * s, 24 * s, 26 * s, 5 * s); ctx.fill();
+      ctx.fillStyle = dark; roundRectPath(ctx, 4 * s, -4 * s, 22 * s, 8 * s, 4 * s); ctx.fill();
+      ctx.globalAlpha = 0.33; ctx.strokeStyle = B; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, -24 * s); ctx.bezierCurveTo(-16 * s, -44 * s, 17 * s, -46 * s, 0, -66 * s); ctx.stroke();
+      ctx.globalAlpha = 1;
+      enemyEyes(ctx, -6 * s, 2 * s, 4, 3, B);
       break;
     }
-    case 'charger': {
-      const ang = e.state === 'windup' || e.state === 'dash'
-        ? Math.atan2(e.chargeY || e.vy, e.chargeX || e.vx) : Math.atan2(e.vy, e.vx);
-      ctx.rotate(ang);
+    case 'charger': { // Ramwraith — sharp triangular charger with motion streaks
+      const dir = (e.state === 'windup' || e.state === 'dash') ? { x: e.chargeX || e.vx, y: e.chargeY || e.vy } : { x: e.vx, y: e.vy };
       if (e.state === 'windup') {
-        ctx.save(); ctx.globalAlpha = 0.4 + 0.3 * Math.sin(e.phase * 30);
+        ctx.save(); ctx.rotate(Math.atan2(e.chargeY || e.vy, e.chargeX || e.vx));
+        ctx.globalAlpha = 0.4 + 0.3 * Math.sin(e.phase * 30);
         ctx.strokeStyle = pal.bad; ctx.lineWidth = 3; ctx.setLineDash([10, 8]);
         ctx.beginPath(); ctx.moveTo(e.r, 0); ctx.lineTo(e.r + 320, 0); ctx.stroke();
         ctx.restore();
       }
-      ctx.fillStyle = body;
-      ctx.beginPath();
-      ctx.moveTo(e.r * 1.3, 0); ctx.lineTo(-e.r * 0.8, -e.r * 0.9);
-      ctx.lineTo(-e.r * 0.35, 0); ctx.lineTo(-e.r * 0.8, e.r * 0.9);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#2a0d16';
-      ctx.beginPath(); ctx.arc(e.r * 0.1, 0, e.r * 0.3, 0, TAU); ctx.fill();
-      break;
-    }
-    case 'turret': {
-      ctx.strokeStyle = body; ctx.lineWidth = 2.6;
-      ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.stroke();
-      ctx.beginPath(); ctx.arc(0, 0, e.r * 0.62, 0, TAU); ctx.stroke();
-      ctx.fillStyle = body;
-      ctx.beginPath(); ctx.arc(0, 0, e.r * 0.3, 0, TAU); ctx.fill();
-      ctx.save(); ctx.rotate(e.phase * 0.5);
-      ctx.fillRect(e.r * 0.5, -3, e.r * 0.7, 6);
-      ctx.restore();
-      break;
-    }
-    case 'brute': {
-      ctx.fillStyle = body;
-      ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.fill();
-      ctx.strokeStyle = '#2a160c'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(0, 0, e.r * 0.62, 0, TAU); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-e.r * 0.7, -e.r * 0.7); ctx.lineTo(e.r * 0.7, e.r * 0.7); ctx.stroke();
-      break;
-    }
-    case 'sniper': {
-      if (e.aimT > 0 && e.snipeX !== undefined) {
-        ctx.save(); ctx.globalAlpha = 0.35 + 0.45 * (1 - e.aimT / 0.88);
-        ctx.strokeStyle = '#bfe6ff'; ctx.lineWidth = 1.6; ctx.setLineDash([6, 10]);
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(e.snipeX * 960, e.snipeY * 960); ctx.stroke();
-        ctx.restore();
+      const moving = Math.hypot(dir.x, dir.y) > 30 || e.state === 'dash';
+      ctx.rotate(moving ? Math.atan2(dir.y, dir.x) + Math.PI / 2 : Math.sin(e.phase) * 0.12);
+      const s = e.r / 24;
+      for (let i = 0; i < 3; i++) { // motion streaks
+        ctx.globalAlpha = 0.18; ctx.fillStyle = e.color;
+        ctx.beginPath(); ctx.moveTo(-14 * s, -20 * s - i * 11 * s); ctx.lineTo(14 * s, -20 * s - i * 11 * s); ctx.lineTo(0, -48 * s - i * 16 * s); ctx.closePath(); ctx.fill();
       }
-      ctx.rotate(Math.PI / 4 + e.phase * 0.2);
-      ctx.fillStyle = body;
-      starPath(ctx, 0, 0, e.r * 1.15, e.r * 0.4, 4); ctx.fill();
-      ctx.fillStyle = '#0e1620';
-      ctx.beginPath(); ctx.arc(0, 0, e.r * 0.32, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = e.color; ctx.strokeStyle = '#ffffffcc'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, -34 * s); ctx.lineTo(24 * s, 19 * s); ctx.lineTo(-24 * s, 19 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fff4e8'; ctx.fillRect(-14 * s, -7 * s, 28 * s, 8 * s); ctx.fillRect(-19 * s, 9 * s, 38 * s, 7 * s);
+      ctx.fillStyle = dark; roundRectPath(ctx, -17 * s, 4 * s, 34 * s, 17 * s, 5 * s); ctx.fill();
+      enemyEyes(ctx, -7 * s, 11 * s, 5, 4, B);
       break;
     }
-    case 'hexer': {
-      ctx.strokeStyle = body; ctx.lineWidth = 2.6;
-      ctx.save(); ctx.rotate(e.phase * 0.7);
-      hexPath(ctx, 0, 0, e.r * 1.1); ctx.stroke();
-      ctx.restore();
-      ctx.fillStyle = body;
-      ctx.beginPath(); ctx.arc(0, 0, e.r * 0.5, 0, TAU); ctx.fill();
+    case 'turret': { // Lectern — haunted book stand / altar (stationary)
+      const s = e.r / 20;
+      ctx.fillStyle = dark; ctx.strokeStyle = e.color; ctx.lineWidth = 3;
+      roundRectPath(ctx, -25 * s, -19 * s, 50 * s, 38 * s, 8 * s); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = e.color; ctx.globalAlpha = 0.9; roundRectPath(ctx, -18 * s, -13 * s, 36 * s, 22 * s, 5 * s); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = dark; ctx.lineWidth = 2;
+      for (let y = -7; y < 8; y += 6) { ctx.beginPath(); ctx.moveTo(-12 * s, y * s); ctx.lineTo(12 * s, y * s); ctx.stroke(); }
+      ctx.strokeStyle = B; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(-9 * s, 20 * s); ctx.lineTo(-16 * s, 38 * s); ctx.moveTo(9 * s, 20 * s); ctx.lineTo(16 * s, 38 * s); ctx.stroke();
       break;
     }
-    case 'myrmidon': {
-      ctx.rotate(Math.atan2(e.vy, e.vx));
-      ctx.strokeStyle = body; ctx.lineWidth = 2.6;
-      ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.stroke();
-      ctx.fillStyle = body;
+    case 'brute': { // Ox-Warden — heavy horned brute
+      const s = e.r / 34;
+      ctx.fillStyle = dark; ctx.strokeStyle = e.color; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.ellipse(0, 2 * s, e.r * 1.05, e.r * 0.82, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = B; ctx.lineWidth = 5;
       ctx.beginPath();
-      ctx.moveTo(e.r * 0.95, 0); ctx.lineTo(-e.r * 0.5, -e.r * 0.6); ctx.lineTo(-e.r * 0.2, 0); ctx.lineTo(-e.r * 0.5, e.r * 0.6);
+      ctx.moveTo(-18 * s, -18 * s); ctx.quadraticCurveTo(-40 * s, -36 * s, -54 * s, -20 * s);
+      ctx.moveTo(18 * s, -18 * s); ctx.quadraticCurveTo(40 * s, -36 * s, 54 * s, -20 * s); ctx.stroke();
+      ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(0, 0, e.r * 0.38, 0, TAU); ctx.fill();
+      enemyEyes(ctx, -10 * s, -7 * s, 6, 5, B);
+      break;
+    }
+    case 'sniper': { // Long Candle — tall candle with a flaring flame
+      const s = e.r / 17;
+      const aim = e.aimT > 0;
+      if (aim && e.snipeX !== undefined) {
+        ctx.save(); ctx.rotate(Math.atan2(e.snipeY, e.snipeX));
+        ctx.globalAlpha = 0.35; ctx.strokeStyle = pal.bad; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(960, 0); ctx.stroke(); ctx.restore();
+      }
+      ctx.fillStyle = dark; ctx.strokeStyle = aim ? pal.bad : e.color; ctx.lineWidth = 3;
+      roundRectPath(ctx, -10 * s, -34 * s, 20 * s, 56 * s, 8 * s); ctx.fill(); ctx.stroke();
+      const flame = 1 + Math.sin(e.phase * 12) * 0.15;
+      ctx.fillStyle = aim ? pal.bad : B;
+      ctx.beginPath(); ctx.ellipse(0, -43 * s, 7 * flame * s, 13 * flame * s, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = e.color; ctx.globalAlpha = 0.7; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-22 * s, -2 * s); ctx.lineTo(22 * s, -2 * s); ctx.stroke(); ctx.globalAlpha = 1;
+      enemyEyes(ctx, -4 * s, -12 * s, 3, 3, A);
+      break;
+    }
+    case 'hexer': { // Antiphon — rotating ritual wheel / glyph
+      const s = e.r / 19;
+      ctx.rotate(e.phase * 0.6);
+      ctx.strokeStyle = e.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, e.r * 0.95, 0, TAU); ctx.stroke();
+      for (let k = 0; k < 6; k++) {
+        const a = k * TAU / 6;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a) * e.r * 0.45, Math.sin(a) * e.r * 0.45); ctx.lineTo(Math.cos(a) * e.r * 1.2, Math.sin(a) * e.r * 1.2); ctx.stroke();
+      }
+      ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(0, 0, e.r * 0.7, 0, TAU); ctx.fill();
+      ctx.fillStyle = e.color; ctx.beginPath(); ctx.arc(0, 0, e.r * 0.32, 0, TAU); ctx.fill();
+      enemyEyes(ctx, -5 * s, -3 * s, 3, 3, B);
+      break;
+    }
+    case 'myrmidon': { // Crown-Sworn — crowned triangular knight
+      const s = e.r / 23;
+      const a = Math.hypot(e.vx, e.vy) > 40 ? Math.atan2(e.vy, e.vx) + Math.PI / 2 : Math.sin(e.phase) * 0.16;
+      ctx.rotate(a);
+      ctx.fillStyle = dark; ctx.strokeStyle = e.color; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(0, -32 * s); ctx.lineTo(25 * s, 20 * s); ctx.lineTo(-25 * s, 20 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = B; // crown
+      ctx.beginPath();
+      ctx.moveTo(-17 * s, -35 * s); ctx.lineTo(-7 * s, -23 * s); ctx.lineTo(0, -38 * s); ctx.lineTo(7 * s, -23 * s); ctx.lineTo(17 * s, -35 * s); ctx.lineTo(12 * s, -18 * s); ctx.lineTo(-12 * s, -18 * s);
       ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = A; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 18 * s); ctx.lineTo(0, 42 * s); ctx.stroke();
+      enemyEyes(ctx, -7 * s, 3 * s, 4, 4, B);
       break;
     }
     case 'boss': {
@@ -344,6 +387,12 @@ export function drawEnemy(ctx, e, room) {
       ctx.fillStyle = body;
       ctx.beginPath(); ctx.arc(0, 0, e.r, 0, TAU); ctx.fill();
     }
+  }
+  if (flash && e.type !== 'boss') { // white pop on hit, shape-agnostic
+    ctx.globalAlpha = clamp(e.hit / 0.11, 0, 1) * 0.55;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(0, 0, e.r * 1.12, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
   }
   ctx.restore();
 

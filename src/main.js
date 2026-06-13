@@ -14,7 +14,7 @@ import {
   wireBgmButton, setMenu, hideOverlays, updateHud, setSfxLabels,
 } from './ui/overlays.js';
 import { updatePlayer } from './systems/player.js';
-import { updateEnemies, updateSpawnQueue } from './systems/enemies.js';
+import { updateEnemies, updateSpawnQueue, makeEnemy } from './systems/enemies.js';
 import { updateBullets } from './systems/bullets.js';
 import { updateHazards } from './systems/hazards.js';
 import { updatePickups } from './systems/pickups.js';
@@ -198,6 +198,21 @@ function installDebug(actions) {
     },
     grant: (id) => { grantItem(id, 'debug'); return state.run?.player.modules; },
     fillPulse: () => { if (state.run) state.run.player.pulse = 100; return 'pulse full'; },
+    // art inspection: a frozen row of one of each enemy type
+    lineup: () => {
+      const room = state.room; if (!room) return null;
+      const types = ['skitter', 'gunner', 'charger', 'turret', 'brute', 'sniper', 'hexer', 'myrmidon'];
+      room.enemies.length = 0; room.spawnQueue.length = 0; room.bullets.length = 0;
+      if (room.pendingWaves) for (const w of room.pendingWaves) w.fired = true;
+      const y = room.h * 0.5, x0 = room.w * 0.5 - (types.length - 1) * 70 / 2;
+      types.forEach((t, i) => {
+        const e = makeEnemy(t, x0 + i * 70, y, room);
+        e.hp = e.maxHp = 9999; e.stun = 9999; // hold still for the photo
+        room.enemies.push(e);
+      });
+      const p = state.run.player; p.x = room.w * 0.5; p.y = y + 150;
+      return types.join(', ');
+    },
     pick: (i = 0) => { pickCard(i); return window.oneRoomDebug.state(); },
     // headless variety audit: generate n rooms, return axis summaries
     roll: (n = 20) => {
