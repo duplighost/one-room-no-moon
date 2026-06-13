@@ -465,5 +465,49 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
 }
 
 
+// ── new combat mechanics: dash-bullet conversion + kinetic/redline relics ────
+{
+  const bulletsMod = await import('../src/systems/bullets.js');
+  const playerMod = await import('../src/systems/player.js');
+  const spawnB = bulletsMod.spawnBullet, updateB = bulletsMod.updateBullets;
+  startRun('headless-mechanics');
+  const room = state.room, pl = state.run.player;
+  pl.maxHp = 9999; pl.hp = 9999;
+
+  // case A: dashing — an enemy bullet on the player flips to a friendly diamond
+  room.bullets.length = 0;
+  pl.dashT = 0.3; pl.inv = 0.5;
+  const eb = spawnB(room, 'enemy', pl.x, pl.y, 120, 0, 5, 1, 1.0, '#f00');
+  updateB(room, 1 / 60);
+  check('dash converts an enemy bullet to friendly', !!eb && eb.owner === 'player' && eb.converted === true,
+    `owner=${eb && eb.owner} converted=${eb && eb.converted}`);
+
+  // case B: invincible from a hit (not dashing) — the bullet is NOT converted (dash-only)
+  pl.dashT = 0; pl.inv = 0.5;
+  room.bullets.length = 0;
+  const eb2 = spawnB(room, 'enemy', pl.x, pl.y, 120, 0, 5, 1, 1.0, '#f00');
+  updateB(room, 1 / 60);
+  check('hurt i-frames do NOT convert bullets (dash-only)', !!eb2 && !eb2.converted && eb2.owner === 'enemy',
+    `owner=${eb2 && eb2.owner} converted=${eb2 && eb2.converted}`);
+
+  // redline: the fire-rate relic shortens the effective fire delay (0.9^perks.fire)
+  const before = pl.fireDelay * Math.pow(0.9, pl.perks.fire);
+  window.oneRoomDebug.grant('redline');
+  const after = pl.fireDelay * Math.pow(0.9, pl.perks.fire);
+  check('redline relic speeds up fire', after < before * 0.95, `before=${before.toFixed(3)} after=${after.toFixed(3)}`);
+
+  // kinetic: a dash primes the next volley (bigger + piercing). Verify flag + empowered shot.
+  window.oneRoomDebug.grant('kinetic');
+  pl.dashCd = 0;
+  playerMod.tryDash(1, 0); // dash east → onDash hook sets _dashPrimed
+  check('kinetic primes a shot after dashing', (pl._dashPrimed || 0) >= 1, `primed=${pl._dashPrimed}`);
+  room.bullets.length = 0;
+  pl.fireCd = 0; pl.aimX = 1; pl.aimY = 0;
+  playerMod.firePlayer(pl, room);
+  const primedShot = room.bullets.find(b => b.primed);
+  check('primed volley spawns empowered shots', !!primedShot && primedShot.r > 4.2 && primedShot.pierce >= 1,
+    `found=${!!primedShot} r=${primedShot && primedShot.r} pierce=${primedShot && primedShot.pierce}`);
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

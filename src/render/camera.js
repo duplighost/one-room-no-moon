@@ -2,8 +2,9 @@
 import { clamp, damp } from '../rng.js';
 import { state } from '../state.js';
 import { coarse } from '../systems/juice.js';
+import { FX } from '../config.js';
 
-export const view = { W: 1, H: 1, DPR: 1, scale: 1, mobile: false, portrait: false };
+export const view = { W: 1, H: 1, DPR: 1, scale: 1, baseScale: 1, zoom: 1, mobile: false, portrait: false };
 export const cam = { x: 0, y: 0, kickX: 0, kickY: 0 };
 
 export function resize(canvas, bloomCanvas) {
@@ -12,7 +13,12 @@ export function resize(canvas, bloomCanvas) {
   view.mobile = coarse() || iw < 760 || ih < 560;
   view.portrait = ih >= iw;
   view.DPR = Math.min(view.mobile ? 1.35 : 2, Math.max(1, (typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1)));
-  view.scale = view.mobile ? (view.portrait ? 0.52 : 0.70) : 1;
+  // adaptive zoom keyed to the smaller screen dimension: keeps sprites readable on a
+  // phone instead of the old fixed 0.52 portrait (which shrank everything to a dot —
+  // the "harder to see on mobile" gripe). Bigger phones get a touch more zoom.
+  const small = Math.min(iw, ih);
+  view.baseScale = view.mobile ? clamp(small / 560, 0.62, 0.92) : 1;
+  view.scale = view.baseScale * view.zoom;
   view.W = Math.max(320, Math.floor(iw));
   view.H = Math.max(320, Math.floor(ih));
   if (canvas) {
@@ -25,11 +31,17 @@ export function resize(canvas, bloomCanvas) {
     bloomCanvas.width = Math.max(1, Math.floor(view.W * view.DPR * 0.5));
     bloomCanvas.height = Math.max(1, Math.floor(view.H * view.DPR * 0.5));
   }
+  // nudge phone players to landscape, where the wider screen shows more arena (Grave Signal's hint)
+  if (typeof document !== 'undefined') {
+    const hint = document.getElementById('rotateHint');
+    if (hint) hint.style.display = (view.mobile && view.portrait) ? 'block' : 'none';
+  }
 }
 
 export function snapCamera() {
   const p = state.run?.player, room = state.room;
   if (!p || !room) return;
+  view.zoom = 1; view.scale = view.baseScale; // each room starts un-zoomed
   const vw = view.W / view.scale, vh = view.H / view.scale;
   cam.x = clampCam(p.x - vw / 2, room.w, vw);
   cam.y = clampCam(p.y - vh / 2, room.h, vh);
@@ -45,6 +57,11 @@ export function kick(x, y) { cam.kickX += x; cam.kickY += y; }
 export function updateCamera(dt) {
   const p = state.run?.player, room = state.room;
   if (!p || !room) return;
+  // the room opens up a touch at dash speed, then eases back (Cathedral's speed-zoom)
+  const spd = Math.hypot(p.vx, p.vy);
+  const zt = clamp(1 - Math.max(0, spd - 600) / 4200, 0.95, 1);
+  view.zoom = damp(view.zoom, zt, 6, dt);
+  view.scale = view.baseScale * view.zoom;
   const vw = view.W / view.scale, vh = view.H / view.scale;
   const tx = p.x + p.aimX * 58 + p.vx * 0.09 - vw / 2;
   const ty = p.y + p.aimY * 58 + p.vy * 0.09 - vh / 2;
@@ -57,8 +74,9 @@ export function updateCamera(dt) {
 // world transform for the frame; returns the shake offsets applied
 export function applyWorldTransform(ctx) {
   const s = state.fx.shake;
-  const ox = (Math.random() * 2 - 1) * s * 14;
-  const oy = (Math.random() * 2 - 1) * s * 14;
+  const mag = s * s * FX.SHAKE_GAIN;   // quadratic trauma: tiny hits barely move, big hits punch
+  const ox = (Math.random() * 2 - 1) * mag;
+  const oy = (Math.random() * 2 - 1) * mag;
   ctx.setTransform(view.DPR * view.scale, 0, 0, view.DPR * view.scale,
     (-cam.x - cam.kickX + ox) * view.DPR * view.scale,
     (-cam.y - cam.kickY + oy) * view.DPR * view.scale);

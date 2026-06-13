@@ -18,6 +18,70 @@ A 12-round auto-play stress harness (drives the real loop, picks random draft
 cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
 
+## Grave Signal tempo + mobile-readability pass (player-directed, 2026-06-13 latest)
+
+Player reviewed four ChatGPT prototypes and asked to pull the coolest bits into
+*our* structure: faster Grave-Signal combat, dash aggression, Cathedral's
+bullet-conversion, and a mobile-readability fix. Architecture untouched (one
+arena, rerolls, drafts, bosses, hazards, two-thumb touch, tests, fx guards). The
+rhythm/charge gun was explicitly **not** chosen — left out.
+
+- **Faster, punchier shooting.** `FIRE_DELAY` 0.20 → 0.15; `SHOT_MULT` 0.78 →
+  0.72 so total DPS rises only ~23% (basics die faster, bosses don't melt).
+  `SHOT_SPEED` stays 860 (already inside the 835–900 target). Louder muzzle: a
+  bright white pop + a wider 5-spark spray at the barrels.
+- **Dash feeds the loop.** A dash that *cuts* an enemy zeroes `fireCd` (next shot
+  fires the instant the dash ends). Every kill shaves `DASH_KILL_REFUND` (0.05s)
+  off the dash cooldown (haloDrain still stacks more on close kills). Landing
+  punctuation strengthened (bigger outer ring + crisp white inner snap + a small
+  burst); dash afterimages live longer / run deeper during a dash. New `onDash`
+  hook fired from `tryDash`.
+- **Dash-bullet conversion (Cathedral / the picked feature).** Dashing *through*
+  enemy fire flips the round into a small friendly shard aimed at the nearest
+  enemy (owner→player, 0.6× dmg, retargeted). Gated on `dashT>0` only — hurt
+  i-frames do NOT convert. Converted shots draw as a **diamond** and dash-primed
+  shots as a **ringed circle**, so they read by SHAPE, not just colour
+  (colourblind-safe).
+- **Two new relics** — the only real gaps; the rest of the spec's "kinetic
+  relics" list already existed (sidecarLances/rearArray = side/angled shots,
+  splitWake/graveCharge = kill-splinters/death-burst, phaseDrill = pierce,
+  hunterMycelia = homing, haloDrain = dash-cd-on-kill). **Redline Liturgy**
+  (`redline`, tempo, ≤4) cycles guns ~10%/stack faster via `perks.fire`;
+  **Kinetic Primer** (`kinetic`, tempo, ≤3) makes the next N volleys after a dash
+  bigger + piercing (`DASH_PRIME_MULT` 1.5, +1 pierce). Player-facing names are
+  placeholders — rename later **without** touching the IDs.
+- **Quadratic camera trauma (Grave Signal).** Shake offset is `trauma²·GAIN`
+  (`FX.SHAKE_GAIN` 30) instead of linear — tiny shot-shake stops buzzing, big
+  hits still punch. Combat shakes rescaled to suit the curve (dash-cut 0.26,
+  kill 0.18, boss 0.5).
+- **Mobile readability (the stated gripe).** Old portrait camera shrank
+  everything to 0.52 scale; now scale is adaptive to the smaller screen
+  dimension (`clamp(min/560, 0.62, 0.92)`) — measured 0.52 → **0.70** on a 390px
+  phone (sprites ~34% bigger). A subtle dash speed-zoom-out (to 0.95, damped)
+  opens the room up when you dash. A "⟳ Rotate to landscape for a bigger view"
+  hint shows only in portrait (lower-centre so it never covers the HUD). HUD font
+  + off-screen threat triangles bumped on touch devices.
+- **Already had it, didn't rebuild:** the "shoot suspicious objects" micro-secret
+  loop (breakables — Moon Cache / Gambit Shrine / annex doors / cursed idols +
+  cacheCompass) already covers spec #6; reinforcements already enter on a timer
+  *or* when ≤2 remain (delay tightened to `[3.2, 5]`).
+
+Machine-verified: 5 new headless checks (dash converts a bullet; hurt i-frames
+do NOT; redline shortens the fire delay; a dash sets the primed flag; the primed
+volley spawns bigger piercing shots) — all green alongside the existing suite.
+12-round stress harness clean (13 rounds, ~7,900 frames, 0 exceptions). Real
+Chromium: 0 console/page errors on desktop (1280×720) and mobile portrait /
+landscape (390×844 / 844×390); portrait scale confirmed 0.70 and the rotate hint
+shows only in portrait.
+
+Open for human eyes: does 0.15 fire + the dash-prime/kill-refund loop feel like
+Grave Signal in the hands without trivialising bosses (watch round 5/10/15/20
+boss TTK); is the dash speed-zoom pleasant or swimmy on a phone; is the 0.6×
+converted-shot payoff worth dashing into fire; are the Redline/Kinetic draft
+weights (5/4) too tempting. Dials: `config.js` (PLAYER, `FX.SHAKE_GAIN`,
+`DIRECTOR.REINFORCE_DELAY`), `render/camera.js` (scale band, zoom), and the two
+relics in `data/items.js` + `systems/itemEffects.js`.
+
 ## Concept-sheet pass (player-shared ChatGPT concept art, 2026-06-13 late)
 
 Took the *direction* from a 4-panel concept sheet (re-implemented as canvas
