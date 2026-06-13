@@ -31,7 +31,6 @@ export function updateBehavior(room, p, move, aim, raw) {
     if (p.stillT > 2.5 && !f.still) {
       f.still = true;
       notice('still');
-      p.pulse = Math.min(100, p.pulse + 18); // stillness is rewarded once, like BM
     }
   }
   if (p.dashes >= 10 && !f.dash) { f.dash = true; notice('dash'); }

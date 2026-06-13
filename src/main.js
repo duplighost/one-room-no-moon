@@ -166,7 +166,7 @@ function installDebug(actions) {
         seed: state.run.seedText, round: state.run.round,
         score: Math.floor(state.run.score), combo: +state.run.combo.toFixed(2),
         kills: state.run.kills, hp: state.run.player?.hp, maxHp: state.run.player?.maxHp,
-        pulse: Math.floor(state.run.player?.pulse || 0),
+        dashReady: (state.run.player?.dashCd || 0) <= 0,
       } : null,
       room: state.room ? {
         round: state.room.round, biome: state.room.biome.id, layout: state.room.layoutId,
@@ -197,7 +197,6 @@ function installDebug(actions) {
       return window.oneRoomDebug.state();
     },
     grant: (id) => { grantItem(id, 'debug'); return state.run?.player.modules; },
-    fillPulse: () => { if (state.run) state.run.player.pulse = 100; return 'pulse full'; },
     // art inspection: a frozen row of one of each enemy type
     lineup: () => {
       const room = state.room; if (!room) return null;

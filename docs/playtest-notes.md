@@ -18,6 +18,30 @@ A 12-round auto-play stress harness (drives the real loop, picks random draft
 cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
 
+## Combat-feel + platform + character pass (player feedback, 2026-06-13 eve)
+
+- **Pulse bomb removed; dash is the centerpiece.** Gone: the player pulse meter,
+  E/X/right-tap pulse, the on-Moots pulse halo. Dash is now long (impulse 1550,
+  dur 0.42), glides committed (ignores steering mid-dash, eases out), invincible
+  the whole dash (i-frames 0.46), and hits hard+wide (1.25× dmg, range 156).
+  **Spacebar = dash, mouse = shoot** (Shift/RMB/flick also dash). The HUD meter
+  by the hearts is now a dash-ready indicator. Pulse-tied bits repurposed: Halo
+  Drain item → close kills refund dash cooldown; "Quicker Boots" shrine →
+  −15% dash cd; care objects refresh the dash. (Note: the *pulse hazard* — the
+  expanding-ring room hazard — is unrelated and stays.)
+- **Platforms reworked to read as height** (was: flat 11px, "out of place").
+  Now an extruded block: visible dark cliff face with striations, a biome-tinted
+  walkable top with accent motes + lit rim, and **real stepped stairs** at the
+  ramp. Lift raised to 34px; entities on top lift to match. Ledges no longer
+  double-draw (the platform render owns the whole look).
+- **Character emitter + aim.** The floating aim-line over his face is gone;
+  shots now leave a stubby **barrel + arrowhead at body level** that points where
+  you aim — readable by SHAPE (dark outline), since the player is colourblind.
+- **Captain label → threat tag:** a diamond marker + small dim affix label, so it
+  reads "this one's dangerous," not "the enemy's name."
+- **Dark-screen guard:** drawFrame now resets alpha/filter/blend/shadow each
+  frame, so no leaked render state can dim a room.
+
 ## Enemy visual pass (player feedback, 2026-06-13 pm)
 
 Replaced the geometric enemy primitives with characterful "haunted arcade

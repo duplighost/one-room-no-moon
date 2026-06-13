@@ -20,7 +20,6 @@ export function makePlayer() {
     speed: PLAYER.SPEED, baseSpeed: PLAYER.SPEED,
     accel: PLAYER.ACCEL, stop: PLAYER.STOP, turn: PLAYER.TURN, lateral: PLAYER.LATERAL,
     fireDelay: PLAYER.FIRE_DELAY, fireCd: 0, damage: PLAYER.DAMAGE, crit: PLAYER.CRIT,
-    pulse: 24, pulseGain: 1, pulseRadius: PLAYER.PULSE_RADIUS,
     dashCdBase: PLAYER.DASH_CD, dashCd: 0, dashT: 0, dashDur: PLAYER.DASH_DUR,
     dashSpinDir: 1, lastDashAngle: null, after: [],
     pickup: PLAYER.PICKUP_RANGE,
@@ -43,7 +42,6 @@ export function updatePlayer(p, move, aim, room, dt) {
   p.dashCd = Math.max(0, p.dashCd - dt);
   p.dashT = Math.max(0, p.dashT - dt);
   p.brakeT = Math.max(0, p.brakeT - dt);
-  p.pulse = Math.min(100, p.pulse + dt * (PLAYER.PULSE_GAIN_RATE + p.pulseGain * 1.15));
   if (p.shieldMax > 0 && p.shield < p.shieldMax) {
     p.shieldTimer += dt;
     if (p.shieldTimer >= 10) { p.shield++; p.shieldTimer = 0; }
@@ -58,7 +56,12 @@ export function updatePlayer(p, move, aim, room, dt) {
   const analog = clamp(move.l, 0, 1);
   const desiredX = move.x * p.speed * (0.58 + 0.42 * analog);
   const desiredY = move.y * p.speed * (0.58 + 0.42 * analog);
-  if (move.active) {
+  if (p.dashT > 0) {
+    // committed dash glide — ride the impulse, ignore steering, ease out gently
+    p.vx = damp(p.vx, 0, PLAYER.DASH_GLIDE, dt);
+    p.vy = damp(p.vy, 0, PLAYER.DASH_GLIDE, dt);
+    p.stillT = 0;
+  } else if (move.active) {
     const inLen = Math.hypot(move.x, move.y) || 1, ix = move.x / inLen, iy = move.y / inLen;
     const alignment = beforeSpeed > 1 ? (p.vx * ix + p.vy * iy) / beforeSpeed : 1;
     const reverse = clamp(-alignment, 0, 1);
@@ -134,9 +137,11 @@ export function firePlayer(p, room) {
   p.fireCd = p.fireDelay * Math.pow(0.9, p.perks.fire);
   p.shots++;
   sfx('shot');
-  const ax = p.aimX, ay = p.aimY, oy = PLAYER.MUZZLE_Y;
+  const ax = p.aimX, ay = p.aimY;
+  // shots leave the emitter barrel tip (body level, in the aim direction)
+  const ex = p.x + ax * PLAYER.EMITTER_LEN, ey = p.y + PLAYER.EMITTER_Y + ay * PLAYER.EMITTER_LEN;
   for (let i = 0; i < 3; i++) {
-    particle(room, p.x + ax * 26, p.y + oy + ay * 26, room.biome.pal.accent,
+    particle(room, ex, ey, room.biome.pal.accent,
       ax * (90 + Math.random() * 90) + (Math.random() * 50 - 25),
       ay * (90 + Math.random() * 90) + (Math.random() * 50 - 25), 0.16, 1.8 + Math.random() * 1.5);
   }
@@ -147,12 +152,11 @@ export function firePlayer(p, room) {
   const px = -ay, py = ax;
   for (let side = -1; side <= 1; side += 2) {
     spawnBullet(room, 'player',
-      p.x + ax * 18 + px * PLAYER.TWIN_OFFSET * side,
-      p.y + oy + ay * 18 + py * PLAYER.TWIN_OFFSET * side,
+      ex + px * PLAYER.TWIN_OFFSET * side, ey + py * PLAYER.TWIN_OFFSET * side,
       ax * PLAYER.SHOT_SPEED + px * 28 * side, ay * PLAYER.SHOT_SPEED + py * 28 * side,
       PLAYER.SHOT_R, dmg, PLAYER.SHOT_LIFE, crit ? '#ffffff' : room.biome.pal.accent, { level: p.level });
   }
-  hooks.run('onFire', p, { x: ax, y: ay, oy });
+  hooks.run('onFire', p, { x: ax, y: ay, oy: PLAYER.EMITTER_Y });
 }
 
 export function tryDash(dx = null, dy = null, move = null) {
@@ -192,27 +196,6 @@ export function tryDash(dx = null, dy = null, move = null) {
     }
   }
   if (hits) { addFlash(0.12); addShake(0.12); }
-}
-
-export function tryPulse() {
-  if (state.mode !== 'play' || !state.run) return;
-  const p = state.run.player, room = state.room;
-  if (p.pulse < 100) { haptic(8); return; }
-  p.pulse = 0;
-  addFlash(0.75); slowMo(0.42); addShake(0.42); hitPause('pulse');
-  sfx('pulse'); haptic(42);
-  for (const b of room.bullets) if (b.owner === 'enemy') b.life = Math.min(b.life, 0.08);
-  const dmg = p.damage * (1 + p.perks.damage * 0.15) * (PLAYER.PULSE_MULT + p.pulseGain * 0.5);
-  for (const e of room.enemies.slice()) {
-    if (e.hp <= 0 || e.level !== p.level) continue; // shockwave stays on your level
-    if (dist(p.x, p.y, e.x, e.y) < p.pulseRadius + e.r) {
-      const k = norm(e.x - p.x, e.y - p.y);
-      damageEnemy(e, dmg, k.x * 420, k.y * 420, 'pulse');
-    }
-  }
-  for (let i = 0; i < 70; i++) {
-    const a = Math.random() * TAU, r = Math.random() * p.pulseRadius;
-    particle(room, p.x, p.y, room.biome.pal.accent3, Math.cos(a) * r * 3, Math.sin(a) * r * 3, 0.65, 2 + Math.random() * 4);
-  }
-  burst(room, p.x, p.y, '#ffffff', 8, 90, 0.3, 4);
+  // bigger dash = bigger feedback
+  slowMo(0.06);
 }

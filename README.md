@@ -18,18 +18,20 @@ python3 -m http.server 8000     # then open http://localhost:8000/
 | --- | --- |
 | WASD / arrows · left stick | move |
 | mouse · right stick · left thumb pad | aim |
-| hold LMB · Space/Z (auto-aim) · hold right pad | fire |
-| Shift · flick either thumb pad · B (pad) | spin-dash |
-| E / X · tap right pad · Y (pad) | pulse bomb (when meter full) |
+| hold LMB · hold right pad · Z (auto-aim) | fire |
+| **Spacebar** · Shift · RMB · flick a thumb pad · any face button | spin-dash (long, invincible, hits hard) |
 | R | boon reroll (draft, or loose cores on the floor) |
 | 1 / 2 / 3 | pick a draft card |
 | Esc / P · Tab · M · B | pause · codex · sfx · bgm |
 | `?fresh=1` URL param | wipe the save |
 
-Mobile is two-thumbs-anywhere: left half moves, right half aims and fires.
-Dash and pulse have dedicated buttons in the bottom-right (the pulse button
-glows when it's charged); the left thumb still dashes on a deliberate slam from
-rest, and the right thumb still flicks to dash / taps to pulse.
+The spin-dash is the centerpiece: it covers a lot of ground, makes you invincible
+for the whole dash, and damages enemies you cut through. The HUD bar by the hearts
+shows when it's recharged.
+
+Mobile is two-thumbs-anywhere: left half moves, right half aims and fires. Dash
+with a flick — a deliberate slam of the move thumb from rest, or a fast flick of
+the aim thumb.
 
 **The run:** clear the room → walk into the portal → draft a graft → the room
 re-deals itself. Boss every 5th round. Beat the Null Archon at round 20 to burn

@@ -194,9 +194,10 @@ export function updateHud() {
     ui.hp.innerHTML = (p.hp <= 2 ? `<span class="hurt">${hearts}</span>` : hearts) + (p.shield ? ` +${p.shield}` : '');
     ui.score.textContent = Math.floor(run.score).toLocaleString();
     ui.comboChip.textContent = `x${run.combo.toFixed(1)}`;
-    const pct = clamp(p.pulse, 0, 100);
-    ui.pulseFill.style.width = pct + '%';
-    ui.pulseWrap.classList.toggle('ready', pct >= 100);
+    // the meter now shows dash readiness (fills as the cooldown recovers)
+    const ready = p.dashCd <= 0;
+    ui.pulseFill.style.width = (ready ? 100 : clamp(1 - p.dashCd / (p.dashCdBase || 1), 0, 1) * 100) + '%';
+    ui.pulseWrap.classList.toggle('ready', ready);
     const boonEl = document.getElementById('boonChip');
     if (boonEl) {
       boonEl.textContent = p.boon.charges > 0 ? '⇄ BOON READY' : `⇄ lacing ${p.boon.progress}/${p.boon.need}`;

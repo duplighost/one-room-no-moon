@@ -267,7 +267,7 @@ function maybeTier(room, rng, px, py, portalX, portalY) {
       room.obstacles.length = before; // undo, try again
       continue;
     }
-    room.tiers.push({ x: tx, y: ty, w: tw, h: th, height: 1, ramp: { x: rgx, y: ty + th } });
+    room.tiers.push({ x: tx, y: ty, w: tw, h: th, height: 1, ramp: { x: rgx, y: ty + th, w: gap } });
     return;
   }
 }

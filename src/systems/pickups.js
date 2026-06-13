@@ -1,6 +1,5 @@
 // Floor pickups: sparks (score/pulse/meta), repair, heart, marrow, module cores (Phase 4).
 import { state } from '../state.js';
-import { PLAYER } from '../config.js';
 import { dist, norm } from '../rng.js';
 import { burst, addFloat } from '../render/particles.js';
 import { sfx } from '../audio/sfx.js';
@@ -40,7 +39,6 @@ function collect(room, p, q) {
   switch (q.type) {
     case 'spark':
       sparkScore();
-      p.pulse = Math.min(100, p.pulse + PLAYER.PULSE_PER_SPARK * p.pulseGain);
       break;
     case 'repair':
       p.hp = Math.min(p.maxHp, p.hp + 2);

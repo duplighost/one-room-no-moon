@@ -76,22 +76,6 @@ export function drawPlayer(ctx, p, room) {
     ctx.strokeStyle = pal.accent + '99'; ctx.lineWidth = 2;
     for (let i = 0; i < p.shield; i++) { ctx.beginPath(); ctx.arc(p.x, p.y, 38 + i * 5, 0, TAU); ctx.stroke(); }
   }
-  // pulse-ready cue: a breathing ring on Moots so you notice it mid-fight
-  if (p.pulse >= 100) {
-    const t = performance.now() / 1000;
-    const breathe = 0.5 + 0.5 * Math.sin(t * 4.2);
-    ctx.save();
-    ctx.globalAlpha = 0.35 + breathe * 0.4;
-    ctx.strokeStyle = '#aef3ff';
-    ctx.shadowColor = '#7dfdff';
-    ctx.shadowBlur = 14 + breathe * 12;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 46 + breathe * 7, 0, TAU); ctx.stroke();
-    ctx.globalAlpha = 0.18 + breathe * 0.18;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 56 + breathe * 10, 0, TAU); ctx.stroke();
-    ctx.restore();
-  }
 }
 
 export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, spinPhase = 0) {
@@ -113,11 +97,7 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
       ctx.beginPath(); ctx.ellipse(0, -23, 37 * sx, 10, 0, 0, TAU); ctx.stroke();
       ctx.restore();
     }
-    ctx.strokeStyle = pal.accent; ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(face) * 16, -30 + Math.sin(face) * 16);
-    ctx.lineTo(Math.cos(face) * 40, -30 + Math.sin(face) * 40);
-    ctx.stroke();
+    drawEmitter(ctx, face, pal);
   } else {
     // fallback blob until the sprite loads (Boon Moots index.html:1416)
     if (spinning) {
@@ -131,8 +111,28 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
     ctx.beginPath(); ctx.arc(-8, -12, 4, 0, TAU); ctx.arc(8, -12, 4, 0, TAU); ctx.fill();
     ctx.fillStyle = pal.accent2;
     ctx.fillRect(-17, 19, 14, 16); ctx.fillRect(4, 19, 14, 16);
+    drawEmitter(ctx, face, pal);
   }
   ctx.restore(); ctx.globalAlpha = 1;
+}
+
+// Aim emitter: a stubby barrel + arrowhead at body level that points where shots
+// go. Reads by SHAPE (not just colour) for colourblind clarity; dark outline so
+// it stands out on any biome. Shots leave from the tip (matches PLAYER.EMITTER_*).
+function drawEmitter(ctx, face, pal) {
+  ctx.save();
+  ctx.translate(0, -16); // matches PLAYER.EMITTER_Y so shots leave the barrel tip
+  ctx.rotate(face);
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#0a0a12'; ctx.lineWidth = 2.5;
+  ctx.fillStyle = pal.accent;
+  roundRectPath(ctx, 5, -4.5, 17, 9, 3); ctx.fill(); ctx.stroke();   // barrel
+  ctx.beginPath();                                                    // arrowhead
+  ctx.moveTo(31, 0); ctx.lineTo(19, -8); ctx.lineTo(19, 8); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#fff';                                             // bright muzzle dot
+  ctx.beginPath(); ctx.arc(24, 0, 2, 0, TAU); ctx.fill();
+  ctx.restore();
 }
 
 // Gigi (Boon Moots index.html:1420)
@@ -397,11 +397,18 @@ export function drawEnemy(ctx, e, room) {
   ctx.restore();
 
   if (e.captain) {
+    // elite threat tag — reads as "this one's dangerous", not the enemy's name:
+    // a diamond marker + a small dim label
     ctx.save();
     ctx.textAlign = 'center';
-    ctx.font = '900 13px Inter, system-ui, sans-serif';
-    ctx.fillStyle = e.color; ctx.shadowColor = e.color; ctx.shadowBlur = 10;
-    ctx.fillText(e.captain.toUpperCase(), e.x, e.y - e.r * 1.82);
+    const ty = e.y - e.r * 1.7;
+    ctx.fillStyle = e.color; ctx.shadowColor = e.color; ctx.shadowBlur = 8;
+    ctx.beginPath(); // marker diamond
+    ctx.moveTo(e.x, ty - 11); ctx.lineTo(e.x + 5, ty - 6); ctx.lineTo(e.x, ty - 1); ctx.lineTo(e.x - 5, ty - 6);
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.8;
+    ctx.font = '800 9px Inter, system-ui, sans-serif';
+    ctx.fillText(e.captain.toUpperCase(), e.x, ty + 11);
     ctx.restore();
   }
   if (e.maxHp > 6 && e.hp < e.maxHp) {
@@ -423,7 +430,7 @@ const STYLE_GROUPS = {
 };
 
 export function drawObstacle(ctx, o, room) {
-  if (o.gone) return;
+  if (o.gone || o.ledge) return; // tier ledges are rendered as part of the platform (drawTiers)
   const pal = room.biome.pal;
   const group = STYLE_GROUPS[o.style] || 'stone';
   const sh = o.shake = Math.max(0, (o.shake || 0) - 0.016);

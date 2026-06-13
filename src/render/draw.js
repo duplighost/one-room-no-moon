@@ -5,7 +5,9 @@ import { TAU, BLOOM } from '../config.js';
 import { state } from '../state.js';
 import { clamp } from '../rng.js';
 import { view, cam, applyWorldTransform, uiTransform } from './camera.js';
-import { drawPlayer, drawEnemy, drawObstacle, drawCare, roundRectPath, starPath, heartPath, bossCards } from './sprites.js';
+import { drawPlayer, drawEnemy, drawObstacle, drawCare, roundRectPath, starPath, heartPath, bossCards, mix as mixHex } from './sprites.js';
+
+const TIER_LIFT = 34; // px a platform (level 1) rises; entities on it lift to match
 import { drawParticles, drawFloats } from './particles.js';
 import { ENEMY_TYPES } from '../data/enemies.js';
 import { reduced } from '../systems/juice.js';
@@ -24,6 +26,9 @@ export function initDraw(c, bc) {
 export function drawFrame() {
   if (!ctx) return;
   uiTransform(ctx);
+  // render-state hygiene: never let a leaked alpha/filter/blend from a prior
+  // frame darken the next one (defensive — fixes the rare "screen went dark").
+  ctx.globalAlpha = 1; ctx.filter = 'none'; ctx.globalCompositeOperation = 'source-over'; ctx.shadowBlur = 0;
   ctx.fillStyle = '#05070b';
   ctx.fillRect(0, 0, view.W, view.H);
 
@@ -56,7 +61,7 @@ export function drawFrame() {
   drawPickups(room, pal);
 
   // y-sorted entities; raised (level>0) things sort above ground and lift visually
-  const LIFT = 11;
+  const LIFT = TIER_LIFT;
   const renderables = [];
   for (const o of room.obstacles) if (!o.gone) {
     const lv = o.ledge ? 1 : 0;
@@ -117,33 +122,59 @@ export function drawFrame() {
 }
 
 // ── hazards ─────────────────────────────────────────────────────────────────
-// raised platform floors — drawn under the ledge walls + entities so they read
-// as "above": drop shadow on the ground below, lighter inset top surface, lip.
+// raised platforms drawn as an extruded block so the HEIGHT actually reads: a
+// dark cliff face you can see, a biome-tinted walkable top, and real stepped
+// stairs at the ramp. LIFT must match TIER_LIFT in the entity sort below.
 function drawTiers(room, pal) {
   if (!room.tiers) return;
   for (const t of room.tiers) {
-    const lift = 11;
+    const L = TIER_LIFT;
+    const topY = t.y - L;                 // screen Y of the walkable top surface
     ctx.save();
-    // cast shadow on the ground
-    ctx.fillStyle = 'rgba(0,0,0,0.34)';
-    roundRectPath(ctx, t.x + 6, t.y + 10, t.w, t.h, 10); ctx.fill();
-    // raised top surface, shifted up by `lift`
-    const g = ctx.createLinearGradient(0, t.y - lift, 0, t.y + t.h - lift);
-    g.addColorStop(0, hexA(pal.accent, 0.16));
-    g.addColorStop(1, hexA(pal.floor, 0.9));
-    ctx.fillStyle = g;
-    roundRectPath(ctx, t.x, t.y - lift, t.w, t.h, 10); ctx.fill();
-    // lit rim
-    ctx.strokeStyle = hexA(pal.accent2, 0.55); ctx.lineWidth = 2;
-    roundRectPath(ctx, t.x, t.y - lift, t.w, t.h, 10); ctx.stroke();
-    // ramp hint (chevrons up the entrance gap)
+    // ground shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    roundRectPath(ctx, t.x + 8, t.y + t.h - 6, t.w, 22, 12); ctx.fill();
+
+    // the solid block body (top → ground): its bottom band is the visible cliff
+    const body = ctx.createLinearGradient(0, topY, 0, t.y + t.h);
+    body.addColorStop(0, mixHex(pal.floor, '#000000', 0.45));
+    body.addColorStop(1, mixHex(pal.bg, '#000000', 0.3));
+    ctx.fillStyle = body;
+    roundRectPath(ctx, t.x, topY, t.w, t.h + L, 10); ctx.fill();
+    // cliff striations (vertical) on the front band
+    ctx.strokeStyle = hexA(pal.bg, 0.6); ctx.lineWidth = 1.5;
+    for (let sx = t.x + 14; sx < t.x + t.w - 8; sx += 22) {
+      ctx.beginPath(); ctx.moveTo(sx, topY + t.h * 0.6); ctx.lineTo(sx, t.y + t.h - 4); ctx.stroke();
+    }
+
+    // walkable top surface (biome-tinted, lighter)
+    const top = ctx.createLinearGradient(0, topY, 0, topY + t.h);
+    top.addColorStop(0, mixHex(pal.floor, pal.accent, 0.22));
+    top.addColorStop(1, mixHex(pal.floor, '#ffffff', 0.04));
+    ctx.fillStyle = top;
+    roundRectPath(ctx, t.x, topY, t.w, t.h, 10); ctx.fill();
+    // a few biome accent motes so the surface matches the room (deterministic)
+    ctx.fillStyle = hexA(pal.accent2, 0.5);
+    for (let i = 0; i < 6; i++) {
+      const mx = t.x + 18 + ((i * 97) % Math.max(1, t.w - 36));
+      const my = topY + 14 + ((i * 61) % Math.max(1, t.h - 24));
+      ctx.beginPath(); ctx.arc(mx, my, 2, 0, TAU); ctx.fill();
+    }
+    // lit top rim + base shade line where cliff meets top
+    ctx.strokeStyle = hexA(pal.accent2, 0.7); ctx.lineWidth = 2;
+    roundRectPath(ctx, t.x, topY, t.w, t.h, 10); ctx.stroke();
+
+    // real stairs at the ramp gap: stacked steps climbing from ground to top
     if (t.ramp) {
-      ctx.strokeStyle = hexA(pal.accent3, 0.8); ctx.lineWidth = 2;
-      for (let k = 0; k < 3; k++) {
-        const yy = t.ramp.y - lift + 6 + k * 7;
-        ctx.beginPath();
-        ctx.moveTo(t.ramp.x - 12, yy + 6); ctx.lineTo(t.ramp.x, yy); ctx.lineTo(t.ramp.x + 12, yy + 6);
-        ctx.stroke();
+      const sw = Math.min(t.ramp.w || 150, t.w * 0.55);
+      const steps = 4, sh = L / steps;
+      for (let i = 0; i < steps; i++) {
+        const stepY = (t.y + t.h) - (i + 1) * sh;
+        const inset = (steps - 1 - i) * 3;
+        ctx.fillStyle = mixHex(pal.floor, pal.accent, 0.1 + i * 0.05);
+        roundRectPath(ctx, t.ramp.x - sw / 2 + inset, stepY, sw - inset * 2, sh + 2, 2); ctx.fill();
+        ctx.strokeStyle = hexA(pal.accent2, 0.55); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(t.ramp.x - sw / 2 + inset, stepY); ctx.lineTo(t.ramp.x + sw / 2 - inset, stepY); ctx.stroke();
       }
     }
     ctx.restore();

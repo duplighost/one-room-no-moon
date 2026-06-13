@@ -35,8 +35,7 @@ export function killEnemy(e) {
     room.spawnQueue.length = 0;
   }
   killScore(e);
-  p.pulse = Math.min(100, p.pulse + (e.boss ? PLAYER.PULSE_PER_BOSS : PLAYER.PULSE_PER_KILL) * p.pulseGain);
-  // spark scatter (meta currency + pulse food)
+  // spark scatter (meta currency)
   const n = (e.boss ? 24 : (e.captain ? 8 : 3 + Math.floor(Math.random() * 3)))
     + (room.mutator?.sparkBonus || 0);
   for (let i = 0; i < n; i++) {

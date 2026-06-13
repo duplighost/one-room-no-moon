@@ -176,7 +176,7 @@ export function updateCare(room, dt) {
     } else {
       p.hp = Math.min(p.maxHp, p.hp + (c.kind === 'pie' ? 2 : 1));
       p.shield = Math.min(Math.max(1, p.shieldMax || 1), p.shield + 1);
-      p.pulse = Math.min(100, p.pulse + 22);
+      p.dashCd = 0; // care also refreshes your dash
       addFloat(room, c.x, c.y - 40, 'CARE', '#9bffd1', true);
       if (!state.run.flags.care) { state.run.flags.care = true; notice('care'); }
       sfx('care');

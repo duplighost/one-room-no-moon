@@ -129,11 +129,11 @@ const installers = {
       }
     });
   },
-  haloDrain() {
+  haloDrain() { // close kills refund dash cooldown — feed the dash loop
     hooks.on('onKill', 'haloDrain', (e) => {
       const p = state.run.player;
-      if (dist(p.x, p.y, e.x, e.y) < 180) {
-        p.pulse = Math.min(100, p.pulse + 8 + st('haloDrain') * 5);
+      if (dist(p.x, p.y, e.x, e.y) < 190) {
+        p.dashCd = Math.max(0, p.dashCd - (0.12 + st('haloDrain') * 0.08));
       }
     });
   },

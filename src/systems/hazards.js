@@ -106,7 +106,6 @@ export function updateHazards(room, dt) {
     } else if (h.type === 'fog' || h.type === 'spore') {
       if (harm && d < h.r + p.r) {
         p.vx *= Math.pow(h.slow, dt * 8); p.vy *= Math.pow(h.slow, dt * 8);
-        p.pulse = Math.max(0, p.pulse - dt * (h.type === 'spore' ? 7 : 3));
         if (h.type === 'spore' && h.cd <= 0 && p.inv <= 0 && d < h.r * h.coreFrac + p.r) {
           h.cd = h.coreDmgCd;
           hurtPlayer(1, h.x, h.y, 'hazard');

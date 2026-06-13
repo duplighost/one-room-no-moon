@@ -31,7 +31,7 @@ export const ITEMS = [
   { id: 'moonShard',      name: 'Moon Shard',        type: 'damage',      weight: 4, maxStacks: 4, color: '#f6f0ff', desc: 'Player shots can critically flare.' },
   { id: 'riftCapacitor',  name: 'Rift Capacitor',    type: 'tempo',       weight: 3, maxStacks: 3, color: '#9ec6ff', desc: 'After enough clears, the hull recharges one integrity.' },
   { id: 'gigi',           name: 'Gigi Management',   type: 'companion',   weight: 3, maxStacks: 3, color: '#f9f6ee', desc: 'The cat makes calls. The calls are pounces.' },
-  { id: 'haloDrain',      name: 'Halo Drain',        type: 'tempo',       weight: 4, maxStacks: 3, color: '#ffe69b', desc: 'Close kills feed the quiet. Pulse charges faster up close.' },
+  { id: 'haloDrain',      name: 'Halo Drain',        type: 'tempo',       weight: 4, maxStacks: 3, color: '#ffe69b', desc: 'Close kills refund your dash. Stay in the thick of it and keep spinning.' },
 ];
 
 export const itemById = (id) => ITEMS.find(i => i.id === id);

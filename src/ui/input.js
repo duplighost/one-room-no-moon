@@ -4,14 +4,14 @@
 import { state } from '../state.js';
 import { norm, dist } from '../rng.js';
 import { screenToWorld } from '../render/camera.js';
-import { tryDash, tryPulse } from '../systems/player.js';
+import { tryDash } from '../systems/player.js';
 import { pickCard, boonReroll } from '../systems/draft.js';
 
 const keys = Object.create(null);
 const mouse = { x: 0, y: 0, down: false, seen: false };
 let actions = null;
 let suppressUntil = 0;
-let padDashLatch = false, padPulseLatch = false;
+let padDashLatch = false;
 
 const makePad = () => ({
   id: null, startX: 0, startY: 0, x: 0, y: 0, dx: 0, dy: 0,
@@ -74,12 +74,8 @@ function releaseTouches(list) {
   for (const t of list) {
     if (t.identifier === aimTouch.id) {
       const age = now() - aimTouch.startT;
-      const tap = age < 260 && aimTouch.maxLen < 0.22;
       const flick = age < 230 && aimTouch.maxLen > 0.82 && (aimTouch.speed > 620 || aimTouch.len > 0.86) && !aimTouch.dashed;
-      if (!suppressed()) {
-        if (flick) tryDash(aimTouch.dx, aimTouch.dy);
-        else if (tap) tryPulse();
-      }
+      if (!suppressed() && flick) tryDash(aimTouch.dx, aimTouch.dy);
       clearPad(aimTouch);
     }
     if (t.identifier === moveTouch.id) {
@@ -130,7 +126,7 @@ export function initInput(canvas, a) {
     if (state.mode === 'title' || state.mode === 'dead') return;
     if (state.mode !== 'play') return;
     actions.firstInteract?.();
-    if (e.button === 2) { tryPulse(); return; }
+    if (e.button === 2) { tryDash(null, null, getMove()); return; } // right-click also dashes
     mouse.down = true;
     mouse.x = e.clientX; mouse.y = e.clientY; mouse.seen = true;
   }, { passive: false });
@@ -171,8 +167,7 @@ function onKeyDown(e) {
   actions?.firstInteract?.();
   if (k === 'enter' && (state.mode === 'title' || state.mode === 'dead')) actions?.start?.();
   if (state.mode === 'play' && !suppressed()) {
-    if (k === 'shift') tryDash(null, null, getMove());
-    if (k === 'e' || k === 'x') tryPulse();
+    if (k === ' ' || k === 'shift') tryDash(null, null, getMove()); // spacebar = spin-dash
     if (k === 'r') boonReroll();
   }
   if (state.mode === 'portalDraft') {
@@ -198,12 +193,9 @@ export function getMove() {
     const gx = Math.abs(gp.axes[0]) > 0.16 ? gp.axes[0] : 0;
     const gy = Math.abs(gp.axes[1]) > 0.16 ? gp.axes[1] : 0;
     x += gx; y += gy;
-    if (gp.buttons[1]?.pressed || gp.buttons[0]?.pressed) {
+    if (gp.buttons[1]?.pressed || gp.buttons[0]?.pressed || gp.buttons[3]?.pressed) {
       if (!padDashLatch) { padDashLatch = true; if (state.mode === 'play' && !suppressed()) tryDash(null, null, getMoveRaw(x, y)); }
     } else padDashLatch = false;
-    if (gp.buttons[3]?.pressed) {
-      if (!padPulseLatch) { padPulseLatch = true; if (state.mode === 'play') tryPulse(); }
-    } else padPulseLatch = false;
   }
   if (suppressed()) return { x: 0, y: 0, active: false, l: 0 };
   return getMoveRaw(x, y);
@@ -245,7 +237,7 @@ export function getAim() {
       ax = n.x; ay = n.y; aiming = true; firing = true;
     }
   }
-  if (keys[' '] || keys.z) {
+  if (keys.z) { // optional keyboard auto-aim fire (space is the dash now)
     firing = true;
     if (!aiming) {
       const n = nearestEnemyDir(p);
