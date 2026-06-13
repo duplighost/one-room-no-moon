@@ -116,22 +116,49 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
   ctx.restore(); ctx.globalAlpha = 1;
 }
 
-// Aim emitter: a stubby barrel + arrowhead at body level that points where shots
-// go. Reads by SHAPE (not just colour) for colourblind clarity; dark outline so
-// it stands out on any biome. Shots leave from the tip (matches PLAYER.EMITTER_*).
+// Aim emitter: a little double-barreled laser pistol held out front, pointing
+// where shots go (the two barrels match the twin-relay's two shots). Reads by
+// SHAPE for colourblind clarity; gunmetal body + biome-coloured energy/muzzles,
+// dark outline so it stands out on any biome. Shots leave the barrel tips.
 function drawEmitter(ctx, face, pal) {
   ctx.save();
-  ctx.translate(0, -16); // matches PLAYER.EMITTER_Y so shots leave the barrel tip
+  ctx.translate(0, -16); // matches PLAYER.EMITTER_Y
   ctx.rotate(face);
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#0a0a12'; ctx.lineWidth = 2.5;
-  ctx.fillStyle = pal.accent;
-  roundRectPath(ctx, 5, -4.5, 17, 9, 3); ctx.fill(); ctx.stroke();   // barrel
-  ctx.beginPath();                                                    // arrowhead
-  ctx.moveTo(31, 0); ctx.lineTo(19, -8); ctx.lineTo(19, 8); ctx.closePath();
-  ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#fff';                                             // bright muzzle dot
-  ctx.beginPath(); ctx.arc(24, 0, 2, 0, TAU); ctx.fill();
+  const ink = '#0b0c14';
+
+  // soft muzzle glow so the business end reads even on dark biomes
+  const glow = ctx.createRadialGradient(26, 0, 1, 26, 0, 16);
+  glow.addColorStop(0, hexA(pal.accent, 0.5)); glow.addColorStop(1, hexA(pal.accent, 0));
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(26, 0, 16, 0, TAU); ctx.fill();
+
+  // two barrels (offset to match the twin shots)
+  ctx.strokeStyle = ink; ctx.lineWidth = 2;
+  for (const sgn of [-1, 1]) {
+    ctx.fillStyle = '#2d3340';
+    roundRectPath(ctx, 8, sgn * 6 - 3, 20, 6, 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#454d5e'; // top highlight strip
+    ctx.fillRect(10, sgn * 6 - 2.5, 14, 1.6);
+  }
+
+  // receiver / body the barrels mount into
+  ctx.fillStyle = '#3a4252';
+  roundRectPath(ctx, -8, -9, 18, 18, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#525b6e'; // bevel
+  roundRectPath(ctx, -6, -7, 14, 5, 2); ctx.fill();
+  // little top sight fin
+  ctx.fillStyle = '#2d3340';
+  roundRectPath(ctx, -2, -13, 6, 5, 1.5); ctx.fill(); ctx.stroke();
+  // glowing energy cell on the receiver
+  ctx.fillStyle = pal.accent2; ctx.shadowColor = pal.accent2; ctx.shadowBlur = 7;
+  roundRectPath(ctx, -3, -3, 7, 6, 2); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // muzzle tips — bright dots where the lasers exit (also the aim cue)
+  ctx.fillStyle = pal.accent; ctx.shadowColor = pal.accent; ctx.shadowBlur = 8;
+  for (const sgn of [-1, 1]) { ctx.beginPath(); ctx.arc(28, sgn * 6, 2.6, 0, TAU); ctx.fill(); }
+  ctx.shadowBlur = 0;
   ctx.restore();
 }
 
@@ -549,6 +576,11 @@ export function drawObstacle(ctx, o, room) {
 }
 
 // ── shared paths ────────────────────────────────────────────────────────────
+function hexA(hex, a) {
+  const h = hex.replace('#', '');
+  return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`;
+}
+
 export function mix(a, b, t) {
   const pa = parseInt(a.replace('#', ''), 16), pb = parseInt(b.replace('#', ''), 16);
   const ar = (pa >> 16) & 255, ag = (pa >> 8) & 255, ab = pa & 255;

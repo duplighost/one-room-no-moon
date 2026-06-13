@@ -34,9 +34,12 @@ zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
   walkable top with accent motes + lit rim, and **real stepped stairs** at the
   ramp. Lift raised to 34px; entities on top lift to match. Ledges no longer
   double-draw (the platform render owns the whole look).
-- **Character emitter + aim.** The floating aim-line over his face is gone;
-  shots now leave a stubby **barrel + arrowhead at body level** that points where
-  you aim — readable by SHAPE (dark outline), since the player is colourblind.
+- **Character emitter + aim.** The floating aim-line over his face is gone; shots
+  now leave a little **double-barreled laser gun** held at body level (gunmetal
+  receiver + glowing energy cell + sight fin + two barrels with lit muzzle tips,
+  matching the twin-relay's two shots). Points where you aim, readable by SHAPE
+  (the player is colourblind). Replaced an earlier stubby nub that, uh, read as a
+  body part.
 - **Captain label → threat tag:** a diamond marker + small dim affix label, so it
   reads "this one's dangerous," not "the enemy's name."
 - **Dark-screen guard:** drawFrame now resets alpha/filter/blend/shadow each

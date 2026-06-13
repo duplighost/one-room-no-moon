@@ -18,7 +18,7 @@ export const PLAYER = {
   FIRE_DELAY: 0.20, DAMAGE: 0.88, SHOT_MULT: 0.78, SHOT_SPEED: 860,
   SHOT_R: 4.2, SHOT_LIFE: 0.82, TWIN_OFFSET: 7,
   // emitter: shots leave from a barrel at body level, in the aim direction
-  EMITTER_Y: -16, EMITTER_LEN: 26,
+  EMITTER_Y: -16, EMITTER_LEN: 28,
   CRIT: 0.03, CRIT_MULT: 1.8,
   // the dash is the centerpiece: long, far, invincible throughout, hits hard+wide
   DASH_IMPULSE: 1550, DASH_DUR: 0.42, DASH_CD: 0.5, DASH_IFRAMES: 0.46,
