@@ -137,6 +137,15 @@ export function buildWaves(room, rng) {
     const c = clusters[i % clusters.length];
     return { type, x: c.x + rand(rng, -70, 70), y: c.y + rand(rng, -55, 55), delay: 0.45 + i * 0.12 };
   });
+  // high ground wants a perched occupant: seed a sniper/turret on a tier so the
+  // platform actually means something (you must climb to engage it).
+  if (room.tiers && room.tiers.length) {
+    const perch = ENEMY_TYPES.sniper.from <= round ? 'sniper' : ENEMY_TYPES.turret.from <= round ? 'turret' : 'gunner';
+    const t = room.tiers[0];
+    const spot = firstSpawns.find(s => s.type === perch) || firstSpawns[0];
+    if (spot) { spot.type = perch; spot.x = t.x + t.w / 2; spot.y = t.y + t.h / 2; spot.delay = 0.3; }
+    else firstSpawns.push({ type: perch, x: t.x + t.w / 2, y: t.y + t.h / 2, delay: 0.3 });
+  }
   room.pendingWaves.push({ at: 0, spawns: firstSpawns, fired: false });
 
   if (second.length) {

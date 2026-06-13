@@ -136,12 +136,15 @@ rooms felt sterile/open/rectangular and a want for verticality.
       no-repeat bag, bigger partitioned rooms, generous openings, AABB placement
       fix, flood-fill connectivity guarantee + `roll()` audit + headless test
       (≥250 rooms, zero unreachable portals), architectural wall rendering.
-- [ ] **8b Tiers** — raised regions as walled enclosures with ramps; `level`
-      tracking; raised rendering + sort.
-- [ ] **8c High-ground** — `bullet.level`, ledge height-gating, hit gate, hazard
-      level, auto-aim filter; line-of-fire test.
-- [ ] **8d Integration** — roll tiers as a roller axis; director seeds platform
-      occupants (snipers/turrets) + validates spawn level/chamber; full visual pass.
+- [x] **8b Tiers** — raised platforms as walled enclosures with a ramp; `level`
+      tracking via `levelAt`; raised floor rendering (lip + shadow + lit rim) +
+      elevated entity lift & sort; interior-reachability validation.
+- [x] **8c High-ground** — `bullet.level`, ledge height-gating (low shots blocked
+      by the cliff, high shots fly over), hit gate, same-level dash/pulse/contact/
+      hazard, auto-aim filter; line-of-fire invariant test (ground↔platform).
+- [x] **8d Integration** — tiers roll in the roller (non-boss, non-partitioned,
+      ~34%); director perches a sniper/turret on the platform; verified in a real
+      browser (sniper raining a sightline down at the grounded player).
 
 ## Standing orders
 

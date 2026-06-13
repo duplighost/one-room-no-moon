@@ -176,7 +176,7 @@ function installDebug(actions) {
         hazards: state.room.hazards.length, lanes: state.room.lanes.length,
         particles: state.room.particles.length, cleared: state.room.cleared,
         annex: state.room.annex ? state.room.annex.kind : null,
-        floorplan: state.room.floorplanId,
+        floorplan: state.room.floorplanId, tiers: state.room.tiers.length,
         bossId: state.room.bossId, eventId: state.room.eventId,
         overdrive: state.run?.overdrive || false,
       } : null,
@@ -213,7 +213,7 @@ function installDebug(actions) {
           hazards: r.hazards.length + r.lanes.length,
           waves: r.pendingWaves?.length || 0, annex: r.annex?.kind || null,
           boss: r.bossId || null, event: r.eventId || null,
-          floorplan: r.floorplanId,
+          floorplan: r.floorplanId, tiers: r.tiers.length,
           portalReachable: reach.has(r.w / 2, r.h * 0.20),
         });
       }

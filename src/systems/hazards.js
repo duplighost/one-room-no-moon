@@ -3,6 +3,7 @@
 import { state } from '../state.js';
 import { clamp, dist, norm, rand, randi } from '../rng.js';
 import { HAZARD_KITS } from '../data/hazardKits.js';
+import { levelAt } from './levels.js';
 import { hurtPlayer } from './combat.js';
 import { fireEnemyShot } from './bullets.js';
 
@@ -75,6 +76,9 @@ export function seedHazards(room, rng) {
       break;
     }
   }
+  // tag each hazard with the level it sits on (high ground is safe from ground hazards)
+  for (const h of room.hazards) h.level = levelAt(room, h.x, h.y);
+  for (const l of room.lanes) l.level = 0;
 }
 
 export function updateHazards(room, dt) {
@@ -88,6 +92,7 @@ export function updateHazards(room, dt) {
     h.cd = Math.max(0, (h.cd || 0) - dt);
     h.hitCd = Math.max(0, (h.hitCd || 0) - dt);
     const d = dist(h.x, h.y, p.x, p.y);
+    const harm = (h.level || 0) === p.level; // only harms a player on its level
 
     if (h.type === 'lotus') {
       // slows ENEMIES only (marrowSpring's gift / blackLotus load-in bloom)
@@ -99,7 +104,7 @@ export function updateHazards(room, dt) {
         }
       }
     } else if (h.type === 'fog' || h.type === 'spore') {
-      if (d < h.r + p.r) {
+      if (harm && d < h.r + p.r) {
         p.vx *= Math.pow(h.slow, dt * 8); p.vy *= Math.pow(h.slow, dt * 8);
         p.pulse = Math.max(0, p.pulse - dt * (h.type === 'spore' ? 7 : 3));
         if (h.type === 'spore' && h.cd <= 0 && p.inv <= 0 && d < h.r * h.coreFrac + p.r) {
@@ -113,7 +118,7 @@ export function updateHazards(room, dt) {
         fireEnemyShot(room, h, n.x, n.y, h.spitSpeed, 4.8, 2.2, h.color);
       }
     } else if (h.type === 'snare' || h.type === 'thorn') {
-      if (d < h.r + p.r) {
+      if (harm && d < h.r + p.r) {
         p.vx *= Math.pow(0.62, dt * 9); p.vy *= Math.pow(0.62, dt * 9);
         if (h.cd <= 0 && p.inv <= 0 && d < h.r * h.coreFrac + p.r) {
           h.cd = h.coreDmgCd;
@@ -134,13 +139,13 @@ export function updateHazards(room, dt) {
           fireEnemyShot(room, h, Math.cos(base + off), Math.sin(base + off), h.spitSpeed, 4.6, 2.15, h.color);
         }
       }
-      if (d < h.r + p.r && p.inv <= 0) hurtPlayer(1, h.x, h.y, 'hazard');
+      if (harm && d < h.r + p.r && p.inv <= 0) hurtPlayer(1, h.x, h.y, 'hazard');
     } else if (h.type === 'pulse' || h.type === 'ritual') {
       h.t = ((h.t || 0) + dt) % h.period;
       const on = h.t > 0.64;
       h.on = on;
       h.wave = on ? ((h.t - 0.64) / Math.max(0.1, h.period - 0.64)) * h.waveSpan : 0;
-      if (on && h.hitCd <= 0 && Math.abs(d - h.wave) < p.r + 10 && p.inv <= 0) {
+      if (harm && on && h.hitCd <= 0 && Math.abs(d - h.wave) < p.r + 10 && p.inv <= 0) {
         h.hitCd = 0.55;
         hurtPlayer(1, h.x, h.y, 'hazard');
       }
@@ -157,7 +162,7 @@ export function updateHazards(room, dt) {
     const ph = l.t / l.period;
     l.tele = ph > l.telegraphFrom && ph <= l.activeFrom;
     l.active = ph > l.activeFrom && ph < l.activeTo;
-    if (l.active && l.hitCd <= 0 && p.inv <= 0 &&
+    if (l.active && l.hitCd <= 0 && p.inv <= 0 && (l.level || 0) === p.level &&
         distPointSegment(p.x, p.y, l.x1, l.y1, l.x2, l.y2) < p.r + l.width * 0.5) {
       l.hitCd = 0.65;
       hurtPlayer(1, (l.x1 + l.x2) / 2, (l.y1 + l.y2) / 2, 'hazard');

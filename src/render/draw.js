@@ -47,6 +47,7 @@ export function drawFrame() {
   ctx.stroke();
   ctx.globalAlpha = 1;
 
+  drawTiers(room, pal);
   drawHazardsUnder(room, pal);
   drawMines(room);
   drawSpawnGlyphs(room);
@@ -54,15 +55,20 @@ export function drawFrame() {
   if (room.care) for (const c of room.care) drawCare(ctx, c, pal);
   drawPickups(room, pal);
 
-  // y-sorted entities
+  // y-sorted entities; raised (level>0) things sort above ground and lift visually
+  const LIFT = 11;
   const renderables = [];
   for (const o of room.obstacles) if (!o.gone) {
-    renderables.push({ y: o.type === 'circle' ? o.y + o.rad : o.y + o.h, draw: () => drawObstacle(ctx, o, room) });
+    const lv = o.ledge ? 1 : 0;
+    renderables.push({ y: o.type === 'circle' ? o.y + o.rad : o.y + o.h, lv, lift: 0, draw: () => drawObstacle(ctx, o, room) });
   }
-  for (const e of room.enemies) renderables.push({ y: e.y + e.r, draw: () => drawEnemy(ctx, e, room) });
-  if (p && !p.dead) renderables.push({ y: p.y + p.r + 6, draw: () => drawPlayer(ctx, p, room) });
-  renderables.sort((a, b) => a.y - b.y);
-  for (const r of renderables) r.draw();
+  for (const e of room.enemies) renderables.push({ y: e.y + e.r, lv: e.level || 0, lift: (e.level || 0) * LIFT, draw: () => drawEnemy(ctx, e, room) });
+  if (p && !p.dead) renderables.push({ y: p.y + p.r + 6, lv: p.level || 0, lift: (p.level || 0) * LIFT, draw: () => drawPlayer(ctx, p, room) });
+  renderables.sort((a, b) => (a.lv - b.lv) || (a.y - b.y));
+  for (const r of renderables) {
+    if (r.lift) { ctx.save(); ctx.translate(0, -r.lift); r.draw(); ctx.restore(); }
+    else r.draw();
+  }
 
   drawLanesOver(room);
   drawBullets(room);
@@ -111,6 +117,39 @@ export function drawFrame() {
 }
 
 // ── hazards ─────────────────────────────────────────────────────────────────
+// raised platform floors — drawn under the ledge walls + entities so they read
+// as "above": drop shadow on the ground below, lighter inset top surface, lip.
+function drawTiers(room, pal) {
+  if (!room.tiers) return;
+  for (const t of room.tiers) {
+    const lift = 11;
+    ctx.save();
+    // cast shadow on the ground
+    ctx.fillStyle = 'rgba(0,0,0,0.34)';
+    roundRectPath(ctx, t.x + 6, t.y + 10, t.w, t.h, 10); ctx.fill();
+    // raised top surface, shifted up by `lift`
+    const g = ctx.createLinearGradient(0, t.y - lift, 0, t.y + t.h - lift);
+    g.addColorStop(0, hexA(pal.accent, 0.16));
+    g.addColorStop(1, hexA(pal.floor, 0.9));
+    ctx.fillStyle = g;
+    roundRectPath(ctx, t.x, t.y - lift, t.w, t.h, 10); ctx.fill();
+    // lit rim
+    ctx.strokeStyle = hexA(pal.accent2, 0.55); ctx.lineWidth = 2;
+    roundRectPath(ctx, t.x, t.y - lift, t.w, t.h, 10); ctx.stroke();
+    // ramp hint (chevrons up the entrance gap)
+    if (t.ramp) {
+      ctx.strokeStyle = hexA(pal.accent3, 0.8); ctx.lineWidth = 2;
+      for (let k = 0; k < 3; k++) {
+        const yy = t.ramp.y - lift + 6 + k * 7;
+        ctx.beginPath();
+        ctx.moveTo(t.ramp.x - 12, yy + 6); ctx.lineTo(t.ramp.x, yy); ctx.lineTo(t.ramp.x + 12, yy + 6);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
+
 function drawHazardsUnder(room, pal) {
   const t = performance.now() / 1000;
   ctx.save();

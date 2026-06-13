@@ -10,10 +10,11 @@ import { spawnBullet } from './bullets.js';
 import { damageEnemy } from './combat.js';
 import { hooks } from './items.js';
 import { view } from '../render/camera.js';
+import { levelAt } from './levels.js';
 
 export function makePlayer() {
   return {
-    x: 750, y: 700, vx: 0, vy: 0, r: PLAYER.R, aimX: 1, aimY: 0, face: 0,
+    x: 750, y: 700, vx: 0, vy: 0, r: PLAYER.R, aimX: 1, aimY: 0, face: 0, level: 0,
     hp: PLAYER.MAX_HP, maxHp: PLAYER.MAX_HP, shield: 0, shieldMax: 0, shieldTimer: 0,
     inv: 0, hurt: 0, dead: false, roomHit: false,
     speed: PLAYER.SPEED, baseSpeed: PLAYER.SPEED,
@@ -93,6 +94,7 @@ export function updatePlayer(p, move, aim, room, dt) {
   p.x = clamp(p.x, w + p.r, room.w - w - p.r);
   p.y = clamp(p.y, w + p.r, room.h - w - p.r);
   for (const o of room.obstacles) if (!o.gone) resolveCircleObstacle(p, o);
+  p.level = levelAt(room, p.x, p.y); // ground=0, raised platform=1 (set by ramps)
 
   // trail + afterimages
   if (sp > 44 && !reduced()) {
@@ -148,7 +150,7 @@ export function firePlayer(p, room) {
       p.x + ax * 18 + px * PLAYER.TWIN_OFFSET * side,
       p.y + oy + ay * 18 + py * PLAYER.TWIN_OFFSET * side,
       ax * PLAYER.SHOT_SPEED + px * 28 * side, ay * PLAYER.SHOT_SPEED + py * 28 * side,
-      PLAYER.SHOT_R, dmg, PLAYER.SHOT_LIFE, crit ? '#ffffff' : room.biome.pal.accent);
+      PLAYER.SHOT_R, dmg, PLAYER.SHOT_LIFE, crit ? '#ffffff' : room.biome.pal.accent, { level: p.level });
   }
   hooks.run('onFire', p, { x: ax, y: ay, oy });
 }
@@ -179,7 +181,7 @@ export function tryDash(dx = null, dy = null, move = null) {
   const dmg = p.damage * (1 + p.perks.damage * 0.15) * PLAYER.DASH_HIT_MULT;
   let hits = 0;
   for (const e of room.enemies) {
-    if (e.hp <= 0) continue;
+    if (e.hp <= 0 || e.level !== p.level) continue; // dash only cuts your own level
     if (dist(p.x, p.y, e.x, e.y) < PLAYER.DASH_HIT_RANGE + e.r) {
       const k = norm(e.x - p.x, e.y - p.y);
       damageEnemy(e, dmg, k.x * PLAYER.DASH_KNOCK, k.y * PLAYER.DASH_KNOCK, 'dash');
@@ -202,7 +204,7 @@ export function tryPulse() {
   for (const b of room.bullets) if (b.owner === 'enemy') b.life = Math.min(b.life, 0.08);
   const dmg = p.damage * (1 + p.perks.damage * 0.15) * (PLAYER.PULSE_MULT + p.pulseGain * 0.5);
   for (const e of room.enemies.slice()) {
-    if (e.hp <= 0) continue;
+    if (e.hp <= 0 || e.level !== p.level) continue; // shockwave stays on your level
     if (dist(p.x, p.y, e.x, e.y) < p.pulseRadius + e.r) {
       const k = norm(e.x - p.x, e.y - p.y);
       damageEnemy(e, dmg, k.x * 420, k.y * 420, 'pulse');

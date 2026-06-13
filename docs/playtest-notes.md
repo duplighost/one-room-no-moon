@@ -35,8 +35,21 @@ zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
   a hot pulsing core, and sparks spiralling inward. Brighter, sharper, no muddy
   blur.
 
-Next: room architecture (structural floorplans + faked elevation) — see
-docs/room-architecture.md once scoped.
+Room architecture shipped (Phase 8, see docs/room-architecture.md):
+- **8a Floorplans** — partition walls carve real chambers (bisect / inner
+  sanctum / spine corridor / quadrants); connectivity guaranteed by construction
+  + flood-fill validated (≥250 rooms, zero unreachable portals).
+- **8b/8c/8d Elevation + true high-ground** — raised platforms you climb via a
+  ramp; ground shots can't hit raised enemies (blocked by the cliff), high
+  enemies rain down; same-level dash/pulse/contact/hazard; auto-aim won't lock a
+  target you can't reach. Director perches a sniper on the platform. Line-of-fire
+  + interior-reachability proven headlessly; verified in-browser.
+
+Open for the next human playtest: does high ground read intuitively in the hands
+(the rule is taught only by the auto-aim filter + the sniper raining down — no
+text); are platforms frequent enough / too frequent (~34% of eligible rooms);
+do partitioned rooms ever feel cramped on a phone (portrait). Tuning in
+src/data/floorplans.js (sizes/gaps), roomRoller maybeTier (tier rate/size).
 
 ## Visual verification pass (real Chromium, headless)
 

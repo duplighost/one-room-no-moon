@@ -370,7 +370,7 @@ const STYLE_GROUPS = {
   glassNode: 'glass', bloomBulb: 'bloom', mycoCap: 'bloom',
   machineHub: 'machine', kilnPillar: 'machine',
   archivePillar: 'idol', basilicaIdol: 'idol',
-  boundary: 'boundary', door: 'door', wall: 'wall',
+  boundary: 'boundary', door: 'door', wall: 'wall', ledge: 'wall',
 };
 
 export function drawObstacle(ctx, o, room) {

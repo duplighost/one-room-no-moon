@@ -16,14 +16,14 @@ export function spawnBullet(room, owner, x, y, vx, vy, r, damage, life, color, o
   for (const b of room.bullets) if (b.owner === owner) count++;
   if (count > cap) return null;
   const b = { owner, x, y, vx, vy, r, damage, life, max: life, color,
-    pierce: opts.pierce || 0, bounces: opts.bounces || 0, hitIds: null, ...opts };
+    pierce: opts.pierce || 0, bounces: opts.bounces || 0, level: opts.level || 0, hitIds: null, ...opts };
   if (owner === 'player') hooks.run('onBulletSpawn', b);
   room.bullets.push(b);
   return b;
 }
 
 export function fireEnemyShot(room, e, dx, dy, speed, r, life, color) {
-  return spawnBullet(room, 'enemy', e.x + dx * (e.r + 6), e.y + dy * (e.r + 6), dx * speed, dy * speed, r, 1, life, color || e.color);
+  return spawnBullet(room, 'enemy', e.x + dx * (e.r + 6), e.y + dy * (e.r + 6), dx * speed, dy * speed, r, 1, life, color || e.color, { level: e.level || 0 });
 }
 
 // No Moon's two firing grammars (game_inline.js:5124-5167)
@@ -46,6 +46,9 @@ export function fireEnemyRing(room, e, count, speed, life, color, offset = 0) {
 function hitObstacle(room, b) {
   for (const o of room.obstacles) {
     if (o.gone) continue;
+    // high-ground: a bullet flies over a ledge it's at-or-above (ledgeHeight 1);
+    // full walls are ledgeHeight Infinity so they always block; cover has none.
+    if (o.ledgeHeight !== undefined && b.level >= o.ledgeHeight) continue;
     let nx, ny, inside;
     if (o.type === 'circle') {
       const d = dist(b.x, b.y, o.x, o.y);
@@ -105,7 +108,7 @@ export function updateBullets(room, dt) {
 
     if (b.owner === 'player') {
       for (const e of room.enemies) {
-        if (e.hp <= 0) continue;
+        if (e.hp <= 0 || b.level < e.level) continue; // can't hit higher ground
         if (b.hitIds && b.hitIds.includes(e.id)) continue;
         if (dist(b.x, b.y, e.x, e.y) < b.r + e.r) {
           const k = norm(e.x - b.x, e.y - b.y);
@@ -121,7 +124,7 @@ export function updateBullets(room, dt) {
         }
       }
       if (b.life <= 0) { room.bullets.splice(i, 1); continue; }
-    } else if (dist(b.x, b.y, p.x, p.y) < b.r + p.r) {
+    } else if (b.level >= p.level && dist(b.x, b.y, p.x, p.y) < b.r + p.r) {
       if (p.inv <= 0) {
         room.bullets.splice(i, 1);
         hurtPlayer(b.damage, b.x, b.y, 'bullet');

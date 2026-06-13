@@ -10,6 +10,7 @@ import { hurtPlayer } from './combat.js';
 import { resolveCircleObstacle } from './player.js';
 import { ENEMY_TYPES } from '../data/enemies.js';
 import { sfx } from '../audio/sfx.js';
+import { levelAt } from './levels.js';
 
 let nextId = 1;
 
@@ -23,7 +24,7 @@ export function makeEnemy(type, x, y, room) {
     x, y, vx: 0, vy: 0, r: def.r,
     hp: def.hp * hpScale, maxHp: def.hp * hpScale,
     speed: def.speed * spdScale, score: def.score, color: def.color,
-    phase: Math.random() * TAU, seed: Math.random() * TAU,
+    phase: Math.random() * TAU, seed: Math.random() * TAU, level: 0,
     cd: 0.4 + Math.random() * 1.4, hit: 0, stun: 0, tele: 0,
     slowTimer: 0, slowMul: 1,
     captain: null, captainDeath: null, boss: false,
@@ -177,8 +178,9 @@ export function updateEnemies(room, dt) {
     e.x = clamp(e.x, w + e.r, room.w - w - e.r);
     e.y = clamp(e.y, w + e.r, room.h - w - e.r);
     for (const o of room.obstacles) if (!o.gone) resolveCircleObstacle(e, o);
+    e.level = levelAt(room, e.x, e.y);
 
-    if (p.inv <= 0 && dist(e.x, e.y, p.x, p.y) < e.r + p.r + 2) {
+    if (p.inv <= 0 && e.level === p.level && dist(e.x, e.y, p.x, p.y) < e.r + p.r + 2) {
       hurtPlayer(e.boss ? 2 : 1, e.x, e.y, 'contact');
       const k = norm(e.x - p.x, e.y - p.y);
       e.vx += k.x * 90; e.vy += k.y * 90;
@@ -228,6 +230,7 @@ export function updateSpawnQueue(room, dt) {
     if (room.time >= s.at) {
       room.spawnQueue.splice(i, 1);
       const e = makeEnemy(s.type, s.x, s.y, room);
+      e.level = levelAt(room, s.x, s.y); // spawned on a platform → high ground
       if (s.captain) s.captain(e);
       room.enemies.push(e);
       particle(room, s.x, s.y, ENEMY_TYPES[s.type].color, 0, 0, 0.3, 16);

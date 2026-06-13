@@ -405,5 +405,65 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   }
 }
 
+// ── Phase 8b/8c: tiers + true high-ground line-of-fire ──────────────────────
+{
+  const { makeEnemy } = await import('../src/systems/enemies.js');
+  const { spawnBullet, updateBullets } = await import('../src/systems/bullets.js');
+  startRun('highground');
+  const room = state.room;
+  const pl = state.run.player;
+  room.obstacles.length = 0; room.lanes.length = 0; room.hazards.length = 0; room.bullets.length = 0;
+  const cx = room.w / 2, cy = room.h / 2;
+  const high = makeEnemy('turret', cx - 200, cy, room); high.level = 1; high.hp = high.maxHp = 50;
+  room.enemies.length = 0; room.enemies.push(high);
+  const low = makeEnemy('turret', cx + 200, cy, room); low.level = 0; low.hp = low.maxHp = 50; room.enemies.push(low);
+
+  pl.level = 0;
+  let hp0 = high.hp;
+  spawnBullet(room, 'player', high.x, high.y, 1, 0, 4, 5, 0.5, '#fff', { level: 0 });
+  updateBullets(room, 1 / 60);
+  check('ground shot cannot hit a raised enemy', high.hp === hp0, 'hp ' + hp0 + '->' + high.hp);
+
+  hp0 = low.hp;
+  spawnBullet(room, 'player', low.x, low.y, 1, 0, 4, 5, 0.5, '#fff', { level: 0 });
+  updateBullets(room, 1 / 60);
+  check('ground shot hits a ground enemy', low.hp < hp0, 'hp ' + hp0 + '->' + low.hp);
+
+  hp0 = low.hp;
+  spawnBullet(room, 'player', low.x, low.y, 1, 0, 4, 5, 0.5, '#fff', { level: 1 });
+  updateBullets(room, 1 / 60);
+  check('high shot rains down on a ground enemy', low.hp < hp0, 'hp ' + hp0 + '->' + low.hp);
+
+  pl.level = 1; pl.inv = 0; pl.hp = 6;
+  spawnBullet(room, 'enemy', pl.x, pl.y, 1, 0, 4, 1, 0.5, '#f00', { level: 0 });
+  updateBullets(room, 1 / 60);
+  check('ground enemy fire cannot hit a platform player', pl.hp === 6, 'hp=' + pl.hp);
+
+  startRun('tier-audit');
+  const rms = window.oneRoomDebug.roll(220).rooms;
+  check('platforms occur', rms.some(r => r.tiers > 0), 'with tiers: ' + rms.filter(r => r.tiers > 0).length);
+  check('platform rooms keep a reachable portal', rms.filter(r => r.tiers > 0).every(r => r.portalReachable));
+}
+
+
+{
+  // platform interiors must be reachable too (else a perched sniper stalls the room)
+  const { reachableFrom } = await import('../src/systems/roomRoller.js');
+  const { rollRoom: rr } = await import('../src/systems/roomRoller.js');
+  startRun('tier-interior');
+  let tierRooms = 0, badInterior = 0;
+  for (let i = 1; i <= 300; i++) {
+    const r = rr(state.run, i);
+    if (r.tiers.length) {
+      tierRooms++;
+      const t = r.tiers[0];
+      if (!reachableFrom(r, r.w / 2, r.h * 0.66).has(t.x + t.w / 2, t.y + t.h / 2)) badInterior++;
+    }
+  }
+  check('platform interiors are always reachable', tierRooms > 0 && badInterior === 0,
+    'tierRooms=' + tierRooms + ' bad=' + badInterior);
+}
+
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

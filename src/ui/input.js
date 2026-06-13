@@ -261,7 +261,8 @@ function nearestEnemyDir(p) {
   if (state.room) {
     for (const e of state.room.enemies) {
       const d = dist(p.x, p.y, e.x, e.y);
-      if (e.hp > 0 && d < bd && d < 620) { best = e; bd = d; }
+      // don't lock onto a target you can't legally hit from here (e.g. a sniper up a tier)
+      if (e.hp > 0 && e.level <= p.level && d < bd && d < 620) { best = e; bd = d; }
     }
   }
   if (best) {

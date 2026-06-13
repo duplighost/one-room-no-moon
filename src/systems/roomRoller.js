@@ -52,7 +52,7 @@ export function rollRoom(run, round) {
   const room = {
     round, idx: depthIdx(round), stage: dangerStage(round, run.overdrive),
     biome, layoutId, recipeId, mutatorId: mutator?.id || null, mutator, eventId: null, bossId,
-    floorplanId: 'none', openings: [], sanctum: null,
+    floorplanId: 'none', openings: [], sanctum: null, tiers: [],
     w: Math.round(rand(rng, bossId ? 1480 : 1380, bossId ? 1620 : 1560) * sizeScale),
     h: Math.round((portrait ? rand(rng, 1400, 1520) : rand(rng, bossId ? 1040 : 980, bossId ? 1140 : 1100)) * sizeScale),
     wall: ROOM.WALL,
@@ -113,6 +113,12 @@ export function rollRoom(run, round) {
     if (dist(o.x, o.y, px, py) < ROOM.SPAWN_CLEAR || !fits(room, o)) continue;
     room.obstacles.push(o);
   }
+
+  // ── elevation (Phase 8b): a raised platform as a walled enclosure + ramp ──
+  // Skip when partitioned or a boss arena (keep those legible). The platform is
+  // high ground: snipers/turrets seeded on it (director, 8d) can only be engaged
+  // by climbing the ramp.
+  if (!bossId && !partitioned && chance(rng, 0.34)) maybeTier(room, rng, px, py, portalX, portalY);
 
   // ── axis 3 prep: volatile shards in glass biomes (chain toys) ──
   if (biome.hazard === 'volatile' || (biome.hazard === 'shard' && chance(rng, 0.6))) {
@@ -224,6 +230,49 @@ export function reachableFrom(room, sx, sy) {
     }
   }
   return { has: (x, y) => seen.has(key(Math.floor(x / CELL), Math.floor(y / CELL))), cells: seen };
+}
+
+// Place one raised platform: a rect tier whose perimeter is ledge walls, with a
+// ramp gap on the edge facing the player. Ledges block movement always and block
+// low bullets (high-ground); the ramp lets you walk up. Validated for spawn
+// clearance + portal reachability; bails cleanly if it can't fit.
+function maybeTier(room, rng, px, py, portalX, portalY) {
+  const T = 26;
+  const tw = room.w * rand(rng, 0.24, 0.34);
+  const th = room.h * rand(rng, 0.22, 0.30);
+  for (let tries = 0; tries < 14; tries++) {
+    const tx = rand(rng, room.wall + 80, room.w - room.wall - 80 - tw);
+    const ty = rand(rng, room.wall + 80, room.h * 0.55 - th); // upper area, clear of spawn
+    const rect = { x: tx, y: ty, w: tw, h: th };
+    // keep clear of spawn and portal points
+    const pad = 90;
+    const hit = (qx, qy) => qx > tx - pad && qx < tx + tw + pad && qy > ty - pad && qy < ty + th + pad;
+    if (hit(px, py) || hit(portalX, portalY)) continue;
+    // ramp on the bottom edge (faces the player below); gap centred-ish
+    const gap = rand(rng, 150, 200);
+    const rgx = tx + tw * rand(rng, 0.4, 0.6);
+    const ledges = [
+      wallSlab(tx - T / 2, ty - T / 2, tw + T, T),                                   // top
+      wallSlab(tx - T / 2, ty + th - T / 2, (rgx - gap / 2) - (tx - T / 2), T),       // bottom-left
+      wallSlab(rgx + gap / 2, ty + th - T / 2, (tx + tw + T / 2) - (rgx + gap / 2), T), // bottom-right
+      wallSlab(tx - T / 2, ty - T / 2, T, th + T),                                   // left
+      wallSlab(tx + tw - T / 2, ty - T / 2, T, th + T),                              // right
+    ];
+    const before = room.obstacles.length;
+    room.obstacles.push(...ledges);
+    // portal AND the platform interior must be reachable (else a perched sniper
+    // would be unkillable and stall the room).
+    const reach = reachableFrom(room, px, py);
+    if (!reach.has(portalX, portalY) || !reach.has(tx + tw / 2, ty + th / 2)) {
+      room.obstacles.length = before; // undo, try again
+      continue;
+    }
+    room.tiers.push({ x: tx, y: ty, w: tw, h: th, height: 1, ramp: { x: rgx, y: ty + th } });
+    return;
+  }
+}
+function wallSlab(x, y, w, h) {
+  return { type: 'rect', x, y, w: Math.max(8, w), h: Math.max(8, h), wall: true, ledge: true, ledgeHeight: 1, style: 'ledge', round: 3 };
 }
 
 function rollSpecies(rng, biome, idx, idolBump = false) {
