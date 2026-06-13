@@ -26,8 +26,10 @@ python3 -m http.server 8000     # then open http://localhost:8000/
 | Esc / P · Tab · M · B | pause · codex · sfx · bgm |
 | `?fresh=1` URL param | wipe the save |
 
-Mobile is two-thumbs-anywhere: left half moves, right half aims and fires;
-flick to dash, tap the aim thumb to pulse.
+Mobile is two-thumbs-anywhere: left half moves, right half aims and fires.
+Dash and pulse have dedicated buttons in the bottom-right (the pulse button
+glows when it's charged); the left thumb still dashes on a deliberate slam from
+rest, and the right thumb still flicks to dash / taps to pulse.
 
 **The run:** clear the room → walk into the portal → draft a graft → the room
 re-deals itself. Boss every 5th round. Beat the Null Archon at round 20 to burn

@@ -37,6 +37,33 @@ Two findings, both fixed:
    stays >24ms across 120 frames of play, `state.lowFx` flips (sticky for the
    session) — bloom off, particle budget halved. `selfTest()` reports it.
 
+## Polish pass (player feedback, 2026-06-13)
+
+From a real download-and-play session. All four shipped, verified headless
+(75 checks) + in real Chromium desktop/mobile:
+
+1. **Mobile dash fired on direction changes** — root cause was a re-trigger in
+   `tickTouchDash` that dashed whenever the held stick moved fast. Now the left
+   thumb only dashes on a deliberate slam from rest (`<0.55 → >0.82`); swinging
+   a held stick to steer never dashes. Locked by a unit test.
+2. **On-screen DASH/PULSE buttons** (touch devices only, bottom-right) — both
+   for reliability and so the moves are discoverable. The pulse button glows
+   when charged.
+3. **Pulse was forgettable** — the meter now animates when full AND a breathing
+   cyan halo appears on Moots (your eyes are on the character, not the HUD).
+4. **Hazards kept firing after clear** ("undamageable enemies" = the hazards) —
+   they now go fully inert the instant the room clears (no fire, no contact
+   damage, no slow) and dim to 40% so it reads as powered-down. One guard at the
+   top of `updateHazards`; in-flight shots were already wiped at clear. Locked
+   by a before/after test.
+5. **Dash felt non-obvious as an attack** — dash hits now throw a bright spark +
+   ✦ mark + small flash so it's clear the dash cuts through. (Timings unchanged;
+   the user confirmed those feel right.)
+
+Confirmed not a bug: "Boon Moots" is intentional wordplay (Moon Boots anagram);
+"The boon boots remain." is the canon death line from the parent game. Names
+left exactly as-is.
+
 ## What needs human eyes (open items for the next playtest)
 
 1. **The fun bars.** Phase 1's "60 seconds is fun" and Phase 2's "10 consecutive

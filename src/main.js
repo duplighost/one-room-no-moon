@@ -6,13 +6,15 @@ import { initDraw, drawFrame } from './render/draw.js';
 import { loadSprites } from './render/sprites.js';
 import { updateParticles } from './render/particles.js';
 import { initInput, getMove, getAim, tickTouchDash } from './ui/input.js';
+import { coarse } from './systems/juice.js';
 import { updateBehavior } from './systems/notices.js';
 import { ensureBgm, toggleBgm } from './audio/bgm.js';
 import { todaySeed } from './rng.js';
 import {
   initOverlays, showTitle, showCodex, showPause, wirePauseButtons, wireSfxButton,
-  wireBgmButton, setMenu, hideOverlays, updateHud, setSfxLabels,
+  wireBgmButton, wireTouchActions, showTouchActions, setMenu, hideOverlays, updateHud, setSfxLabels,
 } from './ui/overlays.js';
+import { tryDash, tryPulse } from './systems/player.js';
 import { updatePlayer } from './systems/player.js';
 import { updateEnemies, updateSpawnQueue } from './systems/enemies.js';
 import { updateBullets } from './systems/bullets.js';
@@ -37,7 +39,7 @@ export function boot() {
   bloomCanvas = document.createElement('canvas');
   initDraw(canvas, bloomCanvas);
   resize(canvas, bloomCanvas);
-  addEventListener('resize', () => resize(canvas, bloomCanvas), { passive: true });
+  addEventListener('resize', () => { resize(canvas, bloomCanvas); showTouchActions(coarse()); }, { passive: true });
   loadSprites();
   initOverlays();
 
@@ -59,6 +61,11 @@ export function boot() {
   wirePauseButtons(togglePause, actions.toggleSfx);
   wireSfxButton(actions.toggleSfx);
   wireBgmButton(actions.toggleBgm);
+  wireTouchActions(
+    () => { if (state.mode === 'play') tryDash(null, null, getMove()); },
+    () => { if (state.mode === 'play') tryPulse(); },
+  );
+  showTouchActions(coarse());
   wireDraftUi(
     (choices, canReroll) => renderDraft(choices, canReroll, pickCard, boonReroll,
       (id) => stacks(state.run?.player, id)),
@@ -196,6 +203,7 @@ function installDebug(actions) {
       return window.oneRoomDebug.state();
     },
     grant: (id) => { grantItem(id, 'debug'); return state.run?.player.modules; },
+    fillPulse: () => { if (state.run) state.run.player.pulse = 100; return 'pulse full'; },
     pick: (i = 0) => { pickCard(i); return window.oneRoomDebug.state(); },
     // headless variety audit: generate n rooms, return axis summaries
     roll: (n = 20) => {

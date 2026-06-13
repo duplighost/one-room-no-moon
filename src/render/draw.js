@@ -113,6 +113,8 @@ export function drawFrame() {
 // ── hazards ─────────────────────────────────────────────────────────────────
 function drawHazardsUnder(room, pal) {
   const t = performance.now() / 1000;
+  ctx.save();
+  if (room.cleared) ctx.globalAlpha = 0.4; // powered down on the victory lap
   for (const h of room.hazards) {
     if (h.type === 'fog' || h.type === 'spore' || h.type === 'lotus') {
       const g = ctx.createRadialGradient(h.x, h.y, h.r * 0.2, h.x, h.y, h.r);
@@ -160,9 +162,11 @@ function drawHazardsUnder(room, pal) {
       }
     }
   }
+  ctx.restore();
 }
 
 function drawLanesOver(room) {
+  if (room.cleared) return; // lanes go dark on the victory lap
   for (const l of room.lanes) {
     if (!l.tele && !l.active) continue;
     ctx.save();

@@ -79,6 +79,10 @@ export function seedHazards(room, rng) {
 
 export function updateHazards(room, dt) {
   const p = state.run.player;
+  // once the room is cleared the walk to the portal is a victory lap: hazards go
+  // inert (no fire, no contact damage, no slow). In-flight shots were wiped at
+  // clear, and nothing new spawns here. draw.js dims them so it reads as off.
+  if (room.cleared) return;
   for (const h of room.hazards) {
     h.phase = (h.phase || 0) + dt;
     h.cd = Math.max(0, (h.cd || 0) - dt);

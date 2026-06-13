@@ -76,6 +76,22 @@ export function drawPlayer(ctx, p, room) {
     ctx.strokeStyle = pal.accent + '99'; ctx.lineWidth = 2;
     for (let i = 0; i < p.shield; i++) { ctx.beginPath(); ctx.arc(p.x, p.y, 38 + i * 5, 0, TAU); ctx.stroke(); }
   }
+  // pulse-ready cue: a breathing ring on Moots so you notice it mid-fight
+  if (p.pulse >= 100) {
+    const t = performance.now() / 1000;
+    const breathe = 0.5 + 0.5 * Math.sin(t * 4.2);
+    ctx.save();
+    ctx.globalAlpha = 0.35 + breathe * 0.4;
+    ctx.strokeStyle = '#aef3ff';
+    ctx.shadowColor = '#7dfdff';
+    ctx.shadowBlur = 14 + breathe * 12;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 46 + breathe * 7, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = 0.18 + breathe * 0.18;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 56 + breathe * 10, 0, TAU); ctx.stroke();
+    ctx.restore();
+  }
 }
 
 export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, spinPhase = 0) {

@@ -3,7 +3,7 @@
 import { PLAYER, TAU } from '../config.js';
 import { state } from '../state.js';
 import { clamp, damp, dist, norm } from '../rng.js';
-import { particle, burst } from '../render/particles.js';
+import { particle, burst, addFloat } from '../render/particles.js';
 import { addShake, addFlash, slowMo, hitPause, haptic, reduced } from './juice.js';
 import { sfx } from '../audio/sfx.js';
 import { spawnBullet } from './bullets.js';
@@ -177,13 +177,19 @@ export function tryDash(dx = null, dy = null, move = null) {
       -n.y * (150 + Math.random() * 270) + (Math.random() * 180 - 90), 0.32, 2 + Math.random() * 3.8);
   }
   const dmg = p.damage * (1 + p.perks.damage * 0.15) * PLAYER.DASH_HIT_MULT;
+  let hits = 0;
   for (const e of room.enemies) {
     if (e.hp <= 0) continue;
     if (dist(p.x, p.y, e.x, e.y) < PLAYER.DASH_HIT_RANGE + e.r) {
       const k = norm(e.x - p.x, e.y - p.y);
       damageEnemy(e, dmg, k.x * PLAYER.DASH_KNOCK, k.y * PLAYER.DASH_KNOCK, 'dash');
+      // make it obvious the dash cut through: bright spark + a slash mark
+      burst(room, e.x, e.y, '#ffffff', 9, 240, 0.28, 3);
+      addFloat(room, e.x, e.y - e.r - 8, '✦', '#ffffff', false, 0.34);
+      hits++;
     }
   }
+  if (hits) { addFlash(0.12); addShake(0.12); }
 }
 
 export function tryPulse() {

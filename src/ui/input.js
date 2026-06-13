@@ -96,10 +96,11 @@ export function tickTouchDash() {
   if (state.mode !== 'play' || suppressed()) return;
   const p = state.run?.player;
   if (!p) return;
-  if (moveTouch.id !== null && moveTouch.len > 0.80 && p.dashCd <= 0) {
-    const newFromNeutral = (moveTouch.prevLen || 0) < 0.55 && moveTouch.len > 0.82;
-    const newShove = moveTouch.speed > 860 || (moveTouch.speed > 520 && moveTouch.len > (moveTouch.prevLen || 0) + 0.11);
-    if ((!moveTouch.dashLatch && (newFromNeutral || newShove)) || newShove) {
+  // mid-drag dash detection — only a deliberate slam from rest triggers the
+  // left-thumb dash, so swinging the held stick to change direction never dashes.
+  if (moveTouch.id !== null && moveTouch.len > 0.82 && p.dashCd <= 0 && !moveTouch.dashLatch) {
+    const slammedFromRest = (moveTouch.prevLen || 0) < 0.55 && moveTouch.len > 0.82;
+    if (slammedFromRest) {
       tryDash(moveTouch.dx, moveTouch.dy);
       moveTouch.dashLatch = true;
     }

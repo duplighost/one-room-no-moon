@@ -348,5 +348,40 @@ check('touch pads exported', inputMod.moveTouch.id === null && inputMod.aimTouch
 inputMod.suppressInput(100);
 check('suppression clears pads', inputMod.moveTouch.id === null);
 
+// ── Polish pass: hazards inert on clear, surgical mobile dash ────────────────
+{
+  startRun('hazard-clear');
+  const hp = state.run.player; hp.maxHp = 9999; hp.hp = 9999;
+  const room = state.room;
+  room.bullets.length = 0;
+  room.hazards.push({ type: 'spore', x: hp.x, y: hp.y, r: 200, slow: 0.66, coreFrac: 0.46,
+    coreDmgCd: 0.1, spitCd: [0.05, 0.05], spitSpeed: 150, spitRange: 800, spreadShots: 1,
+    phase: 0, cd: 0, hitCd: 0, color: '#fff' });
+  for (let i = 0; i < 8; i++) tick(1 / 60);
+  check('hazard fires while room is live', room.bullets.some(b => b.owner === 'enemy'));
+  room.cleared = true;
+  room.bullets.length = 0;
+  for (let i = 0; i < 30; i++) tick(1 / 60);
+  check('hazard fires nothing after clear', room.bullets.every(b => b.owner !== 'enemy'),
+    'enemy bullets=' + room.bullets.filter(b => b.owner === 'enemy').length);
+}
+
+{
+  const input = await import('../src/ui/input.js');
+  startRun('dash-input');
+  const dp = state.run.player;
+  state.mode = 'play';
+  input.suppressInput(-1000);
+  dp.dashCd = 0; dp.dashT = 0; input.moveTouch.dashLatch = false;
+  Object.assign(input.moveTouch, { id: 1, prevLen: 0.92, len: 0.96, speed: 1200, dx: 1, dy: 0 });
+  input.tickTouchDash();
+  check('held-stick direction change does NOT dash', dp.dashT === 0, 'dashT=' + dp.dashT);
+  input.suppressInput(-1000);
+  dp.dashCd = 0; dp.dashT = 0; input.moveTouch.dashLatch = false;
+  Object.assign(input.moveTouch, { id: 1, prevLen: 0.30, len: 0.90, speed: 1200, dx: 0, dy: 1 });
+  input.tickTouchDash();
+  check('deliberate slam from rest DOES dash', dp.dashT > 0, 'dashT=' + dp.dashT);
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
