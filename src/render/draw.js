@@ -397,13 +397,27 @@ function drawBullets(room) {
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
-    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+    if (b.converted) {
+      // reflected shot reads by SHAPE (diamond), not just colour — colourblind-safe
+      const s = b.r * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y - s); ctx.lineTo(b.x + s, b.y);
+      ctx.lineTo(b.x, b.y + s); ctx.lineTo(b.x - s, b.y);
+      ctx.closePath(); ctx.fill();
+    } else if (b.primed) {
+      // dash-primed empowered shot: filled core + a crisp white ring
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 0.9; ctx.lineWidth = 2; ctx.strokeStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 2.5, 0, TAU); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+    }
     ctx.restore();
   }
 }
 
 function drawDangerTriangles(room, p) {
-  const margin = 28, triSize = 12;
+  const margin = 28, triSize = view.mobile ? 17 : 12; // bigger threat markers on phones
   let count = 0;
   for (const e of room.enemies) {
     if (e.hp <= 0 || count >= 8) break;

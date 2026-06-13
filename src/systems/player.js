@@ -42,7 +42,11 @@ export function updatePlayer(p, move, aim, room, dt) {
   p.dashCd = Math.max(0, p.dashCd - dt);
   const wasDashing = p.dashT > 0;
   p.dashT = Math.max(0, p.dashT - dt);
-  if (wasDashing && p.dashT <= 0) ripple(room, p.x, p.y, room.biome.pal.accent2, 58); // landing punctuation
+  if (wasDashing && p.dashT <= 0) { // landing punctuation — reads as the dash "slam" stop
+    ripple(room, p.x, p.y, room.biome.pal.accent2, 92);
+    ripple(room, p.x, p.y, '#ffffff', 46, 0.32);
+    burst(room, p.x, p.y, room.biome.pal.accent3, 10, 150, 0.3, 2.6);
+  }
   p.brakeT = Math.max(0, p.brakeT - dt);
   if (p.shieldMax > 0 && p.shield < p.shieldMax) {
     p.shieldTimer += dt;
@@ -109,8 +113,10 @@ export function updatePlayer(p, move, aim, room, dt) {
     particle(room, p.x + bx * 26, p.y - 10 + by * 26, p.dashT > 0 ? room.biome.pal.accent3 : room.biome.pal.accent,
       bx * 55, by * 55, p.dashT > 0 ? 0.18 : 0.14, p.dashT > 0 ? 6 : 3.5, 'dot');
   }
-  p.after.unshift({ x: p.x, y: p.y, face: p.face, spin: dashSpinPhase(p), life: p.dashT > 0 ? 0.13 : 0.16 });
-  if (p.after.length > (view.mobile ? 6 : 9)) p.after.pop();
+  // afterimages — longer-lived and more numerous during a dash so it leaves a clear ghost-streak
+  p.after.unshift({ x: p.x, y: p.y, face: p.face, spin: dashSpinPhase(p), life: p.dashT > 0 ? 0.22 : 0.16, dash: p.dashT > 0 });
+  const afterCap = p.dashT > 0 ? (view.mobile ? 9 : 13) : (view.mobile ? 6 : 9);
+  if (p.after.length > afterCap) p.after.pop();
   for (let i = p.after.length - 1; i >= 0; i--) {
     p.after[i].life -= dt;
     if (p.after[i].life <= 0) p.after.splice(i, 1);
@@ -145,21 +151,29 @@ export function firePlayer(p, room) {
   const ax = p.aimX, ay = p.aimY;
   // shots leave the emitter barrel tip (body level, in the aim direction)
   const ex = p.x + ax * PLAYER.EMITTER_LEN, ey = p.y + PLAYER.EMITTER_Y + ay * PLAYER.EMITTER_LEN;
-  for (let i = 0; i < 3; i++) {
+  // louder muzzle: a bright pop + a wider spray of sparks at the barrel tips
+  particle(room, ex, ey, '#ffffff', ax * 70, ay * 70, 0.07, 5.5);
+  for (let i = 0; i < 5; i++) {
     particle(room, ex, ey, room.biome.pal.accent,
-      ax * (90 + Math.random() * 90) + (Math.random() * 50 - 25),
-      ay * (90 + Math.random() * 90) + (Math.random() * 50 - 25), 0.16, 1.8 + Math.random() * 1.5);
+      ax * (110 + Math.random() * 120) + (Math.random() * 70 - 35),
+      ay * (110 + Math.random() * 120) + (Math.random() * 70 - 35), 0.17, 2.0 + Math.random() * 1.8);
   }
+  const primed = (p._dashPrimed || 0) > 0;   // "dash primes next shot" relic empowers this volley
+  if (primed) p._dashPrimed--;
   const dmgBase = p.damage * (1 + p.perks.damage * 0.15);
   const crit = Math.random() < p.crit;
-  const dmg = dmgBase * PLAYER.SHOT_MULT * (crit ? PLAYER.CRIT_MULT : 1);
+  let dmg = dmgBase * PLAYER.SHOT_MULT * (crit ? PLAYER.CRIT_MULT : 1);
+  if (primed) dmg *= PLAYER.DASH_PRIME_MULT;
   // twin-relay: two shots offset perpendicular (No Moon twin weapon)
   const px = -ay, py = ax;
+  const r = primed ? PLAYER.SHOT_R * 1.5 : PLAYER.SHOT_R;
+  const col = primed ? '#eaffff' : (crit ? '#ffffff' : room.biome.pal.accent);
   for (let side = -1; side <= 1; side += 2) {
     spawnBullet(room, 'player',
       ex + px * PLAYER.TWIN_OFFSET * side, ey + py * PLAYER.TWIN_OFFSET * side,
       ax * PLAYER.SHOT_SPEED + px * 28 * side, ay * PLAYER.SHOT_SPEED + py * 28 * side,
-      PLAYER.SHOT_R, dmg, PLAYER.SHOT_LIFE, crit ? '#ffffff' : room.biome.pal.accent, { level: p.level });
+      r, dmg, PLAYER.SHOT_LIFE, col,
+      { level: p.level, pierce: primed ? PLAYER.DASH_PRIME_PIERCE : 0, primed });
   }
   hooks.run('onFire', p, { x: ax, y: ay, oy: PLAYER.EMITTER_Y });
 }
@@ -181,7 +195,7 @@ export function tryDash(dx = null, dy = null, move = null) {
   p.inv = Math.max(p.inv, PLAYER.DASH_IFRAMES);
   p.dashCd = p.dashCdBase;
   p.dashes++;
-  sfx('dash'); haptic(14); hitPause('shot'); addShake(0.075);
+  sfx('dash'); haptic(14); hitPause('shot'); addShake(0.16);
   ripple(room, p.x, p.y, room.biome.pal.accent3, 76); // launch punctuation
   for (let i = 0; i < 28; i++) {
     particle(room, p.x - n.x * 10, p.y - n.y * 10, room.biome.pal.accent3,
@@ -201,7 +215,11 @@ export function tryDash(dx = null, dy = null, move = null) {
       hits++;
     }
   }
-  if (hits) { addFlash(0.12); addShake(0.12); }
+  if (hits) {
+    addFlash(0.14); addShake(0.26);
+    p.fireCd = 0;            // a dash-cut primes your next shot — it fires the instant the dash ends
+  }
+  hooks.run('onDash', p, hits);   // relics (e.g. dash-primes-shot) listen here
   // bigger dash = bigger feedback
   slowMo(0.06);
 }

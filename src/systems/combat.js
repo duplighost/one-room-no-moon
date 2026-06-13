@@ -17,7 +17,7 @@ export function damageEnemy(e, dmg, kx = 0, ky = 0, kind = 'shot') {
   e.stun = Math.max(e.stun || 0, 0.032);
   const room = state.room;
   hitPause(kind === 'pulse' ? 'pulse' : kind === 'dash' ? 'dash' : kind === 'chain' ? 'chain' : 'shot');
-  addShake(kind === 'pulse' ? 0.16 : kind === 'dash' ? 0.09 : 0.035);
+  addShake(kind === 'pulse' ? 0.28 : kind === 'dash' ? 0.18 : 0.06);
   for (let i = 0; i < 4; i++) {
     particle(room, e.x, e.y, kind === 'pulse' ? room.biome.pal.accent3 : e.color,
       (Math.random() * 180 - 90) + kx * 0.08, (Math.random() * 180 - 90) + ky * 0.08, 0.22, 2 + Math.random() * 2.4);
@@ -35,6 +35,7 @@ export function killEnemy(e) {
     room.spawnQueue.length = 0;
   }
   killScore(e);
+  p.dashCd = Math.max(0, p.dashCd - PLAYER.DASH_KILL_REFUND); // every kill feeds the dash loop a little
   // spark scatter (meta currency)
   const n = (e.boss ? 24 : (e.captain ? 8 : 3 + Math.floor(Math.random() * 3)))
     + (room.mutator?.sparkBonus || 0);
@@ -50,7 +51,7 @@ export function killEnemy(e) {
   }
   burst(room, e.x, e.y, e.color, e.boss ? 42 : 13, 170, 0.5, 3);
   hitPause(e.boss ? 'boss' : 'kill');
-  addShake(e.boss ? 0.26 : 0.10);
+  addShake(e.boss ? 0.5 : 0.18);
   sfx('kill');
   if (e.captainDeath) e.captainDeath(e);
   hooks.run('onKill', e);

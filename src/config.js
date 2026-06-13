@@ -15,7 +15,7 @@ export const PLAYER = {
   R: 20, MAX_HP: 6,
   SPEED: 304, ACCEL: 24.5, STOP: 37.5, TURN: 30, LATERAL: 13.5,
   MAX_SPEED_MULT: 1.055, DASH_SPEED_MULT: 5.4,
-  FIRE_DELAY: 0.20, DAMAGE: 0.88, SHOT_MULT: 0.78, SHOT_SPEED: 860,
+  FIRE_DELAY: 0.15, DAMAGE: 0.88, SHOT_MULT: 0.72, SHOT_SPEED: 860,
   SHOT_R: 4.2, SHOT_LIFE: 0.82, TWIN_OFFSET: 6,
   // emitter: shots leave the twin barrel tips at body level, in the aim direction
   EMITTER_Y: -16, EMITTER_LEN: 32,
@@ -23,6 +23,8 @@ export const PLAYER = {
   // the dash is the centerpiece: long, far, invincible throughout, hits hard+wide
   DASH_IMPULSE: 1550, DASH_DUR: 0.42, DASH_CD: 0.5, DASH_IFRAMES: 0.46,
   DASH_GLIDE: 2.0, DASH_HIT_RANGE: 156, DASH_HIT_MULT: 1.25, DASH_KNOCK: 500,
+  DASH_KILL_REFUND: 0.05,   // every kill shaves a little off the dash cooldown
+  DASH_PRIME_MULT: 1.5, DASH_PRIME_PIERCE: 1, // "dash primes next shot" relic payload
   HURT_IFRAMES: 0.92, HURT_KNOCK: 370,
   PICKUP_RANGE: 104,
 };
@@ -47,7 +49,7 @@ export const DIRECTOR = {
   BASE: 4, PER_ROUND: 1.05, MIN: 4,
   TELEGRAPH: 0.55,            // warning glyph time before a spawn lands
   REINFORCE_AT: 0.62,         // fraction of count held for the second wave
-  REINFORCE_DELAY: [4.5, 7],  // seconds (or when 2 enemies remain)
+  REINFORCE_DELAY: [3.2, 5],  // seconds (or when 2 enemies remain) — kept snappy for tempo
   // danger stage = min(5, floor(round / 4)) during the route
   STAGE_DIV: 4, STAGE_CAP: 5,
   // non-boss scaling per No Moon: hp ×(1 + stageIdx*0.13 + stage*0.08)
@@ -56,6 +58,9 @@ export const DIRECTOR = {
 
 export const FX = {
   SHAKE_DECAY: 2.25, FLASH_DECAY: 1.7, SLOWMO_SCALE: 0.55,
+  // camera shake is quadratic in trauma (Grave Signal model): offset = trauma²·GAIN.
+  // small hits stop buzzing; big hits still punch. GAIN tuned so peak ≈ the old linear feel.
+  SHAKE_GAIN: 30,
   HIT_PAUSE: { shot: 10, chain: 16, dash: 18, pulse: 30, kill: 24, boss: 58, hurt: 72 }, // ms
 };
 

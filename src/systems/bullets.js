@@ -43,6 +43,33 @@ export function fireEnemyRing(room, e, count, speed, life, color, offset = 0) {
   }
 }
 
+// Dashing through an enemy round flips it into a small friendly shard aimed at the
+// nearest enemy — rewards aggressive movement and makes bullet pressure interactive.
+function convertBullet(room, b, p) {
+  if (b.converted) return;
+  let best = null, bd = Infinity;
+  for (const e of room.enemies) {
+    if (e.hp <= 0) continue;
+    const d = dist(b.x, b.y, e.x, e.y);
+    if (d < bd) { best = e; bd = d; }
+  }
+  const sp = Math.hypot(b.vx, b.vy) || 300;
+  let nx, ny;
+  if (best) { const n = norm(best.x - b.x, best.y - b.y); nx = n.x; ny = n.y; }
+  else { nx = -b.vx / sp; ny = -b.vy / sp; } // no target: send it back the way it came
+  const speed = Math.max(560, sp);
+  b.owner = 'player';
+  b.vx = nx * speed; b.vy = ny * speed;
+  b.r = Math.max(3, b.r * 0.8);
+  b.damage = (p.damage * (1 + p.perks.damage * 0.15)) * 0.6;
+  b.color = '#bdfcff';
+  b.converted = true;
+  b.pierce = 0; b.bounces = 0; b.hitIds = null; b.turn = 0;
+  b.life = Math.max(b.life, 0.6);
+  b.level = p.level;
+  particle(room, b.x, b.y, '#ffffff', 0, 0, 0.16, 4);
+}
+
 function hitObstacle(room, b) {
   for (const o of room.obstacles) {
     if (o.gone) continue;
@@ -129,6 +156,8 @@ export function updateBullets(room, dt) {
         room.bullets.splice(i, 1);
         hurtPlayer(b.damage, b.x, b.y, 'bullet');
         continue;
+      } else if (p.dashT > 0) {
+        convertBullet(room, b, p); // dash through enemy fire to flip it back at them (Cathedral's trick)
       }
     }
   }
