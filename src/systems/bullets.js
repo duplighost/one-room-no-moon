@@ -152,12 +152,14 @@ export function updateBullets(room, dt) {
       }
       if (b.life <= 0) { room.bullets.splice(i, 1); continue; }
     } else if (b.level >= p.level && dist(b.x, b.y, p.x, p.y) < b.r + p.r) {
-      if (p.inv <= 0) {
+      // conversion keys off dash STATE, not i-frames — so it survives any future i-frame retune
+      if (p.dashT > 0) {
+        convertBullet(room, b, p); // dash through enemy fire to flip it back at them (Cathedral's trick)
+        continue;
+      } else if (p.inv <= 0) {
         room.bullets.splice(i, 1);
         hurtPlayer(b.damage, b.x, b.y, 'bullet');
         continue;
-      } else if (p.dashT > 0) {
-        convertBullet(room, b, p); // dash through enemy fire to flip it back at them (Cathedral's trick)
       }
     }
   }

@@ -22,7 +22,7 @@ export const PLAYER = {
   CRIT: 0.03, CRIT_MULT: 1.8,
   // the dash is the centerpiece: long, far, invincible throughout, hits hard+wide
   DASH_IMPULSE: 1550, DASH_DUR: 0.42, DASH_CD: 0.5, DASH_IFRAMES: 0.46,
-  DASH_GLIDE: 2.0, DASH_HIT_RANGE: 156, DASH_HIT_MULT: 1.25, DASH_KNOCK: 500,
+  DASH_GLIDE: 2.0, DASH_HIT_RANGE: 156, DASH_SWEEP_RANGE: 112, DASH_HIT_MULT: 1.25, DASH_KNOCK: 500,
   DASH_KILL_REFUND: 0.05,   // every kill shaves a little off the dash cooldown
   DASH_PRIME_MULT: 1.5, DASH_PRIME_PIERCE: 1, // "dash primes next shot" relic payload
   HURT_IFRAMES: 0.92, HURT_KNOCK: 370,

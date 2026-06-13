@@ -43,6 +43,7 @@ export function updatePlayer(p, move, aim, room, dt) {
   const wasDashing = p.dashT > 0;
   p.dashT = Math.max(0, p.dashT - dt);
   if (wasDashing && p.dashT <= 0) { // landing punctuation — reads as the dash "slam" stop
+    p._dashHitIds = null;
     ripple(room, p.x, p.y, room.biome.pal.accent2, 92);
     ripple(room, p.x, p.y, '#ffffff', 46, 0.32);
     burst(room, p.x, p.y, room.biome.pal.accent3, 10, 150, 0.3, 2.6);
@@ -104,6 +105,7 @@ export function updatePlayer(p, move, aim, room, dt) {
   p.y = clamp(p.y, w + p.r, room.h - w - p.r);
   for (const o of room.obstacles) if (!o.gone) resolveCircleObstacle(p, o);
   p.level = levelAt(room, p.x, p.y); // ground=0, raised platform=1 (set by ramps)
+  if (p.dashT > 0) performDashCut(p, room, PLAYER.DASH_SWEEP_RANGE || PLAYER.DASH_HIT_RANGE); // cut enemies along the travel, not just at launch
 
   // trail + afterimages — small motes spawned BEHIND the body (particles draw on
   // top of entities, so a big one here reads as a blob stuck to him; keep it small
@@ -145,7 +147,9 @@ export function resolveCircleObstacle(ent, o) {
 }
 
 export function firePlayer(p, room) {
-  p.fireCd = p.fireDelay * Math.pow(0.9, p.perks.fire);
+  // floor the cadence so stacked fire perks (Redline + 'rapid' pickups both bump perks.fire) can't
+  // collapse the cooldown into a bullet/particle hose
+  p.fireCd = Math.max(0.075, p.fireDelay * Math.pow(0.9, p.perks.fire));
   p.shots++;
   sfx('shot');
   const ax = p.aimX, ay = p.aimY;
@@ -178,10 +182,40 @@ export function firePlayer(p, room) {
   hooks.run('onFire', p, { x: ax, y: ay, oy: PLAYER.EMITTER_Y });
 }
 
+// The dash is a continuous sweep: called at launch (big bite) and every frame while
+// dashing (sweep range), so it cuts everything along the ~430px travel — not just
+// whoever stood next to the launch pad. A per-dash Set caps each enemy to one hit.
+function performDashCut(p, room, range) {
+  if (!(p._dashHitIds instanceof Set)) p._dashHitIds = new Set();
+  const dmg = p.damage * (1 + p.perks.damage * 0.15) * PLAYER.DASH_HIT_MULT;
+  let hits = 0;
+  for (const e of room.enemies) {
+    if (e.hp <= 0 || e.level !== p.level) continue; // dash only cuts your own level
+    const key = e.id ?? e;
+    if (p._dashHitIds.has(key)) continue;           // one hit per enemy per dash
+    if (dist(p.x, p.y, e.x, e.y) < range + e.r) {
+      p._dashHitIds.add(key);
+      const k = norm(e.x - p.x, e.y - p.y);
+      damageEnemy(e, dmg, k.x * PLAYER.DASH_KNOCK, k.y * PLAYER.DASH_KNOCK, 'dash');
+      // make it obvious the dash cut through: bright spark + a slash mark
+      burst(room, e.x, e.y, '#ffffff', 9, 240, 0.28, 3);
+      addFloat(room, e.x, e.y - e.r - 8, '✦', '#ffffff', false, 0.34);
+      hits++;
+    }
+  }
+  if (hits) {
+    addFlash(0.14); addShake(0.26);
+    // prime the next shot ONCE per dash (not once per enemy cut), so blender-dashing a
+    // crowd doesn't turn into a frame-rate fire hose
+    if (!p._dashCutPrimed) { p._dashCutPrimed = true; p.fireCd = 0; }
+  }
+  return hits;
+}
+
 export function tryDash(dx = null, dy = null, move = null) {
   if (state.mode !== 'play' || !state.run) return;
   const p = state.run.player, room = state.room;
-  if (p.dashCd > 0) return;
+  if (p.dashCd > 0 || p.dashT > 0) return; // can't restart a dash mid-dash (refunds could otherwise chain it)
   if (dx == null) {
     if (move && move.active) { dx = move.x; dy = move.y; }
     else { dx = p.aimX; dy = p.aimY; }
@@ -191,6 +225,7 @@ export function tryDash(dx = null, dy = null, move = null) {
   p.lastDashAngle = Math.atan2(n.y, n.x);
   p.vx = n.x * PLAYER.DASH_IMPULSE; p.vy = n.y * PLAYER.DASH_IMPULSE;
   p.dashT = p.dashDur;
+  p._dashHitIds = new Set(); p._dashCutPrimed = false; // fresh per-dash hit-set + prime gate
   p.dashSpinDir = (n.x * p.aimY - n.y * p.aimX) >= 0 ? 1 : -1;
   p.inv = Math.max(p.inv, PLAYER.DASH_IFRAMES);
   p.dashCd = p.dashCdBase;
@@ -202,23 +237,7 @@ export function tryDash(dx = null, dy = null, move = null) {
       -n.x * (150 + Math.random() * 270) + (Math.random() * 180 - 90),
       -n.y * (150 + Math.random() * 270) + (Math.random() * 180 - 90), 0.32, 2 + Math.random() * 3.8);
   }
-  const dmg = p.damage * (1 + p.perks.damage * 0.15) * PLAYER.DASH_HIT_MULT;
-  let hits = 0;
-  for (const e of room.enemies) {
-    if (e.hp <= 0 || e.level !== p.level) continue; // dash only cuts your own level
-    if (dist(p.x, p.y, e.x, e.y) < PLAYER.DASH_HIT_RANGE + e.r) {
-      const k = norm(e.x - p.x, e.y - p.y);
-      damageEnemy(e, dmg, k.x * PLAYER.DASH_KNOCK, k.y * PLAYER.DASH_KNOCK, 'dash');
-      // make it obvious the dash cut through: bright spark + a slash mark
-      burst(room, e.x, e.y, '#ffffff', 9, 240, 0.28, 3);
-      addFloat(room, e.x, e.y - e.r - 8, '✦', '#ffffff', false, 0.34);
-      hits++;
-    }
-  }
-  if (hits) {
-    addFlash(0.14); addShake(0.26);
-    p.fireCd = 0;            // a dash-cut primes your next shot — it fires the instant the dash ends
-  }
+  const hits = performDashCut(p, room, PLAYER.DASH_HIT_RANGE); // launch bite; the per-frame sweep continues it along the travel
   hooks.run('onDash', p, hits);   // relics (e.g. dash-primes-shot) listen here
   // bigger dash = bigger feedback
   slowMo(0.06);

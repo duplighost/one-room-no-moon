@@ -82,6 +82,35 @@ weights (5/4) too tempting. Dials: `config.js` (PLAYER, `FX.SHAKE_GAIN`,
 `DIRECTOR.REINFORCE_DELAY`), `render/camera.js` (scale band, zoom), and the two
 relics in `data/items.js` + `systems/itemEffects.js`.
 
+### Fastcombat fix pass (cross-review, 2026-06-13 latest)
+
+A parallel ChatGPT build of the same brief flagged real issues in the first cut;
+verified each against our code (measured) before fixing:
+
+- **Dash didn't sweep — the headline bug.** The dash hit only at the *launch*
+  point (within `DASH_HIT_RANGE` 156), but the dash *travels ~436px* (measured).
+  An enemy 300px down the path took zero damage — it looked like a sawblade but
+  only slapped whoever stood on the launch pad. Fixed: `performDashCut()` now runs
+  at launch **and every frame during the dash** (`DASH_SWEEP_RANGE` 112), with a
+  per-dash `Set` capping each enemy to **one hit**. Verified: an enemy 300px ahead
+  now takes exactly one dash hit.
+- **Dash could restart mid-dash.** `tryDash` only checked `dashCd`, and kill
+  refunds (baseline + Halo Drain) can zero the cooldown *during* the 0.42s dash
+  (the cd naturally decays to ~0.08 by dash-end anyway), letting you chain dashes
+  into a near-untouchable blender. Guard added: `if (p.dashCd > 0 || p.dashT > 0)`.
+- **Crowd fire-spike avoided.** The sweep's `fireCd = 0` is gated to **once per
+  dash** (`_dashCutPrimed`), not once per enemy cut — so blender-dashing a pack
+  doesn't become a 60fps fire hose (the side effect the ChatGPT build carried).
+- **Bullet-conversion order.** Reordered to key off dash *state* before i-frames
+  (`if (p.dashT>0) convert; else if (p.inv<=0) hurt`), so it survives any future
+  i-frame retune instead of relying on `DASH_IFRAMES > DASH_DUR`.
+- **Fire-rate floor.** `firePlayer` now `Math.max(0.075, …)`; both Redline *and*
+  `rapid` pickups bump `perks.fire`, and there was no lower bound.
+
+Machine-verified: 4 new headless checks (sweep cuts a 300px-ahead enemy; one hit
+per enemy; no restart while dashing; cadence floored) — all green with the full
+suite; stress clean; 0 console errors in real Chromium (desktop + mobile).
+
 ## Concept-sheet pass (player-shared ChatGPT concept art, 2026-06-13 late)
 
 Took the *direction* from a 4-panel concept sheet (re-implemented as canvas

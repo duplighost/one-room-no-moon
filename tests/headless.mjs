@@ -509,5 +509,45 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
     `found=${!!primedShot} r=${primedShot && primedShot.r} pierce=${primedShot && primedShot.pierce}`);
 }
 
+// ── fastcombat fixes: dash sweep, one-hit-per-enemy, restart guard, fire floor ──
+{
+  const playerMod = await import('../src/systems/player.js');
+  const enemiesMod = await import('../src/systems/enemies.js');
+  const cfg = await import('../src/config.js');
+  const { tryDash, updatePlayer } = playerMod;
+  const move0 = { active: false, x: 0, y: 0, l: 0 };
+  const aimR = { active: false, x: 1, y: 0 };
+
+  // (1) the dash cuts enemies along the ~430px travel path, not just at launch range (156)
+  startRun('headless-sweep');
+  let room = state.room, pl = state.run.player;
+  room.enemies.length = 0; room.spawnQueue.length = 0; room.bullets.length = 0; room.obstacles.length = 0; room.hazards.length = 0;
+  pl.x = 300; pl.y = 520; pl.vx = pl.vy = 0; pl.aimX = 1; pl.aimY = 0; pl.level = 0; pl.dashCd = 0; pl.dashT = 0;
+  const far = enemiesMod.makeEnemy('skitter', pl.x + 300, 520, room); far.level = 0; far.hp = far.maxHp = 50; room.enemies.push(far);
+  tryDash(1, 0);
+  const hpLaunch = far.hp;
+  for (let i = 0; i < 30 && pl.dashT > 0; i++) { decayFx(1 / 60); updatePlayer(pl, move0, aimR, room, 1 / 60); }
+  check('dash sweep cuts an enemy 300px down the travel path', hpLaunch === 50 && far.hp < 50, `launch=${hpLaunch} after=${far.hp}`);
+
+  // (2) one hit per enemy per dash — hp dropped by exactly one dash hit, not chipped every frame
+  const oneHit = cfg.PLAYER.DASH_HIT_MULT * pl.damage * (1 + pl.perks.damage * 0.15);
+  check('dash sweep hits each enemy at most once', far.hp >= 50 - oneHit - 1e-6, `hp=${far.hp} oneHit=${oneHit.toFixed(2)}`);
+
+  // (3) cannot restart a dash mid-dash even if the cooldown is refunded to 0
+  startRun('headless-restart');
+  room = state.room; pl = state.run.player;
+  pl.x = 300; pl.y = 520; pl.dashCd = 0; pl.dashT = 0; pl.aimX = 1; pl.aimY = 0;
+  tryDash(1, 0);
+  const d1 = pl.dashes;
+  pl.dashCd = 0; // simulate kill-refunds zeroing the cooldown mid-dash
+  tryDash(1, 0);
+  check('no dash restart while still dashing', pl.dashes === d1 && pl.dashT > 0, `dashes=${pl.dashes} expected=${d1} dashT=${pl.dashT.toFixed(3)}`);
+
+  // (4) fire cadence has a sane floor even with absurd stacked fire perks
+  pl.perks.fire = 99; pl.fireCd = 0; pl.aimX = 1; pl.aimY = 0;
+  playerMod.firePlayer(pl, state.room);
+  check('fire cadence floored (no bullet hose)', pl.fireCd >= 0.075 - 1e-9, `fireCd=${pl.fireCd}`);
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
