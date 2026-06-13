@@ -37,15 +37,17 @@ export function drawPlayer(ctx, p, room) {
     const inv = 1 / sp, bx = -p.vx * inv, by = -p.vy * inv;       // backward unit
     const perpx = -by, perpy = bx;
     const len = Math.min(52, sp * 0.045) * (p.dashT > 0 ? 1.7 : 1);
+    // start the wake behind the body so it never sits over his (part-transparent) sprite
+    const baseX = p.x + bx * 22, baseY = p.y - 12 + by * 22;
     ctx.save();
     ctx.fillStyle = p.dashT > 0 ? pal.accent3 : pal.accent;
     for (let i = -1; i <= 1; i++) {
-      const ox = perpx * i * 8, oy = perpy * i * 8;
-      ctx.globalAlpha = (0.26 - Math.abs(i) * 0.07) * (p.dashT > 0 ? 1.5 : 1);
+      const ox = perpx * i * 7, oy = perpy * i * 7;
+      ctx.globalAlpha = (0.24 - Math.abs(i) * 0.07) * (p.dashT > 0 ? 1.5 : 1);
       ctx.beginPath();
-      ctx.moveTo(p.x + ox + perpx * 3.5, p.y - 14 + oy + perpy * 3.5);
-      ctx.lineTo(p.x + ox + bx * len, p.y - 14 + oy + by * len);
-      ctx.lineTo(p.x + ox - perpx * 3.5, p.y - 14 + oy - perpy * 3.5);
+      ctx.moveTo(baseX + ox + perpx * 3, baseY + oy + perpy * 3);
+      ctx.lineTo(baseX + ox + bx * len, baseY + oy + by * len);
+      ctx.lineTo(baseX + ox - perpx * 3, baseY + oy - perpy * 3);
       ctx.closePath(); ctx.fill();
     }
     ctx.restore();

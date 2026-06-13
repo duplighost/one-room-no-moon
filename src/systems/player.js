@@ -101,10 +101,13 @@ export function updatePlayer(p, move, aim, room, dt) {
   for (const o of room.obstacles) if (!o.gone) resolveCircleObstacle(p, o);
   p.level = levelAt(room, p.x, p.y); // ground=0, raised platform=1 (set by ramps)
 
-  // trail + afterimages
-  if (sp > 44 && !reduced()) {
-    particle(room, p.x - p.vx * 0.03, p.y - p.vy * 0.03, p.dashT > 0 ? room.biome.pal.accent3 : room.biome.pal.accent,
-      -p.vx * 0.055, -p.vy * 0.055, p.dashT > 0 ? 0.13 : 0.16, 9 + sp * 0.026, 'dot');
+  // trail + afterimages — small motes spawned BEHIND the body (particles draw on
+  // top of entities, so a big one here reads as a blob stuck to him; keep it small
+  // and offset back so it's a wake, not a smear on his chest)
+  if (sp > 60 && !reduced()) {
+    const bx = -p.vx / sp, by = -p.vy / sp;
+    particle(room, p.x + bx * 26, p.y - 10 + by * 26, p.dashT > 0 ? room.biome.pal.accent3 : room.biome.pal.accent,
+      bx * 55, by * 55, p.dashT > 0 ? 0.18 : 0.14, p.dashT > 0 ? 6 : 3.5, 'dot');
   }
   p.after.unshift({ x: p.x, y: p.y, face: p.face, spin: dashSpinPhase(p), life: p.dashT > 0 ? 0.13 : 0.16 });
   if (p.after.length > (view.mobile ? 6 : 9)) p.after.pop();
