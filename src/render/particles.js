@@ -49,12 +49,26 @@ export function updateParticles(room, dt) {
 export function drawParticles(ctx, room) {
   for (const p of room.particles) {
     const a = clamp(p.life / p.max, 0, 1);
+    if (p.kind === 'ring') { // expanding floor ripple (dash punctuation)
+      const rad = p.r + (1 - a) * p.grow;
+      ctx.globalAlpha = a * 0.7;
+      ctx.strokeStyle = p.color; ctx.lineWidth = 2.5;
+      ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, rad, rad * 0.5, 0, 0, TAU); ctx.stroke();
+      continue;
+    }
     ctx.globalAlpha = a;
     ctx.fillStyle = p.color;
     ctx.shadowColor = p.color; ctx.shadowBlur = 10;
     ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.1, p.r * a), 0, TAU); ctx.fill();
   }
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+}
+
+// flat expanding ring on the ground — dash/landing punctuation (concept panel 3 right)
+export function ripple(room, x, y, color, maxR = 70, life = 0.45) {
+  if (!room || room.particles.length > budget()) return;
+  room.particles.push({ kind: 'ring', x, y, vx: 0, vy: 0, life, max: life, r: 8, grow: maxR, color });
 }
 
 export function drawFloats(ctx, room) {

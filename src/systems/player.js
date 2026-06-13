@@ -3,7 +3,7 @@
 import { PLAYER, TAU } from '../config.js';
 import { state } from '../state.js';
 import { clamp, damp, dist, norm } from '../rng.js';
-import { particle, burst, addFloat } from '../render/particles.js';
+import { particle, burst, addFloat, ripple } from '../render/particles.js';
 import { addShake, addFlash, slowMo, hitPause, haptic, reduced } from './juice.js';
 import { sfx } from '../audio/sfx.js';
 import { spawnBullet } from './bullets.js';
@@ -40,7 +40,9 @@ export function updatePlayer(p, move, aim, room, dt) {
   p.hurt = Math.max(0, p.hurt - dt);
   p.fireCd = Math.max(0, p.fireCd - dt);
   p.dashCd = Math.max(0, p.dashCd - dt);
+  const wasDashing = p.dashT > 0;
   p.dashT = Math.max(0, p.dashT - dt);
+  if (wasDashing && p.dashT <= 0) ripple(room, p.x, p.y, room.biome.pal.accent2, 58); // landing punctuation
   p.brakeT = Math.max(0, p.brakeT - dt);
   if (p.shieldMax > 0 && p.shield < p.shieldMax) {
     p.shieldTimer += dt;
@@ -177,6 +179,7 @@ export function tryDash(dx = null, dy = null, move = null) {
   p.dashCd = p.dashCdBase;
   p.dashes++;
   sfx('dash'); haptic(14); hitPause('shot'); addShake(0.075);
+  ripple(room, p.x, p.y, room.biome.pal.accent3, 76); // launch punctuation
   for (let i = 0; i < 28; i++) {
     particle(room, p.x - n.x * 10, p.y - n.y * 10, room.biome.pal.accent3,
       -n.x * (150 + Math.random() * 270) + (Math.random() * 180 - 90),

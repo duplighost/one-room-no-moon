@@ -31,6 +31,25 @@ function shadow(ctx, x, y, w, h, a) {
 export function drawPlayer(ctx, p, room) {
   const pal = room.biome.pal;
   const spin = dashSpinPhase(p);
+  // slipstream trail — directional speed-smear behind movement (concept panel 3)
+  const sp = Math.hypot(p.vx, p.vy);
+  if (sp > 150) {
+    const inv = 1 / sp, bx = -p.vx * inv, by = -p.vy * inv;       // backward unit
+    const perpx = -by, perpy = bx;
+    const len = Math.min(52, sp * 0.045) * (p.dashT > 0 ? 1.7 : 1);
+    ctx.save();
+    ctx.fillStyle = p.dashT > 0 ? pal.accent3 : pal.accent;
+    for (let i = -1; i <= 1; i++) {
+      const ox = perpx * i * 8, oy = perpy * i * 8;
+      ctx.globalAlpha = (0.26 - Math.abs(i) * 0.07) * (p.dashT > 0 ? 1.5 : 1);
+      ctx.beginPath();
+      ctx.moveTo(p.x + ox + perpx * 3.5, p.y - 14 + oy + perpy * 3.5);
+      ctx.lineTo(p.x + ox + bx * len, p.y - 14 + oy + by * len);
+      ctx.lineTo(p.x + ox - perpx * 3.5, p.y - 14 + oy - perpy * 3.5);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
   for (let i = p.after.length - 1; i >= 0; i--) {
     const a = p.after[i];
     drawPlayerBody(ctx, a.x, a.y, a.face, pal, clamp(a.life / 0.16, 0, 1) * 0.18, true, a.spin || 0);
@@ -116,48 +135,54 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
   ctx.restore(); ctx.globalAlpha = 1;
 }
 
-// Aim emitter: a little double-barreled laser pistol held out front, pointing
-// where shots go (the two barrels match the twin-relay's two shots). Reads by
-// SHAPE for colourblind clarity; gunmetal body + biome-coloured energy/muzzles,
-// dark outline so it stands out on any biome. Shots leave the barrel tips.
+// Aim emitter: a chunky haunted blaster (concept panel 2) — cylinder body with
+// glowing cyan chamber-windows, twin front barrels, a top loop, a tiny ghost
+// emblem. Reads by SHAPE (colourblind-safe), biome-coloured energy, dark outline.
+// Held at body level pointing where you aim; shots leave the barrel tips.
 function drawEmitter(ctx, face, pal) {
   ctx.save();
   ctx.translate(0, -16); // matches PLAYER.EMITTER_Y
   ctx.rotate(face);
   ctx.lineJoin = 'round';
-  const ink = '#0b0c14';
+  const ink = '#0b0c14', metal = '#322b44', metalHi = '#4d4366', barrel = '#241f30';
 
   // soft muzzle glow so the business end reads even on dark biomes
-  const glow = ctx.createRadialGradient(26, 0, 1, 26, 0, 16);
+  const glow = ctx.createRadialGradient(32, 0, 1, 32, 0, 18);
   glow.addColorStop(0, hexA(pal.accent, 0.5)); glow.addColorStop(1, hexA(pal.accent, 0));
   ctx.fillStyle = glow;
-  ctx.beginPath(); ctx.arc(26, 0, 16, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(32, 0, 18, 0, TAU); ctx.fill();
 
-  // two barrels (offset to match the twin shots)
+  // top loop / hook
+  ctx.strokeStyle = metalHi; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(4, -14, 4.5, Math.PI * 0.15, Math.PI * 1.85); ctx.stroke();
+
+  // twin barrels at the muzzle
   ctx.strokeStyle = ink; ctx.lineWidth = 2;
   for (const sgn of [-1, 1]) {
-    ctx.fillStyle = '#2d3340';
-    roundRectPath(ctx, 8, sgn * 6 - 3, 20, 6, 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#454d5e'; // top highlight strip
-    ctx.fillRect(10, sgn * 6 - 2.5, 14, 1.6);
+    ctx.fillStyle = barrel;
+    roundRectPath(ctx, 18, sgn * 6 - 3.4, 15, 6.8, 2); ctx.fill(); ctx.stroke();
   }
 
-  // receiver / body the barrels mount into
-  ctx.fillStyle = '#3a4252';
-  roundRectPath(ctx, -8, -9, 18, 18, 4); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#525b6e'; // bevel
-  roundRectPath(ctx, -6, -7, 14, 5, 2); ctx.fill();
-  // little top sight fin
-  ctx.fillStyle = '#2d3340';
-  roundRectPath(ctx, -2, -13, 6, 5, 1.5); ctx.fill(); ctx.stroke();
-  // glowing energy cell on the receiver
-  ctx.fillStyle = pal.accent2; ctx.shadowColor = pal.accent2; ctx.shadowBlur = 7;
-  roundRectPath(ctx, -3, -3, 7, 6, 2); ctx.fill();
+  // main cylinder body
+  ctx.fillStyle = metal;
+  roundRectPath(ctx, -9, -10, 28, 20, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = metalHi; // top bevel
+  roundRectPath(ctx, -6, -9, 22, 4.5, 3); ctx.fill();
+
+  // glowing chamber windows (the "energy" — biome-coloured)
+  ctx.shadowColor = pal.accent; ctx.shadowBlur = 7; ctx.fillStyle = pal.accent;
+  for (const cx of [-3, 3, 9]) { roundRectPath(ctx, cx, -5, 3, 10, 1.5); ctx.fill(); }
   ctx.shadowBlur = 0;
 
-  // muzzle tips — bright dots where the lasers exit (also the aim cue)
+  // tiny ghost emblem on the receiver
+  ctx.fillStyle = hexA('#eef3ff', 0.85);
+  ctx.beginPath(); ctx.arc(-3.5, 4, 2.4, Math.PI, 0); ctx.lineTo(-1.1, 7); ctx.lineTo(-3.5, 6); ctx.lineTo(-5.9, 7); ctx.closePath(); ctx.fill();
+
+  // grip + muzzle tips
+  ctx.fillStyle = barrel; ctx.strokeStyle = ink; ctx.lineWidth = 2;
+  roundRectPath(ctx, -5, 9, 9, 7, 2); ctx.fill(); ctx.stroke();
   ctx.fillStyle = pal.accent; ctx.shadowColor = pal.accent; ctx.shadowBlur = 8;
-  for (const sgn of [-1, 1]) { ctx.beginPath(); ctx.arc(28, sgn * 6, 2.6, 0, TAU); ctx.fill(); }
+  for (const sgn of [-1, 1]) { ctx.beginPath(); ctx.arc(33, sgn * 6, 2.6, 0, TAU); ctx.fill(); }
   ctx.shadowBlur = 0;
   ctx.restore();
 }

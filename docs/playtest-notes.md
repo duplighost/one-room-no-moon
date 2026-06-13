@@ -18,6 +18,21 @@ A 12-round auto-play stress harness (drives the real loop, picks random draft
 cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
 
+## Concept-sheet pass (player-shared ChatGPT concept art, 2026-06-13 late)
+
+Took the *direction* from a 4-panel concept sheet (re-implemented as canvas
+vectors, not imported):
+- **Weapon → haunted blaster** (panel 2): chunky cylinder body with three glowing
+  cyan chamber-windows, twin front barrels with lit muzzle tips, a top loop, a
+  grip, and a tiny ghost emblem. Reads clearly as a cool gun by silhouette.
+- **Slipstream movement trail** (panel 3 middle): a directional cyan speed-smear
+  (3 fanned wedges) behind the player when moving fast; stronger during a dash.
+- **Floor ripple** (panel 3 right): an expanding ground ring as dash punctuation —
+  one at launch, a softer one on landing (new 'ring' particle kind).
+Open: dash distance is now big (centre→wall in one dash) per "big & decisive" —
+tune DASH_IMPULSE/DASH_DUR in config if it's too far. Slipstream strength is in
+drawPlayer (sp>150 threshold, len/alpha).
+
 ## Combat-feel + platform + character pass (player feedback, 2026-06-13 eve)
 
 - **Pulse bomb removed; dash is the centerpiece.** Gone: the player pulse meter,
