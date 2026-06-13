@@ -31,24 +31,17 @@ button:hover{border-color:rgba(255,255,255,.22)}
 #hp{letter-spacing:2px; font-size:14px}
 #hp .hurt{color:var(--bad)}
 #score{font-weight:900; font-variant-numeric:tabular-nums}
-#pulseWrap{width:120px; height:8px; border-radius:99px; background:rgba(255,255,255,.08);
+#pulseWrap{display:block; width:120px; height:9px; border-radius:99px; background:rgba(255,255,255,.08);
   overflow:hidden; align-self:center}
-#pulseFill{height:100%; width:0%; background:linear-gradient(90deg,#7dfdff,#f3dcff); border-radius:99px;
-  transition:width 120ms linear}
-#pulseWrap.ready{animation:pulseReady 1s ease-in-out infinite}
-#pulseWrap.ready #pulseFill{box-shadow:0 0 16px #aef3ff, 0 0 4px #fff}
-@keyframes pulseReady{0%,100%{box-shadow:0 0 0 0 rgba(174,243,255,0)}50%{box-shadow:0 0 0 4px rgba(174,243,255,.35)}}
-
-#touchActions{position:fixed; right:14px; bottom:14px; display:none; flex-direction:column; gap:12px; z-index:7}
-#touchActions.show{display:flex}
-.actBtn{width:78px; height:78px; border-radius:50%; padding:0; font-weight:900; font-size:13px;
-  letter-spacing:.04em; color:var(--dim); display:flex; align-items:center; justify-content:center;
-  background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.10),rgba(255,255,255,.02));
-  border:1.5px solid var(--line); backdrop-filter:blur(8px); touch-action:none; user-select:none}
-.actBtn:active{transform:scale(.93); border-color:rgba(255,255,255,.4)}
-#pulseBtn.ready{color:#aef3ff; border-color:#7dfdff; box-shadow:0 0 18px rgba(125,253,255,.45);
-  animation:pulseReady 1s ease-in-out infinite}
-#dashBtn{color:#f3dcff}
+#pulseFill{display:block; height:100%; width:0%; background:linear-gradient(90deg,#7dfdff,#f3dcff);
+  border-radius:99px; transition:width 120ms linear}
+#pulseWrap.ready #pulseFill{
+  background:linear-gradient(90deg,#7dfdff,#eaffff,#f3dcff,#7dfdff);
+  background-size:220% 100%;
+  animation:pulseSheen .9s linear infinite;
+  box-shadow:0 0 14px #7dfdff, inset 0 0 6px rgba(255,255,255,.7);
+}
+@keyframes pulseSheen{from{background-position:220% 0}to{background-position:0 0}}
 .miniBtn{pointer-events:auto; padding:6px 10px; font-size:12px; border-radius:10px; color:var(--dim)}
 #buildChips{position:fixed; left:10px; bottom:10px; display:flex; gap:6px; flex-wrap:wrap; max-width:60vw;
   pointer-events:none; z-index:5}
@@ -120,11 +113,6 @@ button:hover{border-color:rgba(255,255,255,.22)}
 </div>
 <div id="buildChips"></div>
 <div id="whisper"></div>
-
-<div id="touchActions">
-  <button id="pulseBtn" class="actBtn" type="button" aria-label="Pulse"><span>PULSE</span></button>
-  <button id="dashBtn" class="actBtn" type="button" aria-label="Dash"><span>DASH</span></button>
-</div>
 
 <div id="overlay" class="modalHost"><div class="modal panel">
   <h1 id="overlayTitle"></h1><p id="overlayCopy"></p>

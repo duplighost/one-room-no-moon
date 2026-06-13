@@ -206,18 +206,53 @@ function drawSpawnGlyphs(room) {
 function drawPortal(room, pal) {
   const po = room.portal;
   const t = performance.now() / 1000;
-  const r = po.r + Math.sin(t * 5) * 4;
-  const g = ctx.createRadialGradient(po.x, po.y, 8, po.x, po.y, r * 1.8);
-  g.addColorStop(0, hexA(pal.accent3, 0.8));
-  g.addColorStop(0.45, hexA(pal.accent, 0.4));
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.arc(po.x, po.y, r * 1.8, 0, TAU); ctx.fill();
-  ctx.strokeStyle = pal.accent3; ctx.lineWidth = 4;
-  ctx.shadowColor = pal.accent3; ctx.shadowBlur = 16;
-  starPath(ctx, po.x, po.y, r, r * 0.45, 6);
+  const pulse = 0.5 + 0.5 * Math.sin(t * 3);
+  const r = po.r + Math.sin(t * 5) * 3;
+
+  // tight bright aura (no muddy blur — keep the glow contained)
+  const aura = ctx.createRadialGradient(po.x, po.y, r * 0.15, po.x, po.y, r * 1.5);
+  aura.addColorStop(0, hexA('#ffffff', 0.55));
+  aura.addColorStop(0.3, hexA(pal.accent, 0.45));
+  aura.addColorStop(0.7, hexA(pal.accent3, 0.22));
+  aura.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.save();
+  ctx.fillStyle = aura;
+  ctx.beginPath(); ctx.arc(po.x, po.y, r * 1.5, 0, TAU); ctx.fill();
+
+  // rotating spokes — reads as a gate, not a blur
+  ctx.translate(po.x, po.y);
+  ctx.rotate(t * 0.8);
+  ctx.strokeStyle = hexA(pal.accent2, 0.5); ctx.lineWidth = 2;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * TAU;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * r * 0.45, Math.sin(a) * r * 0.45);
+    ctx.lineTo(Math.cos(a) * r * 1.1, Math.sin(a) * r * 1.1);
+    ctx.stroke();
+  }
+  ctx.rotate(-t * 1.6);
+  // crisp bright double ring
+  ctx.shadowColor = pal.accent; ctx.shadowBlur = 10;
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(0, 0, r * 0.92, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = hexA(pal.accent3, 0.9); ctx.lineWidth = 4;
+  starPath(ctx, 0, 0, r * 0.78, r * 0.34, 6);
   ctx.stroke();
-  ctx.shadowBlur = 0;
+  // hot core
+  ctx.shadowBlur = 16 + pulse * 8;
+  ctx.fillStyle = hexA('#ffffff', 0.75 + pulse * 0.25);
+  ctx.beginPath(); ctx.arc(0, 0, r * 0.2 + pulse * 3, 0, TAU); ctx.fill();
+  ctx.restore();
+
+  // sparks spiralling inward (cheap: a couple per frame)
+  if (room.particles.length < 240 && Math.random() < 0.6) {
+    const a = Math.random() * TAU, rr = r * (1.8 + Math.random() * 0.6);
+    room.particles.push({
+      kind: 'dot', x: po.x + Math.cos(a) * rr, y: po.y + Math.sin(a) * rr,
+      vx: -Math.cos(a) * 160, vy: -Math.sin(a) * 160, life: 0.5, max: 0.5,
+      r: 2 + Math.random() * 2, color: pal.accent2,
+    });
+  }
 }
 
 function drawPickups(room, pal) {

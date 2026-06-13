@@ -20,24 +20,7 @@ export function initOverlays() {
     zone: $('zone'), roomNo: $('roomNo'), hp: $('hp'), score: $('score'),
     comboChip: $('comboChip'), pulseWrap: $('pulseWrap'), pulseFill: $('pulseFill'),
     sfxBtn: $('sfxBtn'), bgmBtn: $('bgmBtn'), whisper: $('whisper'), buildChips: $('buildChips'),
-    touchActions: $('touchActions'), dashBtn: $('dashBtn'), pulseBtn: $('pulseBtn'),
   };
-}
-
-export function wireTouchActions(onDash, onPulse) {
-  if (!ui) return;
-  const bind = (el, fn) => {
-    if (!el) return;
-    const handler = (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
-    el.addEventListener('pointerdown', handler);
-    el.addEventListener('touchstart', handler, { passive: false });
-  };
-  bind(ui.dashBtn, onDash);
-  bind(ui.pulseBtn, onPulse);
-}
-
-export function showTouchActions(show) {
-  ui?.touchActions?.classList.toggle('show', show);
 }
 
 export function wireBgmButton(onToggle) {
@@ -214,7 +197,6 @@ export function updateHud() {
     const pct = clamp(p.pulse, 0, 100);
     ui.pulseFill.style.width = pct + '%';
     ui.pulseWrap.classList.toggle('ready', pct >= 100);
-    ui.pulseBtn?.classList.toggle('ready', pct >= 100);
     const boonEl = document.getElementById('boonChip');
     if (boonEl) {
       boonEl.textContent = p.boon.charges > 0 ? '⇄ BOON READY' : `⇄ lacing ${p.boon.progress}/${p.boon.need}`;

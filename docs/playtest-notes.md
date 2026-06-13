@@ -18,6 +18,26 @@ A 12-round auto-play stress harness (drives the real loop, picks random draft
 cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
 
+## Polish pass 2 (player feedback, 2026-06-13 pm)
+
+- **Removed the mobile DASH/PULSE buttons.** Player preferred the bare
+  two-thumb gestures (tap-to-pulse / flick-to-dash feel more natural). The
+  surgical dash fix from pass 1 stays; buttons are gone. Easy to reinstate if a
+  future tester wants them.
+- **Pulse meter was secretly empty — fixed.** `#pulseFill` was a `<span>`
+  (inline), so width/height never applied: the fill rendered at 0×0 and the bar
+  has shown an empty track since Phase 0. Set both meter elements to
+  `display:block`; the fill now actually fills as pulse charges, and "ready" is a
+  bright cyan sheen instead of an expanding outline that read as "empty." The
+  on-Moots halo (which was the only working pulse cue) stays.
+- **Portal reworked.** The exit was a soft blurry gradient + star. Now: tight
+  contained aura, rotating spokes (reads as a gate), crisp white double ring,
+  a hot pulsing core, and sparks spiralling inward. Brighter, sharper, no muddy
+  blur.
+
+Next: room architecture (structural floorplans + faked elevation) — see
+docs/room-architecture.md once scoped.
+
 ## Visual verification pass (real Chromium, headless)
 
 Performed with Playwright after Phase 7: zero page/console errors on desktop

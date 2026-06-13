@@ -6,15 +6,13 @@ import { initDraw, drawFrame } from './render/draw.js';
 import { loadSprites } from './render/sprites.js';
 import { updateParticles } from './render/particles.js';
 import { initInput, getMove, getAim, tickTouchDash } from './ui/input.js';
-import { coarse } from './systems/juice.js';
 import { updateBehavior } from './systems/notices.js';
 import { ensureBgm, toggleBgm } from './audio/bgm.js';
 import { todaySeed } from './rng.js';
 import {
   initOverlays, showTitle, showCodex, showPause, wirePauseButtons, wireSfxButton,
-  wireBgmButton, wireTouchActions, showTouchActions, setMenu, hideOverlays, updateHud, setSfxLabels,
+  wireBgmButton, setMenu, hideOverlays, updateHud, setSfxLabels,
 } from './ui/overlays.js';
-import { tryDash, tryPulse } from './systems/player.js';
 import { updatePlayer } from './systems/player.js';
 import { updateEnemies, updateSpawnQueue } from './systems/enemies.js';
 import { updateBullets } from './systems/bullets.js';
@@ -39,7 +37,7 @@ export function boot() {
   bloomCanvas = document.createElement('canvas');
   initDraw(canvas, bloomCanvas);
   resize(canvas, bloomCanvas);
-  addEventListener('resize', () => { resize(canvas, bloomCanvas); showTouchActions(coarse()); }, { passive: true });
+  addEventListener('resize', () => resize(canvas, bloomCanvas), { passive: true });
   loadSprites();
   initOverlays();
 
@@ -61,11 +59,6 @@ export function boot() {
   wirePauseButtons(togglePause, actions.toggleSfx);
   wireSfxButton(actions.toggleSfx);
   wireBgmButton(actions.toggleBgm);
-  wireTouchActions(
-    () => { if (state.mode === 'play') tryDash(null, null, getMove()); },
-    () => { if (state.mode === 'play') tryPulse(); },
-  );
-  showTouchActions(coarse());
   wireDraftUi(
     (choices, canReroll) => renderDraft(choices, canReroll, pickCard, boonReroll,
       (id) => stacks(state.run?.player, id)),
