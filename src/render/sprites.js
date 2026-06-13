@@ -146,12 +146,6 @@ function drawEmitter(ctx, face, pal) {
   ctx.lineJoin = 'round';
   const ink = '#0b0c14', metal = '#322b44', metalHi = '#4d4366', barrel = '#241f30';
 
-  // soft muzzle glow so the business end reads even on dark biomes
-  const glow = ctx.createRadialGradient(32, 0, 1, 32, 0, 18);
-  glow.addColorStop(0, hexA(pal.accent, 0.5)); glow.addColorStop(1, hexA(pal.accent, 0));
-  ctx.fillStyle = glow;
-  ctx.beginPath(); ctx.arc(32, 0, 18, 0, TAU); ctx.fill();
-
   // top loop / hook
   ctx.strokeStyle = metalHi; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.arc(4, -14, 4.5, Math.PI * 0.15, Math.PI * 1.85); ctx.stroke();
