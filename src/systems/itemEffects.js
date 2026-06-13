@@ -137,6 +137,11 @@ const installers = {
       }
     });
   },
+  kinetic() { // dash primes the next volley(s): bigger, harder, piercing (firePlayer reads _dashPrimed)
+    hooks.on('onDash', 'kinetic', (p) => {
+      p._dashPrimed = Math.max(p._dashPrimed || 0, st('kinetic'));
+    });
+  },
   spiteCore() {
     hooks.on('onPlayerHurt', 'spiteCore', () => {
       const p = state.run.player, room = state.room, n = st('spiteCore');
@@ -367,6 +372,7 @@ export const perStack = {
   hullScripture(p) { /* first grant handled in installer; further stacks: */ },
   aegisLattice(p) { p.shieldMax = Math.min(2, p.shieldMax + 1); p.shield = Math.min(p.shieldMax, p.shield + 1); },
   gravityWell(p) { p.pickup += 70; },
+  redline(p) { p.perks.fire += 1; }, // each grant cycles the guns ~10% faster (firePlayer: 0.9^fire)
 };
 
 export function installItem(id, player) {

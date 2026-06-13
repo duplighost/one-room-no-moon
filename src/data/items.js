@@ -32,6 +32,8 @@ export const ITEMS = [
   { id: 'riftCapacitor',  name: 'Rift Capacitor',    type: 'tempo',       weight: 3, maxStacks: 3, color: '#9ec6ff', desc: 'After enough clears, the hull recharges one integrity.' },
   { id: 'gigi',           name: 'Gigi Management',   type: 'companion',   weight: 3, maxStacks: 3, color: '#f9f6ee', desc: 'The cat makes calls. The calls are pounces.' },
   { id: 'haloDrain',      name: 'Halo Drain',        type: 'tempo',       weight: 4, maxStacks: 3, color: '#ffe69b', desc: 'Close kills refund your dash. Stay in the thick of it and keep spinning.' },
+  { id: 'redline',        name: 'Redline Liturgy',   type: 'tempo',       weight: 5, maxStacks: 4, color: '#ff9e6b', desc: 'Your guns cycle faster. Stacks shave more off every shot.' },
+  { id: 'kinetic',        name: 'Kinetic Primer',    type: 'tempo',       weight: 4, maxStacks: 3, color: '#eaffff', desc: 'After a dash, your next shots hit harder and punch through. Stacks prime more volleys.' },
 ];
 
 export const itemById = (id) => ITEMS.find(i => i.id === id);
