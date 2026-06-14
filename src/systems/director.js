@@ -49,7 +49,6 @@ function buildPool(round, recipe) {
 
 export function rollComposition(rng, round, recipe, overdrive, budgetMult = 1) {
   const stage = dangerStage(round, overdrive);
-  // gentle +1 base so the bigger floor carries a touch more life; slope/cap unchanged
   let budget = (6 + round * 1.3 + stage + (RECIPES[recipe]?.countAdj || 0)) * budgetMult;
   const cap = view.mobile ? CAPS.ENEMIES.mobile : CAPS.ENEMIES.desktop;
   const pool = buildPool(round, recipe);
@@ -65,40 +64,54 @@ export function rollComposition(rng, round, recipe, overdrive, budgetMult = 1) {
   return list;
 }
 
-// A spawn point must not sit inside a real obstacle. Uses clamp-to-rect distance so
-// it's correct for big landmarks / long walls (a center-distance test mis-judges those).
-function spawnInObstacle(room, x, y, pad = 24) {
+// Spawn geometry: cluster points hugging edges, away from the player spawn.
+// Big architectural rooms cache reachable anchors in roomRoller; late waves use
+// those first so a reinforcement never appears behind a decorative murder-wall.
+function spawnBlocked(room, x, y, pad = 44) {
   for (const o of room.obstacles) {
     if (o.gone) continue;
-    if (o.type === 'circle') { if (dist(x, y, o.x, o.y) < o.rad + pad) return true; }
-    else {
+    if (o.type === 'circle') {
+      if (dist(x, y, o.x, o.y) < o.rad + pad) return true;
+    } else {
       const cx = clamp(x, o.x, o.x + o.w), cy = clamp(y, o.y, o.y + o.h);
       if (dist(x, y, cx, cy) < pad) return true;
     }
   }
   return false;
 }
-function legalSpawn(room, x, y) {
+
+function legalSpawnPoint(room, x, y) {
   const w = room.wall;
-  return x > w + 50 && x < room.w - w - 50 && y > w + 50 && y < room.h - w - 50
-    && dist(x, y, room.w / 2, room.h * 0.66) >= 460 && !spawnInObstacle(room, x, y);
-}
-// jitter a cluster point but KEEP it legal — an enemy must never telegraph inside a
-// landmark or behind a wall (the bug big rooms with more cover introduced).
-function jitterSpawn(room, rng, c, rx = 70, ry = 55) {
-  for (let t = 0; t < 12; t++) {
-    const x = clamp(c.x + rand(rng, -rx, rx), room.wall + 55, room.w - room.wall - 55);
-    const y = clamp(c.y + rand(rng, -ry, ry), room.wall + 55, room.h - room.wall - 55);
-    if (legalSpawn(room, x, y)) return { x, y };
-  }
-  return { x: c.x, y: c.y }; // cluster points are pre-validated by spawnPoints
+  return x > w + 55 && x < room.w - w - 55 && y > w + 55 && y < room.h - w - 55
+    && dist(x, y, room.w / 2, room.h * 0.66) >= 460
+    && !spawnBlocked(room, x, y);
 }
 
-// Spawn geometry: cluster points hugging edges, away from the player spawn.
+function jitterSpawn(room, rng, c, rx = 70, ry = 55) {
+  const anchorMode = !!room.spawnAnchors?.length;
+  const jx = anchorMode ? Math.min(32, rx) : rx;
+  const jy = anchorMode ? Math.min(28, ry) : ry;
+  for (let tries = 0; tries < 10; tries++) {
+    const x = clamp(c.x + rand(rng, -jx, jx), room.wall + 60, room.w - room.wall - 60);
+    const y = clamp(c.y + rand(rng, -jy, jy), room.wall + 60, room.h - room.wall - 60);
+    if (legalSpawnPoint(room, x, y)) return { x, y };
+  }
+  return { x: c.x, y: c.y };
+}
+
 function spawnPoints(room, rng, n) {
   const pts = [];
+  const anchors = room.spawnAnchors || [];
   const w = room.wall;
   for (let i = 0; i < n; i++) {
+    if (anchors.length) {
+      for (let tries = 0; tries < 24; tries++) {
+        const a = anchors[randi(rng, 0, anchors.length - 1)];
+        const p = jitterSpawn(room, rng, a, 34, 30);
+        if (legalSpawnPoint(room, p.x, p.y)) { pts.push(p); break; }
+      }
+      if (pts.length > i) continue;
+    }
     for (let tries = 0; tries < 30; tries++) {
       const side = randi(rng, 0, 3);
       const x = side === 1 ? room.w - w - rand(rng, 60, 170)
@@ -107,18 +120,9 @@ function spawnPoints(room, rng, n) {
       const y = side === 0 ? w + rand(rng, 60, 150)
         : side === 2 ? room.h - w - rand(rng, 60, 150)
         : rand(rng, w + 80, room.h - w - 80);
-      if (legalSpawn(room, x, y)) { pts.push({ x, y }); break; }
+      if (legalSpawnPoint(room, x, y)) { pts.push({ x, y }); break; }
     }
-    // last resort: scan anywhere for a legal point before falling back to a fixed
-    // spot (which can itself sit inside a landmark in a busy big room).
-    if (pts.length <= i) {
-      let found = null;
-      for (let t = 0; t < 40 && !found; t++) {
-        const x = rand(rng, w + 90, room.w - w - 90), y = rand(rng, w + 90, room.h - w - 90);
-        if (legalSpawn(room, x, y)) found = { x, y };
-      }
-      pts.push(found || { x: room.w / 2, y: room.wall + 90 });
-    }
+    if (pts.length <= i) pts.push({ x: room.w / 2, y: room.wall + 90 });
   }
   return pts;
 }
@@ -138,7 +142,8 @@ export function buildWaves(room, rng) {
       room.pendingWaves.push({
         at, fired: false,
         spawns: Array.from({ length: n }, (_, i) => {
-          const p = jitterSpawn(room, rng, clusters[i % clusters.length], 60, 50);
+          const c = clusters[i % clusters.length];
+          const p = jitterSpawn(room, rng, c, 60, 50);
           return { type: escorts[i % escorts.length], x: p.x, y: p.y, delay: i * 0.15 };
         }),
       });
@@ -162,13 +167,12 @@ export function buildWaves(room, rng) {
   const splitAt = Math.max(2, Math.round(comp.length * DIRECTOR.REINFORCE_AT));
   const first = comp.slice(0, splitAt);
   const second = comp.slice(splitAt);
-  // more, smaller clusters → enemies arrive spread around the bigger room instead of
-  // piling into two corners (which left the middle reading empty).
   const clusters = spawnPoints(room, rng, clamp(Math.ceil(first.length / 2.4), 2, 5));
   room.pendingWaves = [];
 
   const firstSpawns = first.map((type, i) => {
-    const p = jitterSpawn(room, rng, clusters[i % clusters.length]);
+    const c = clusters[i % clusters.length];
+    const p = jitterSpawn(room, rng, c, 70, 55);
     return { type, x: p.x, y: p.y, delay: 0.45 + i * 0.12 };
   });
   // high ground wants a perched occupant: seed a sniper/turret on a tier so the
@@ -233,9 +237,10 @@ export function tickDirector(room, dt) {
       for (const s of wave.spawns) spawnTelegraphed(room, s.type, s.x, s.y, DIRECTOR.TELEGRAPH + s.delay, s.captain);
     } else if (wave.list?.length) {
       const rng = Math.random;
-      const clusters = spawnPoints(room, rng, clamp(Math.ceil(wave.list.length / 3), 1, 3));
+      const clusters = spawnPoints(room, rng, clamp(Math.ceil(wave.list.length / 2.6), 1, 4));
       wave.list.forEach((type, i) => {
-        const p = jitterSpawn(room, rng, clusters[i % clusters.length]);
+        const c = clusters[i % clusters.length];
+        const p = jitterSpawn(room, rng, c, 70, 55);
         spawnTelegraphed(room, type, p.x, p.y, DIRECTOR.TELEGRAPH + i * 0.14);
       });
       if (room.enemies.length) addFloat(room, room.w / 2, room.wall + 70, 'REINFORCEMENTS', room.biome.pal.bad);

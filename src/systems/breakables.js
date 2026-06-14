@@ -2,7 +2,7 @@
 // (docs/no-moon-systems.md §5, game_inline.js:14440-14714). Volatile shards chain.
 import { state } from '../state.js';
 import { dist, norm } from '../rng.js';
-import { burst, addFloat } from '../render/particles.js';
+import { burst, addFloat, ripple } from '../render/particles.js';
 import { sfx } from '../audio/sfx.js';
 import { addShake, hitPause } from './juice.js';
 import { dropPickup } from './pickups.js';
@@ -23,6 +23,7 @@ export const SPECIES = {
   wallSegment:    { hp: 7, label: 'Cracked Wall' },
   rubble:         { hp: 2, label: 'Rubble' },
   volatileShard:  { hp: 2, label: 'Volatile Shard' },
+  dashBell:       { hp: 4, label: 'Dash Bell' },
   cacheAltar:     { hp: 8, label: 'Moon Cache' },
   gambitAltar:    { hp: 11, label: 'Gambit Shrine' },
 };
@@ -79,9 +80,31 @@ const effects = {
   moonseedUrn(room, o, x, y) {
     scatterSparks(room, x, y, Math.random() < 0.22 ? 5 : 3);
   },
+  dashBell(room, o, x, y) {
+    const p = state.run?.player;
+    if (p) {
+      p.dashCd = 0;
+      p.fireCd = Math.min(p.fireCd, 0.02);
+      addFloat(room, x, y - 24, 'DASH READY', '#bdfcff', true, 0.62);
+    }
+    const dmg = p ? p.damage * (1 + p.perks.damage * 0.15) * 0.42 : 0.45;
+    for (const e of room.enemies) {
+      if (e.hp <= 0) continue;
+      const d = dist(x, y, e.x, e.y);
+      if (d < 178 + e.r) {
+        const k = norm(e.x - x, e.y - y);
+        damageEnemy(e, dmg * (1 - Math.min(0.55, d / 360)), k.x * 220, k.y * 220, 'chain');
+      }
+    }
+    ripple(room, x, y, '#bdfcff', 138, 0.38);
+    burst(room, x, y, '#ffffff', 18, 260, 0.36, 3.2);
+    scatterSparks(room, x, y, 3);
+    addShake(0.18);
+  },
   rubble(room, o, x, y) {
-    // cheap destructible debris — a little dust, an occasional spark
-    if (Math.random() < 0.5) scatterSparks(room, x, y, 1);
+    // Cheap destructible debris: just enough dust/sparks to say “the room is changing”
+    // without paying the full loot-piñata cost.
+    if (Math.random() < 0.55) scatterSparks(room, x, y, 1);
   },
   wallSegment(room, o, x, y) {
     // the divider is breached — a wide passage opens

@@ -153,10 +153,9 @@ export function firePlayer(p, room) {
   p.shots++;
   sfx('shot');
   const ax = p.aimX, ay = p.aimY;
-  // shots leave the emitter barrel tip (body level, in the aim direction). The gun
-  // is DRAWN at DRAW_SCALE, so scale the spawn offsets to match — otherwise bullets
-  // float ahead of / above the smaller muzzle (the ChatGPT mismatch).
-  const S = PLAYER.DRAW_SCALE;
+  // Shots leave the visually shrunken muzzle. EMITTER_* are art-space constants;
+  // DRAW_SCALE converts them to world-space so the bullets don't float ahead of the gun.
+  const S = PLAYER.DRAW_SCALE || 1;
   const elen = PLAYER.EMITTER_LEN * S, eoy = PLAYER.EMITTER_Y * S, toff = PLAYER.TWIN_OFFSET * S;
   const ex = p.x + ax * elen, ey = p.y + eoy + ay * elen;
   // louder muzzle: a bright pop + a wider spray of sparks at the barrel tips

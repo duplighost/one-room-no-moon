@@ -53,8 +53,7 @@ button:hover{border-color:rgba(255,255,255,.22)}
   text-shadow:0 2px 12px #000; pointer-events:none}
 #whisper.show{opacity:1}
 
-/* one-time nudge: fades in on entering portrait, auto-dismisses after a few
-   seconds (re-armed only by actually rotating away and back — never a permanent nag) */
+/* one-time nudge: fades in on entering portrait, auto-dismisses after a few seconds */
 #rotateHint{opacity:0; visibility:hidden; transition:opacity .5s ease, visibility .5s;
   position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 88px);
   transform:translateX(-50%); z-index:7; pointer-events:none; text-align:center; max-width:88vw;

@@ -91,6 +91,9 @@ function hitObstacle(room, b) {
     }
     if (!inside) continue;
     if (b.owner === 'player' && o.breakable) damageObstacle(room, o, b.damage);
+    // Enemy gunfire can chew through cracked architectural segments. It keeps big
+    // rooms from freezing into static cover mazes, but it doesn't farm loot pots.
+    if (b.owner === 'enemy' && o.breakable && o.species === 'wallSegment') damageObstacle(room, o, Math.max(0.45, b.damage * 0.38));
     if (b.owner === 'player' && b.bounces > 0) {
       const dot = b.vx * nx + b.vy * ny;
       b.vx -= 2 * dot * nx; b.vy -= 2 * dot * ny;

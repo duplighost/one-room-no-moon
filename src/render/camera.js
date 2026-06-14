@@ -6,7 +6,6 @@ import { FX } from '../config.js';
 
 export const view = { W: 1, H: 1, DPR: 1, scale: 1, baseScale: 1, zoom: 1, mobile: false, portrait: false };
 export const cam = { x: 0, y: 0, kickX: 0, kickY: 0 };
-
 export function resize(canvas, bloomCanvas) {
   const iw = (typeof innerWidth !== 'undefined') ? innerWidth : 1280;
   const ih = (typeof innerHeight !== 'undefined') ? innerHeight : 720;
@@ -32,9 +31,7 @@ export function resize(canvas, bloomCanvas) {
     bloomCanvas.width = Math.max(1, Math.floor(view.W * view.DPR * 0.5));
     bloomCanvas.height = Math.max(1, Math.floor(view.H * view.DPR * 0.5));
   }
-  // nudge phone players to landscape (wider screen = more arena). It's a ONE-TIME
-  // hint: fade it in when portrait begins, auto-dismiss after a few seconds, and
-  // only re-arm when they actually rotate to landscape and back — never a sticky nag.
+  // One-time portrait nudge: fade in, auto-dismiss, re-arm only after rotating away.
   if (typeof document !== 'undefined') {
     const hint = document.getElementById('rotateHint');
     if (hint) {
@@ -45,7 +42,7 @@ export function resize(canvas, bloomCanvas) {
         clearTimeout(view._rotateHintTimer);
         view._rotateHintTimer = setTimeout(() => hint.classList.remove('show'), 6000);
       } else if (!inPortrait) {
-        view._rotateHintArmed = false;        // rotating to landscape re-arms the one-time hint
+        view._rotateHintArmed = false;
         clearTimeout(view._rotateHintTimer);
         hint.classList.remove('show');
       }

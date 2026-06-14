@@ -7,9 +7,9 @@
 // so the player spawn (≈0.66h) stays clear and you traverse them to the portal.
 import { rand, randi, chance, pick } from '../rng.js';
 
-// 3 'none' vs 4 partition plans → ~57% of non-boss rooms partitioned (was ~76%,
-// which starved annexes/tiers/landmarks — all the other room-structure variety).
-export const FLOORPLAN_IDS = ['none', 'none', 'none', 'bisect', 'innerSanctum', 'spineCorridor', 'quadrants'];
+// Partition plans only. roomRoller does the weighted 'none' roll separately so
+// duplicate no-room cards cannot be suppressed by Bag recent-history.
+export const FLOORPLAN_IDS = ['bisect', 'innerSanctum', 'spineCorridor', 'quadrants'];
 
 const T = 30;                 // wall thickness
 const GAP = [170, 230];       // opening width — at least ~4 player diameters

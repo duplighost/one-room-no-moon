@@ -13,8 +13,8 @@ import { sfx } from '../audio/sfx.js';
 import { levelAt } from './levels.js';
 import { damageObstacle } from './breakables.js';
 
-// a charging ram plows through SOFT breakable cover (rubble + light pots); never
-// the structural/secret ones (doors, wall segments, altars, volatile shards).
+// Charging enemies should make the room react: they pulverize soft cover, but never
+// secret doors, cracked architecture, dash bells, altars, or volatile shards.
 const RAMMABLE = new Set(['rubble', 'marrowJar', 'rootCyst', 'bellHusk', 'moonseedUrn']);
 function smashThroughCover(room, e) {
   for (const o of room.obstacles) {
@@ -98,7 +98,7 @@ export function updateEnemies(room, dt) {
           } else if (e.state === 'dash') {
             e.dashT -= dt;
             e.vx *= Math.pow(0.96, dt * 60); e.vy *= Math.pow(0.96, dt * 60);
-            smashThroughCover(room, e); // ram destroys soft cover in its path
+            smashThroughCover(room, e);
             if (e.dashT <= 0) { e.state = 'idle'; e.cd = Math.max(1.7, 2.6 - stage * 0.12); }
           } else {
             ax = to.x * spd * 0.84; ay = to.y * spd * 0.84;

@@ -6,6 +6,9 @@ import { dashSpinPhase } from '../systems/player.js';
 export const moots = { img: null, ready: false };
 export const bossCards = {}; // bossId -> {img, ready}
 
+const PLAYER_DRAW_SCALE = PLAYER.DRAW_SCALE || 1;
+const PLAYER_EFFECT_SCALE = Math.max(0.78, PLAYER_DRAW_SCALE);
+
 export function loadSprites() {
   if (typeof Image === 'undefined') return;
   const img = new Image();
@@ -31,19 +34,18 @@ function shadow(ctx, x, y, w, h, a) {
 export function drawPlayer(ctx, p, room) {
   const pal = room.biome.pal;
   const spin = dashSpinPhase(p);
-  const S = PLAYER.DRAW_SCALE; // body-hugging FX shrink with the sprite (no giant hula-hoops)
   // slipstream trail — directional speed-smear behind movement (concept panel 3)
   const sp = Math.hypot(p.vx, p.vy);
   if (sp > 150) {
     const inv = 1 / sp, bx = -p.vx * inv, by = -p.vy * inv;       // backward unit
     const perpx = -by, perpy = bx;
-    const len = Math.min(52, sp * 0.045) * (p.dashT > 0 ? 1.7 : 1);
+    const len = Math.min(52, sp * 0.045) * PLAYER_EFFECT_SCALE * (p.dashT > 0 ? 1.7 : 1);
     // start the wake behind the body so it never sits over his (part-transparent) sprite
-    const baseX = p.x + bx * 22, baseY = p.y - 12 + by * 22;
+    const baseX = p.x + bx * 22 * PLAYER_EFFECT_SCALE, baseY = p.y - 12 * PLAYER_EFFECT_SCALE + by * 22 * PLAYER_EFFECT_SCALE;
     ctx.save();
     ctx.fillStyle = p.dashT > 0 ? pal.accent3 : pal.accent;
     for (let i = -1; i <= 1; i++) {
-      const ox = perpx * i * 7, oy = perpy * i * 7;
+      const ox = perpx * i * 7 * PLAYER_EFFECT_SCALE, oy = perpy * i * 7 * PLAYER_EFFECT_SCALE;
       ctx.globalAlpha = (0.24 - Math.abs(i) * 0.07) * (p.dashT > 0 ? 1.5 : 1);
       ctx.beginPath();
       ctx.moveTo(baseX + ox + perpx * 3, baseY + oy + perpy * 3);
@@ -59,12 +61,12 @@ export function drawPlayer(ctx, p, room) {
   }
   if (p.dashT > 0) {
     const k = clamp(p.dashT / (p.dashDur || 0.001), 0, 1), ring = 1 - k;
-    ctx.save(); ctx.translate(p.x, p.y); ctx.scale(S, S); ctx.translate(0, -20);
+    ctx.save(); ctx.translate(p.x, p.y - 20 * PLAYER_DRAW_SCALE);
     ctx.globalAlpha = 0.30 + 0.34 * Math.sin(ring * Math.PI);
     ctx.strokeStyle = pal.accent3; ctx.shadowColor = pal.accent3; ctx.shadowBlur = 20; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.ellipse(0, 0, 42 + ring * 10, 12 + Math.sin(spin * 2) * 3, Math.sin(spin) * 0.10, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 0, (42 + ring * 10) * PLAYER_EFFECT_SCALE, (12 + Math.sin(spin * 2) * 3) * PLAYER_EFFECT_SCALE, Math.sin(spin) * 0.10, 0, TAU); ctx.stroke();
     ctx.strokeStyle = pal.accent2; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.ellipse(0, 7, 32 + ring * 8, 8, 0, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 7 * PLAYER_EFFECT_SCALE, (32 + ring * 8) * PLAYER_EFFECT_SCALE, 8 * PLAYER_EFFECT_SCALE, 0, 0, TAU); ctx.stroke();
     ctx.restore();
   }
   // companions (item visuals)
@@ -88,24 +90,23 @@ export function drawPlayer(ctx, p, room) {
   drawPlayerBody(ctx, p.x, p.y, p.face, pal, 1, false, spin);
   if (p.hurt > 0) {
     ctx.strokeStyle = pal.bad + 'cc'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(p.x, p.y, (42 + (1 - p.hurt / 0.42) * 28) * S, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x, p.y, (42 + (1 - p.hurt / 0.42) * 28) * PLAYER_EFFECT_SCALE, 0, TAU); ctx.stroke();
   }
   if (p.inv > 0 && p.hurt <= 0) {
     ctx.strokeStyle = pal.accent3 + 'aa'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(p.x, p.y, (31 + Math.sin(performance.now() / 80) * 3) * S, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x, p.y, (31 + Math.sin(performance.now() / 80) * 3) * PLAYER_EFFECT_SCALE, 0, TAU); ctx.stroke();
   }
   if (p.shield > 0) {
     ctx.strokeStyle = pal.accent + '99'; ctx.lineWidth = 2;
-    for (let i = 0; i < p.shield; i++) { ctx.beginPath(); ctx.arc(p.x, p.y, (38 + i * 5) * S, 0, TAU); ctx.stroke(); }
+    for (let i = 0; i < p.shield; i++) { ctx.beginPath(); ctx.arc(p.x, p.y, (38 + i * 5) * PLAYER_EFFECT_SCALE, 0, TAU); ctx.stroke(); }
   }
 }
 
 export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, spinPhase = 0) {
-  const S = PLAYER.DRAW_SCALE;
   ctx.save(); ctx.globalAlpha = alpha;
-  shadow(ctx, x, y + 18 * S, 20 * S, 7 * S, ghost ? 0.1 : 0.30); // shadow tracks the shrunk body
+  shadow(ctx, x, y + 18 * PLAYER_DRAW_SCALE, 20 * PLAYER_DRAW_SCALE, 7 * PLAYER_DRAW_SCALE, ghost ? 0.1 : 0.30);
   ctx.translate(x, y);
-  ctx.scale(S, S); // sprite was ~2x its 40px hitbox → "gigantic"; one knob in config
+  ctx.scale(PLAYER_DRAW_SCALE, PLAYER_DRAW_SCALE); // visual scale lives in config; collision stays separate
   const spinning = !ghost && Math.abs(spinPhase) > 0.001;
   if (moots.ready && !ghost) {
     const yaw = Math.cos(spinPhase);
@@ -146,7 +147,10 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
 // Held at body level pointing where you aim; shots leave the barrel tips.
 function drawEmitter(ctx, face, pal) {
   ctx.save();
-  ctx.translate(0, PLAYER.EMITTER_Y); // gun pivot — drawn inside the DRAW_SCALE, so the muzzle lands where bullets spawn
+  const emitterY = PLAYER.EMITTER_Y;
+  const muzzleX = PLAYER.EMITTER_LEN;
+  const twinY = PLAYER.TWIN_OFFSET;
+  ctx.translate(0, emitterY); // art-space offset; outer DRAW_SCALE makes this match firePlayer
   ctx.rotate(face);
   ctx.lineJoin = 'round';
   const ink = '#0b0c14', metal = '#322b44', metalHi = '#4d4366', barrel = '#241f30';
@@ -159,7 +163,7 @@ function drawEmitter(ctx, face, pal) {
   ctx.strokeStyle = ink; ctx.lineWidth = 2;
   for (const sgn of [-1, 1]) {
     ctx.fillStyle = barrel;
-    roundRectPath(ctx, 18, sgn * 6 - 3.4, 15, 6.8, 2); ctx.fill(); ctx.stroke();
+    roundRectPath(ctx, muzzleX - 15, sgn * twinY - 3.4, 15, 6.8, 2); ctx.fill(); ctx.stroke();
   }
 
   // main cylinder body
@@ -181,7 +185,7 @@ function drawEmitter(ctx, face, pal) {
   ctx.fillStyle = barrel; ctx.strokeStyle = ink; ctx.lineWidth = 2;
   roundRectPath(ctx, -5, 9, 9, 7, 2); ctx.fill(); ctx.stroke();
   ctx.fillStyle = pal.accent; ctx.shadowColor = pal.accent; ctx.shadowBlur = 8;
-  for (const sgn of [-1, 1]) { ctx.beginPath(); ctx.arc(33, sgn * 6, 2.6, 0, TAU); ctx.fill(); }
+  for (const sgn of [-1, 1]) { ctx.beginPath(); ctx.arc(muzzleX, sgn * twinY, 2.6, 0, TAU); ctx.fill(); }
   ctx.shadowBlur = 0;
   ctx.restore();
 }
