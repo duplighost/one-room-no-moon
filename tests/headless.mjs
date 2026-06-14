@@ -612,5 +612,47 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   check('fire cadence floored (no bullet hose)', pl.fireCd >= 0.075 - 1e-9, `fireCd=${pl.fireCd}`);
 }
 
+// ── dash-kill "pop" + stagger ────────────────────────────────────────────────
+{
+  const combat = await import('../src/systems/combat.js');
+  const enemiesMod = await import('../src/systems/enemies.js');
+  startRun('dash-pop');
+  const room = state.room, pl = state.run.player;
+  room.enemies.length = 0; room.particles.length = 0; room.bullets.length = 0;
+  pl.level = 0; pl.lastDashAngle = 0; pl.vx = 800; pl.vy = 0;
+
+  // (1) a dash blow staggers a surviving non-boss enemy (its AI is gated on stun)
+  const s1 = enemiesMod.makeEnemy('skitter', 500, 520, room); s1.level = 0; s1.hp = s1.maxHp = 50;
+  room.enemies.push(s1);
+  combat.damageEnemy(s1, 1, 0, 0, 'dash');
+  check('a dash blow staggers a non-boss enemy', s1.stun > 0.2, `stun=${s1.stun}`);
+
+  // (2) a normal shot does NOT stagger (keeps the stagger a dash-only reward)
+  const s2 = enemiesMod.makeEnemy('skitter', 520, 520, room); s2.level = 0; s2.hp = s2.maxHp = 50;
+  room.enemies.push(s2);
+  combat.damageEnemy(s2, 1, 0, 0, 'shot');
+  check('a normal shot does not stagger', s2.stun < 0.1, `stun=${s2.stun}`);
+
+  // (3) a boss is not staggered by a dash (don't trivialise boss fights)
+  const sb = enemiesMod.makeEnemy('skitter', 540, 520, room); sb.level = 0; sb.boss = true; sb.hp = sb.maxHp = 50;
+  room.enemies.push(sb);
+  combat.damageEnemy(sb, 1, 0, 0, 'dash');
+  check('a boss is not staggered by a dash', sb.stun < 0.1, `stun=${sb.stun}`);
+
+  // (4) a dash-KILL pops bigger than a shot-kill (more particles) + triggers slow-mo
+  room.particles.length = 0;
+  const k1 = enemiesMod.makeEnemy('skitter', 560, 520, room); k1.level = 0; k1.hp = 1;
+  room.enemies.push(k1);
+  combat.damageEnemy(k1, 5, 0, 0, 'shot');
+  const shotParticles = room.particles.length;
+  room.particles.length = 0; state.fx.slowMo = 0;
+  const k2 = enemiesMod.makeEnemy('skitter', 580, 520, room); k2.level = 0; k2.hp = 1;
+  room.enemies.push(k2);
+  combat.damageEnemy(k2, 5, 0, 0, 'dash');
+  check('a dash-kill pops bigger than a shot-kill', room.particles.length > shotParticles,
+    `dash=${room.particles.length} shot=${shotParticles}`);
+  check('a dash-kill triggers slow-mo', state.fx.slowMo > 0, `slowMo=${state.fx.slowMo}`);
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

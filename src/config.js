@@ -66,7 +66,7 @@ export const FX = {
   // camera shake is quadratic in trauma (Grave Signal model): offset = trauma²·GAIN.
   // small hits stop buzzing; big hits still punch. GAIN tuned so peak ≈ the old linear feel.
   SHAKE_GAIN: 30,
-  HIT_PAUSE: { shot: 10, chain: 16, dash: 18, pulse: 30, kill: 24, boss: 58, hurt: 72 }, // ms
+  HIT_PAUSE: { shot: 10, chain: 16, dash: 18, pulse: 30, kill: 24, dashKill: 40, boss: 58, hurt: 72 }, // ms
 };
 
 export const BLOOM = { ALPHA: 0.20, FILTER: 'blur(11px) saturate(1.16)' };

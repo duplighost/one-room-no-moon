@@ -13,19 +13,30 @@ Living snapshot of where we are. Full history + rationale lives in
 
 ## State (updated 2026-06-14)
 
-Feature-complete; in iterative feel/polish driven by playtests. Last shipped: **adopted
-ChatGPT's "beeeg perfect merge" build as the base** (reviewed clean — robust spawn anchors,
-more structure variety, muzzle-coherence; Dash Bell kept), then **de-fanged the biome
-hazards.** The projectile-spitting hazards (spore/snare/thorn/shard/volatile) were unkillable
-and stalled the pace, so they're retired: those biomes now furnish **breakable biome-styled
-cover** instead (glass biomes → 3-5 chain-glass nodes; plant/bone biomes → rootCyst/marrow
-cover via `rollSpecies`). The fog/spore **gas clouds were removed** (fen/mycelium get cover
-for parity — furniture, not the gas mechanic). Kept as dodge-choreography: altar shockwaves
-(pulse/ritual) + laser lanes (lane/sightline). The `addSlowFog`/lotus consequence-mechanics
-(rootCyst, captain deaths, Spiggot boss) are untouched.
+Feature-complete; in iterative feel/polish driven by playtests. Recently shipped, newest first:
+
+- **Dash-kill "pop" + stagger.** A dash *kill* now gets a real pop — a directional "slice"
+  spray along the dash line, a white core, twin shockwave rings, a `slowMo` beat, and a
+  shatter-crunch SFX (vs the plain burst a shot-kill gets). A dash *blow* now **staggers**
+  non-boss enemies (bumps `e.stun`, which gates their AI) — they reel with dizzy stun-stars,
+  setting up the finish; executing a reeling enemy adds a small flourish. Bosses are immune
+  to the stagger so fights stay honest.
+- **Adopted ChatGPT's "beeeg perfect merge" as the base** (robust spawn anchors, structure
+  variety, muzzle-coherence; Dash Bell kept), then **de-fanged the biome hazards.** The
+  projectile-spitting hazards (spore/snare/thorn/shard/volatile) were retired into **breakable
+  biome-styled cover** (glass → 3-5 chain-glass; plant/bone → rootCyst/marrow via `rollSpecies`).
+  fog/spore **gas clouds removed** (fen/mycelium get cover for parity). Kept as dodge-
+  choreography: altar shockwaves (pulse/ritual) + laser lanes. `addSlowFog`/lotus consequence-
+  mechanics (rootCyst, captain deaths, Spiggot boss) untouched.
 
 ## ⚠️ NOT yet playtested by the human
 
+- **The dash-kill pop + stagger are UNPLAYED.** Confirm in the hands:
+  - Does the dash-kill actually feel *satisfying* (slow-mo beat not too sticky on multi-kills;
+    slice spray reads; not too noisy)? Dials: `dashKillPop` in `combat.js`, `FX.HIT_PAUSE.dashKill`.
+  - Stagger duration (`e.stun = 0.35` on dash-hit in `combat.js`) — does the reel read and
+    feel fair, or does it trivialise crowds / feel too brief? Stun-star visual in `sprites.js`.
+  - Does "dash to stagger, then finish" emerge as a real, fun loop?
 - **The hazard de-fang + ChatGPT base are UNPLAYED.** Confirm in the hands:
   - Former spitter biomes (verdigris/mirror/rosewire/shardreef/ossuary/umbraharvest/
     blacksungarden/frostreliquary) as breakable-cover rooms — do they feel good, not emptier?
@@ -51,16 +62,20 @@ for parity — furniture, not the gas mechanic). Kept as dodge-choreography: alt
 
 ## Next up (player requested — not started)
 
-- **Dash-kill "pop":** enemies killed *by a dash* should burst in a much more satisfying way.
-- **Stagger patterns:** enemy types/states you can stagger, with a cooler finisher when you do.
 - **Per-biome visual identity:** each biome stunning *and* internally consistent, but clearly
   distinct from the others (22 biomes currently share rendering — differentiate palette /
-  patterns / obstacle styles per biome).
+  patterns / obstacle styles per biome). *The big one.*
+- **Deeper stagger patterns:** the dash-stagger groundwork is in; could add enemy-specific
+  reactions (e.g. a charger you stagger mid-windup, a poise/break meter on tanks).
 - **More enemies / faster, aggressive pacing** (later — touches `CAPS`/director budget).
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **Adopt ChatGPT base + hazard de-fang** (`ad006cc` + de-fang commit) — took ChatGPT's
+1. **Dash-kill "pop" + stagger** (this pass) — dash-kills get a directional slice/core/rings/
+   slow-mo pop + crunch SFX; dash-hits stagger non-boss enemies (stun-gated AI, dizzy stars);
+   executing a reeling enemy flourishes. 5 new headless checks; Chromium-confirmed visually
+   (DOUBLE/TRIPLE multi-kill reads great). **UNPLAYED.**
+2. **Adopt ChatGPT base + hazard de-fang** (`ad006cc` + `a9b0c4f`) — took ChatGPT's
    "beeeg perfect merge" as the base (verified: headless + stress + Chromium clean), then
    retired the projectile-spitting hazards into breakable cover, removed fog/spore gas clouds,
    trimmed the dead hazard kits + draw branches. Kept mutator pity 12 over the base's 8. **UNPLAYED.**

@@ -451,6 +451,21 @@ export function drawEnemy(ctx, e, room) {
   }
   ctx.restore();
 
+  // staggered: reeling from a dash blow — woozy stun-stars orbit the head, a clear
+  // "off-balance, finish me" read that sets up the satisfying kill.
+  if (!e.boss && e.stun > 0.12) {
+    const t = performance.now() / 1000;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, e.stun / 0.35) * 0.95;
+    ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#bdfcff'; ctx.shadowBlur = 8;
+    for (let i = 0; i < 3; i++) {
+      const a = t * 7 + (i / 3) * TAU;
+      starPath(ctx, e.x + Math.cos(a) * e.r * 0.8, e.y - e.r - 7 + Math.sin(a) * 3.5, 3.4, 1.5, 5);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   if (e.captain) {
     // elite threat tag — reads as "this one's dangerous", not the enemy's name:
     // a diamond marker + a small dim label

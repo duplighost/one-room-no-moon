@@ -2,19 +2,22 @@
 import { state } from '../state.js';
 import { PLAYER } from '../config.js';
 import { norm } from '../rng.js';
-import { particle, burst, addFloat } from '../render/particles.js';
-import { addShake, addFlash, hitPause, haptic } from './juice.js';
+import { particle, burst, addFloat, ripple } from '../render/particles.js';
+import { addShake, addFlash, hitPause, haptic, slowMo } from './juice.js';
 import { sfx } from '../audio/sfx.js';
 import { killScore } from './score.js';
 import { hooks } from './items.js';
 
 export function damageEnemy(e, dmg, kx = 0, ky = 0, kind = 'shot') {
   if (e.hp <= 0) return;
+  const wasStaggered = (e.stun || 0) > 0.12;   // already reeling before this blow?
   dmg = hooks.reduce('modDamage', dmg, e, kind);
   e.hp -= dmg;
   e.vx += kx; e.vy += ky;
-  e.hit = 0.11;
-  e.stun = Math.max(e.stun || 0, 0.032);
+  e.hit = Math.max(e.hit || 0, kind === 'dash' ? 0.18 : 0.11);
+  // a dash blow STAGGERS non-boss enemies: their AI is gated on stun, so they reel
+  // (and read as off-balance) long enough to set up a satisfying finish.
+  e.stun = Math.max(e.stun || 0, kind === 'dash' && !e.boss ? 0.35 : 0.032);
   const room = state.room;
   hitPause(kind === 'pulse' ? 'pulse' : kind === 'dash' ? 'dash' : kind === 'chain' ? 'chain' : 'shot');
   addShake(kind === 'pulse' ? 0.28 : kind === 'dash' ? 0.18 : 0.06);
@@ -23,10 +26,10 @@ export function damageEnemy(e, dmg, kx = 0, ky = 0, kind = 'shot') {
       (Math.random() * 180 - 90) + kx * 0.08, (Math.random() * 180 - 90) + ky * 0.08, 0.22, 2 + Math.random() * 2.4);
   }
   hooks.run('onHit', e, dmg, kind);
-  if (e.hp <= 0) killEnemy(e);
+  if (e.hp <= 0) killEnemy(e, kind, wasStaggered);
 }
 
-export function killEnemy(e) {
+export function killEnemy(e, kind = 'shot', staggered = false) {
   const room = state.room, run = state.run, p = run.player;
   e.hp = 0;
   if (e.boss && room.pendingWaves) {
@@ -49,12 +52,45 @@ export function killEnemy(e) {
   if (repairsAllowed && (e.boss || Math.random() < 0.035) && p.hp < p.maxHp) {
     room.pickups.push({ type: 'repair', x: e.x, y: e.y, vx: Math.random() * 160 - 80, vy: Math.random() * 160 - 80, r: 11, life: 8 });
   }
-  burst(room, e.x, e.y, e.color, e.boss ? 42 : 13, 170, 0.5, 3);
-  hitPause(e.boss ? 'boss' : 'kill');
-  addShake(e.boss ? 0.5 : 0.18);
-  sfx('kill');
+  // death FX: a dash-kill gets the big "pop"; anything else the standard burst.
+  if (kind === 'dash') {
+    dashKillPop(room, e, p);
+    sfx('kill'); sfx('break'); // shatter crunch layered on the kill chime
+  } else {
+    burst(room, e.x, e.y, e.color, e.boss ? 42 : 13, 170, 0.5, 3);
+    hitPause(e.boss ? 'boss' : 'kill');
+    addShake(e.boss ? 0.5 : 0.18);
+    sfx('kill');
+  }
+  // executing an already-reeling enemy is a skill beat — punctuate it
+  if (staggered && !e.boss) {
+    ripple(room, e.x, e.y, room.biome.pal.accent3, 70, 0.32);
+    addFloat(room, e.x, e.y - (e.r || 16) - 10, '✕', '#ffffff', false, 0.4);
+  }
   if (e.captainDeath) e.captainDeath(e);
   hooks.run('onKill', e);
+}
+
+// The dash-kill "pop": a directional slice along the dash line, a white core, twin
+// shockwave rings, and a brief slow-mo beat. Reads as Moots cutting clean through.
+function dashKillPop(room, e, p) {
+  const ang = (p.lastDashAngle ?? Math.atan2(p.vy, p.vx)) || 0;
+  // bright core flash + a bigger, faster enemy-colour shatter than a normal kill
+  burst(room, e.x, e.y, '#ffffff', 10, 150, 0.26, 3.4);
+  burst(room, e.x, e.y, e.color, e.boss ? 46 : 20, 250, 0.5, 3.2);
+  // directional "slice" — debris flung both ways along the cut line
+  for (let i = 0; i < 12; i++) {
+    const a = ang + (i % 2 ? 0 : Math.PI) + (Math.random() - 0.5) * 0.55;
+    const sp = 240 + Math.random() * 320;
+    particle(room, e.x, e.y, i % 3 ? e.color : '#ffffff',
+      Math.cos(a) * sp, Math.sin(a) * sp, 0.32 + Math.random() * 0.22, 2 + Math.random() * 2.6);
+  }
+  ripple(room, e.x, e.y, '#ffffff', 96, 0.4);
+  ripple(room, e.x, e.y, e.color, 60, 0.32);
+  slowMo(0.08);            // capped via Math.max — chained dash-kills don't run away
+  addFlash(0.2);
+  addShake(e.boss ? 0.55 : 0.34);
+  hitPause(e.boss ? 'boss' : 'dashKill');
 }
 
 export function hurtPlayer(amount, sx, sy, source = 'hit') {
