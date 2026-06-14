@@ -49,7 +49,8 @@ function buildPool(round, recipe) {
 
 export function rollComposition(rng, round, recipe, overdrive, budgetMult = 1) {
   const stage = dangerStage(round, overdrive);
-  let budget = (5 + round * 1.3 + stage + (RECIPES[recipe]?.countAdj || 0)) * budgetMult;
+  // gentle +1 base so the bigger floor carries a touch more life; slope/cap unchanged
+  let budget = (6 + round * 1.3 + stage + (RECIPES[recipe]?.countAdj || 0)) * budgetMult;
   const cap = view.mobile ? CAPS.ENEMIES.mobile : CAPS.ENEMIES.desktop;
   const pool = buildPool(round, recipe);
   const list = [];
@@ -130,7 +131,9 @@ export function buildWaves(room, rng) {
   const splitAt = Math.max(2, Math.round(comp.length * DIRECTOR.REINFORCE_AT));
   const first = comp.slice(0, splitAt);
   const second = comp.slice(splitAt);
-  const clusters = spawnPoints(room, rng, clamp(Math.ceil(first.length / 3), 2, 4));
+  // more, smaller clusters → enemies arrive spread around the bigger room instead of
+  // piling into two corners (which left the middle reading empty).
+  const clusters = spawnPoints(room, rng, clamp(Math.ceil(first.length / 2.4), 2, 5));
   room.pendingWaves = [];
 
   const firstSpawns = first.map((type, i) => {

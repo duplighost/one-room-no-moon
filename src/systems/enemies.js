@@ -11,6 +11,20 @@ import { resolveCircleObstacle } from './player.js';
 import { ENEMY_TYPES } from '../data/enemies.js';
 import { sfx } from '../audio/sfx.js';
 import { levelAt } from './levels.js';
+import { damageObstacle } from './breakables.js';
+
+// a charging ram plows through SOFT breakable cover (rubble + light pots); never
+// the structural/secret ones (doors, wall segments, altars, volatile shards).
+const RAMMABLE = new Set(['rubble', 'marrowJar', 'rootCyst', 'bellHusk', 'moonseedUrn']);
+function smashThroughCover(room, e) {
+  for (const o of room.obstacles) {
+    if (o.gone || !o.breakable || !RAMMABLE.has(o.species)) continue;
+    const ox = o.type === 'circle' ? o.x : o.x + o.w / 2;
+    const oy = o.type === 'circle' ? o.y : o.y + o.h / 2;
+    const orad = o.type === 'circle' ? o.rad : Math.max(o.w, o.h) / 2;
+    if (dist(e.x, e.y, ox, oy) < e.r + orad) damageObstacle(room, o, 99);
+  }
+}
 
 let nextId = 1;
 
@@ -84,6 +98,7 @@ export function updateEnemies(room, dt) {
           } else if (e.state === 'dash') {
             e.dashT -= dt;
             e.vx *= Math.pow(0.96, dt * 60); e.vy *= Math.pow(0.96, dt * 60);
+            smashThroughCover(room, e); // ram destroys soft cover in its path
             if (e.dashT <= 0) { e.state = 'idle'; e.cd = Math.max(1.7, 2.6 - stage * 0.12); }
           } else {
             ax = to.x * spd * 0.84; ay = to.y * spd * 0.84;

@@ -58,15 +58,18 @@ export function seedHazards(room, rng) {
     return;
   }
 
-  // area hazards: fog/spore/snare/thorn/shard/volatile
-  const n = Math.round(clamp(randi(rng, kit.count[0], kit.count[1]) + (kit.perStage.count || 0) * stage, 2, 9));
+  // area hazards: fog/spore/snare/thorn/shard/volatile. Count + radius lift slightly
+  // in the bigger arena so a hazard biome keeps its identity instead of thinning out.
+  const big = room.w * room.h > 2.6e6;
+  const rMul = big ? 1.12 : 1;
+  const n = Math.round(clamp(randi(rng, kit.count[0], kit.count[1]) + (kit.perStage.count || 0) * stage + (big ? 1 : 0), 2, 10));
   for (let i = 0; i < n; i++) {
     for (let tries = 0; tries < 24; tries++) {
       const x = rand(rng, w + 110, room.w - w - 110);
       const y = rand(rng, w + 100, room.h - w - 100);
       if (dist(x, y, room.w / 2, room.h * 0.66) < 330) continue; // not on spawn
       room.hazards.push({
-        type, x, y, r: rand(rng, kit.r[0], kit.r[1]) + (kit.perStage.r || 0) * stage,
+        type, x, y, r: (rand(rng, kit.r[0], kit.r[1]) + (kit.perStage.r || 0) * stage) * rMul,
         phase: rng() * 6, cd: rng() * 1.2, hitCd: 0,
         slow: kit.slow, coreFrac: kit.coreFrac, coreDmgCd: kit.coreDmgCd,
         spitCd: kit.spitCd, spitSpeed: kitParam(kit, 'spitSpeed', stage), spitRange: kit.spitRange,

@@ -88,31 +88,43 @@ export function rollRoom(run, round) {
 
   // ── axis 2 continued: obstacles from the layout generator ──
   const density = (RECIPES[recipeId]?.density || 0);
-  const count = clamp(6 + density + Math.floor(room.stage * 0.4) + randi(rng, 0, 2) - (partitioned ? 2 : 0), partitioned ? 1 : 4, 12);
+  // a big structural set-piece anchors the room (monument / pillar court / ruin /
+  // crater). Placed BEFORE the scatter so cover arranges around it. Allowed in
+  // partitioned rooms too (it fills a chamber; fits() arbitrates against the walls),
+  // just rarer there since the partitions already give those rooms their bones.
+  const landmark = !bossId && chance(rng, partitioned ? 0.3 : 0.72) && placeLandmark(room, rng, px, py, portalX, portalY);
+  // scale cover with the (~1.9x) floor so big rooms aren't bare; the landmark/rubble
+  // passes add the real structure on top of this baseline scatter.
+  const areaK = clamp((room.w * room.h) / 1.55e6, 1, 1.95);
+  const count = clamp(Math.round((5 + density) * areaK) + Math.floor(room.stage * 0.5) + randi(rng, 0, 2)
+    - (partitioned ? 3 : 0) - (landmark ? 2 : 0), partitioned ? 2 : 5, 16);
   const spots = LAYOUTS[layoutId](room, rng, count);
   for (const s of spots) {
     if (dist(s.x, s.y, px, py) < ROOM.SPAWN_CLEAR) continue;
     let o;
     if (s.rect) {
-      const w = s.wide ? rand(rng, 130, 220) : s.tall ? rand(rng, 60, 95) : rand(rng, 90, 180);
-      const h = s.tall ? rand(rng, 130, 220) : s.wide ? rand(rng, 55, 90) : rand(rng, 60, 110);
+      const w = s.wide ? rand(rng, 150, 260) : s.tall ? rand(rng, 70, 110) : rand(rng, 105, 205);
+      const h = s.tall ? rand(rng, 150, 260) : s.wide ? rand(rng, 64, 104) : rand(rng, 72, 128);
       o = { type: 'rect', x: s.x - w / 2, y: s.y - h / 2, w, h, style: biome.obstacleStyle, round: 16 };
     } else {
-      o = { type: 'circle', x: s.x, y: s.y, rad: s.big ? rand(rng, 52, 78) : rand(rng, 34, 62), style: biome.obstacleStyle };
+      o = { type: 'circle', x: s.x, y: s.y, rad: s.big ? rand(rng, 60, 92) : rand(rng, 40, 72), style: biome.obstacleStyle };
     }
     if (!fits(room, o)) continue;
     room.obstacles.push(o);
   }
   // placement hygiene can reject spots; guarantee a minimum of cover
-  for (let tries = 0; room.obstacles.length < 3 && tries < 30; tries++) {
+  for (let tries = 0; room.obstacles.length < 4 && tries < 30; tries++) {
     const o = {
       type: 'circle', x: rand(rng, room.wall + 150, room.w - room.wall - 150),
       y: rand(rng, room.wall + 140, room.h - room.wall - 170),
-      rad: rand(rng, 38, 58), style: biome.obstacleStyle,
+      rad: rand(rng, 42, 66), style: biome.obstacleStyle,
     };
     if (dist(o.x, o.y, px, py) < ROOM.SPAWN_CLEAR || !fits(room, o)) continue;
     room.obstacles.push(o);
   }
+  // a destructible rubble barricade — smashable cover you carve through (and chargers
+  // plow through, see enemies.js). Pure line-of-fire cover until broken.
+  if (!bossId && chance(rng, 0.5)) rubbleField(room, rng, px, py);
 
   // ── elevation (Phase 8b): a raised platform as a walled enclosure + ramp ──
   // Skip when partitioned or a boss arena (keep those legible). The platform is
@@ -136,8 +148,8 @@ export function rollRoom(run, round) {
   }
 
   // ── breakable conversion (species weights with biome bumps) ──
-  const breakN = randi(rng, 1, 3) + (mutator?.breakBonus || 0) + (run.oath === 'hunger' ? 1 : 0);
-  const candidates = room.obstacles.filter(o => !o.breakable && o.type === 'circle' && o.rad < 60);
+  const breakN = randi(rng, 2, 4) + (mutator?.breakBonus || 0) + (run.oath === 'hunger' ? 1 : 0);
+  const candidates = room.obstacles.filter(o => !o.breakable && !o.landmark && o.type === 'circle' && o.rad < 60);
   for (let i = 0; i < breakN && candidates.length; i++) {
     const o = candidates.splice(Math.floor(rng() * candidates.length), 1)[0];
     o.breakable = true;
@@ -275,6 +287,92 @@ function wallSlab(x, y, w, h) {
   return { type: 'rect', x, y, w: Math.max(8, w), h: Math.max(8, h), wall: true, ledge: true, ledgeHeight: 1, style: 'ledge', round: 3 };
 }
 
+// A large structural set-piece — the thing that makes a big room feel designed
+// instead of a field. Pieces are ordinary cover (block bullets + movement, tagged
+// `landmark` so the breakable pass leaves them solid); discrete and gapped so they
+// never wall the player in. The centroid is searched in regions OFF the spawn↔portal
+// corridor (upper-centre or a side third) so it composes with walls and clears the
+// traversal lane. Returns true if it seated ≥2 pieces.
+function placeLandmark(room, rng, px, py, portalX, portalY) {
+  const style = room.biome.obstacleStyle;
+  const clearOf = (x, y, r) =>
+    dist(x, y, px, py) > 200 + r * 0.4 && dist(x, y, portalX, portalY) > 130 + r;
+  const tryPush = (o) => {
+    const ax = o.type === 'circle' ? o.x : o.x + o.w / 2;
+    const ay = o.type === 'circle' ? o.y : o.y + o.h / 2;
+    const ar = o.type === 'circle' ? o.rad : Math.max(o.w, o.h) / 2;
+    if (!clearOf(ax, ay, ar) || !fits(room, o)) return false;
+    o.landmark = true; room.obstacles.push(o); return true;
+  };
+  // find a centroid with breathing room: try a few candidates across the eligible band
+  let cx = room.w / 2, cy = room.h * 0.44;
+  for (let t = 0; t < 8; t++) {
+    const region = rng();
+    cx = region < 0.4 ? room.w * rand(rng, 0.40, 0.60)                       // centre column
+      : region < 0.7 ? room.w * rand(rng, 0.18, 0.34)                        // left third
+      : room.w * rand(rng, 0.66, 0.82);                                      // right third
+    cy = room.h * rand(rng, 0.34, 0.56);
+    if (clearOf(cx, cy, 80)) break;
+  }
+  const kind = pick(rng, ['monument', 'pillars', 'ruin', 'crater']);
+  let placed = 0;
+  if (kind === 'monument') {
+    placed += tryPush({ type: 'circle', x: cx, y: cy, rad: rand(rng, 80, 110), style }) ? 1 : 0;
+    const sat = randi(rng, 3, 5), rr = rand(rng, 150, 210), a0 = rng() * TAU;
+    for (let i = 0; i < sat; i++) {
+      const a = a0 + (i / sat) * TAU + rand(rng, -0.3, 0.3);
+      placed += tryPush({ type: 'circle', x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr, rad: rand(rng, 34, 54), style }) ? 1 : 0;
+    }
+  } else if (kind === 'pillars') {
+    const n = randi(rng, 4, 6), rr = Math.min(room.w, room.h) * rand(rng, 0.15, 0.21), a0 = rng() * TAU;
+    for (let i = 0; i < n; i++) {
+      const a = a0 + (i / n) * TAU;
+      placed += tryPush({ type: 'circle', x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr * 0.82, rad: rand(rng, 46, 68), style }) ? 1 : 0;
+    }
+    if (rng() < 0.5) placed += tryPush({ type: 'circle', x: cx, y: cy, rad: rand(rng, 40, 56), style }) ? 1 : 0;
+  } else if (kind === 'ruin') {
+    // staggered broken-wall slabs with gaps to weave through
+    const n = randi(rng, 3, 4);
+    for (let i = 0; i < n; i++) {
+      const horiz = rng() < 0.5;
+      const sw = horiz ? rand(rng, 230, 360) : rand(rng, 66, 108);
+      const sh = horiz ? rand(rng, 66, 108) : rand(rng, 200, 330);
+      placed += tryPush({ type: 'rect', x: cx + rand(rng, -250, 250) - sw / 2, y: cy + rand(rng, -170, 170) - sh / 2, w: sw, h: sh, style, round: 14 }) ? 1 : 0;
+    }
+  } else { // crater — a ring of medium stones around an open eye
+    const n = randi(rng, 7, 10), rr = Math.min(room.w, room.h) * rand(rng, 0.17, 0.23), a0 = rng() * TAU;
+    for (let i = 0; i < n; i++) {
+      const a = a0 + (i / n) * TAU;
+      placed += tryPush({ type: 'circle', x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr * 0.78, rad: rand(rng, 30, 48), style }) ? 1 : 0;
+    }
+  }
+  return placed >= 2;
+}
+
+// A tight cluster of smashable blocks — a destructible barricade. Retries the centre
+// so it actually seats (partition walls / cover steal a lot of spots); small `fits`
+// margin so it packs into a real wall of debris you carve a hole through.
+function rubbleField(room, rng, px, py) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const cx = rand(rng, room.wall + 240, room.w - room.wall - 240);
+    const cy = rand(rng, room.wall + 200, room.h - room.wall - 220);
+    if (dist(cx, cy, px, py) < ROOM.SPAWN_CLEAR + 40) continue;
+    const n = randi(rng, 5, 9);
+    let placed = 0;
+    for (let i = 0; i < n; i++) {
+      const a = rng() * TAU, rr = rand(rng, 0, 140);
+      const o = {
+        type: 'circle', x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr,
+        rad: rand(rng, 20, 32), style: room.biome.obstacleStyle,
+        breakable: true, species: 'rubble', hp: SPECIES.rubble.hp + room.idx * 0.5,
+      };
+      if (dist(o.x, o.y, px, py) < ROOM.SPAWN_CLEAR || !fits(room, o, 6)) continue;
+      room.obstacles.push(o); placed++;
+    }
+    if (placed >= 3) return; // a real barricade seated; otherwise try another centre
+  }
+}
+
 function rollSpecies(rng, biome, idx, idolBump = false) {
   const w = { marrowJar: 18, bellHusk: 12, blackGlass: 12, rootCyst: 10, moonseedUrn: 7, falseIdol: 3 };
   if (idolBump) { w.falseIdol += 8; w.moonseedUrn += 6; }
@@ -292,7 +390,9 @@ function rollSpecies(rng, biome, idx, idolBump = false) {
 function buildAnnex(room, rng) {
   const side = pick(rng, ['n', 'e', 'w']); // not south: player spawns low
   const w = room.wall;
-  const span = rand(rng, 180, 240), depth = rand(rng, 110, 150);
+  // sized up for the bigger arena — an old 180×120 annex read as a closet bolted to
+  // a cathedral. Now a real side-chamber you commit to entering.
+  const span = rand(rng, 250, 340), depth = rand(rng, 155, 220);
   let rect, doorRect, cx, cy;
   if (side === 'n') {
     const x = rand(rng, w + 160, room.w - w - 160 - span);
@@ -367,6 +467,11 @@ function bakeBackground(room, rng) {
   picks.push(pick(rng, room.biome.extras));
   for (const name of picks) paintPattern(name, ctx, room.w, room.h, rng, pal);
 
+  // big baked FLOOR IDENTITY — the bigger floor needs landmarks, not more confetti:
+  // a centre medallion / sweeping bands / a fracture, plus corner framing. Subtle
+  // (low alpha) so entities still read, but large enough to anchor the eye.
+  paintFloorIdentity(ctx, room, rng, pal);
+
   // annex floor tint
   if (room.annex) {
     ctx.globalAlpha = 0.5;
@@ -383,3 +488,81 @@ function bakeBackground(room, rng) {
   ctx.fillRect(0, 0, room.w, room.h);
   return c;
 }
+
+// Large baked floor anchors. Always frames the corners (architectural read); then
+// rolls ONE centrepiece so rooms don't all wear the same medallion. Palette-keyed,
+// deterministic from rng, low alpha. Pure decoration — no collision.
+function paintFloorIdentity(ctx, room, rng, pal) {
+  const { w, h } = room, wall = room.wall;
+  const cx = w / 2, cy = h * 0.46;
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  // corner framing brackets — quiet, consistent "this is a built room"
+  ctx.globalAlpha = 0.11; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 4;
+  const m = wall + 36, L = 70 + rng() * 46;
+  for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+    const x = sx > 0 ? m : w - m, y = sy > 0 ? m : h - m;
+    ctx.beginPath(); ctx.moveTo(x + sx * L, y); ctx.lineTo(x, y); ctx.lineTo(x, y + sy * L); ctx.stroke();
+  }
+
+  const style = Math.floor(rng() * 4);
+  if (style === 0) {
+    // centre medallion — concentric rings + radial spokes + tick glyphs
+    const R = Math.min(w, h) * (0.17 + rng() * 0.05);
+    ctx.globalAlpha = 0.10; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.62, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = 0.07; ctx.lineWidth = 2;
+    const spokes = 8 + Math.floor(rng() * 6);
+    for (let i = 0; i < spokes; i++) {
+      const a = (i / spokes) * TAU + rng() * 0.04;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * R * 0.62, cy + Math.sin(a) * R * 0.62);
+      ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.06; ctx.fillStyle = pal.accent;
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.2, 0, TAU); ctx.fill();
+  } else if (style === 1) {
+    // broad sweeping bands — a runner / sigil lane crossing the floor
+    const vertical = rng() < 0.5;
+    const bands = 1 + (rng() < 0.45 ? 1 : 0);
+    for (let b = 0; b < bands; b++) {
+      const span = (vertical ? w : h);
+      const bw = span * (0.09 + rng() * 0.06);
+      const pos = span * (0.30 + rng() * 0.40);
+      ctx.globalAlpha = 0.05; ctx.fillStyle = pal.accent;
+      if (vertical) ctx.fillRect(pos - bw / 2, wall, bw, h - wall * 2);
+      else ctx.fillRect(wall, pos - bw / 2, w - wall * 2, bw);
+      ctx.globalAlpha = 0.10; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 2.5;
+      if (vertical) { line(ctx, pos - bw / 2, wall, pos - bw / 2, h - wall); line(ctx, pos + bw / 2, wall, pos + bw / 2, h - wall); }
+      else { line(ctx, wall, pos - bw / 2, w - wall, pos - bw / 2); line(ctx, wall, pos + bw / 2, w - wall, pos + bw / 2); }
+    }
+  } else if (style === 2) {
+    // a big fracture splitting the floor — one bold jagged seam (ChatGPT: bigger cracks)
+    ctx.globalAlpha = 0.13; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 3.5;
+    const horiz = rng() < 0.5;
+    let x = horiz ? wall : rand(rng, w * 0.3, w * 0.7);
+    let y = horiz ? rand(rng, h * 0.3, h * 0.7) : wall;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    const steps = 9 + Math.floor(rng() * 5);
+    for (let i = 0; i < steps; i++) {
+      if (horiz) { x += (w - wall * 2) / steps; y += rand(rng, -60, 60); }
+      else { y += (h - wall * 2) / steps; x += rand(rng, -60, 60); }
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 0.06; ctx.lineWidth = 9; ctx.stroke(); // soft glow under the seam
+  } else {
+    // plaza — nested square frames around the centre (a stepped dais read)
+    ctx.globalAlpha = 0.09; ctx.strokeStyle = pal.accent3;
+    const base = Math.min(w, h) * (0.30 + rng() * 0.08);
+    for (let k = 0; k < 3; k++) {
+      const s = base * (1 - k * 0.26); ctx.lineWidth = 3 - k * 0.4;
+      ctx.strokeRect(cx - s / 2, cy - s / 2, s, s);
+    }
+  }
+  ctx.restore();
+}
+function line(ctx, x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }

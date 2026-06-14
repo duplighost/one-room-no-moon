@@ -317,18 +317,24 @@ startRun(todaySeed(), { daily: true });
 const d2 = `${state.room.biome.id}/${state.room.layoutId}/${state.room.recipeId}`;
 check('daily runs share the board', d1 === d2, `${d1} vs ${d2}`);
 
-// mutators: present across many rooms, never on boss rounds
-startRun('mutator-audit');
-let mutCount = 0; const mutKinds = new Set(); let mutOnBoss = 0;
+// mutators: ~10% of eligible (round≥5, non-boss) rounds, varied, never on a boss.
+// Sampled across several seeds so this tests the *rate*, not one seed's luck — any
+// change to how much rng room generation consumes shifts a single stream's exact hits.
+let mutCount = 0, mutEligible = 0; const mutKinds = new Set(); let mutOnBoss = 0;
 {
   const { rollRoom: rr2 } = await import('../src/systems/roomRoller.js');
-  for (let i = 1; i <= 80; i++) {
-    const r = rr2(state.run, i);
-    if (r.mutatorId) { mutCount++; mutKinds.add(r.mutatorId); if (r.bossId) mutOnBoss++; }
+  for (const seed of ['mutator-audit', 'mut-b', 'mut-c', 'mut-d', 'mut-e']) {
+    startRun(seed);
+    for (let i = 1; i <= 40; i++) {
+      const r = rr2(state.run, i);
+      if (!r.bossId && i >= 5) mutEligible++;
+      if (r.mutatorId) { mutCount++; mutKinds.add(r.mutatorId); if (r.bossId) mutOnBoss++; }
+    }
   }
 }
-check('mutators roll (~10% of rounds ≥5)', mutCount >= 2 && mutCount <= 20, 'count=' + mutCount);
-check('mutator variety over 80 rooms', mutKinds.size >= 2, [...mutKinds].join(','));
+const mutRate = mutCount / Math.max(1, mutEligible);
+check('mutators roll ~10% of eligible rounds', mutRate >= 0.04 && mutRate <= 0.18, `rate=${(mutRate * 100).toFixed(1)}% (${mutCount}/${mutEligible})`);
+check('mutator variety across seeds', mutKinds.size >= 3, [...mutKinds].join(','));
 check('no mutators on boss rounds', mutOnBoss === 0);
 
 // notices collect + dedupe
@@ -463,6 +469,40 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   }
   check('platform interiors are always reachable', tierRooms > 0 && badInterior === 0,
     'tierRooms=' + tierRooms + ' bad=' + badInterior);
+}
+
+// ── room richness: the bigger arena must earn its size (cover density + structure) ──
+{
+  const { rollRoom } = await import('../src/systems/roomRoller.js');
+  startRun('richness');
+  let cover = 0, area = 0, withLandmark = 0, withRubble = 0, rooms = 0;
+  for (let i = 1; i <= 80; i++) {
+    const r = rollRoom(state.run, i);
+    if (r.bossId) continue;
+    rooms++; area += r.w * r.h;
+    cover += r.obstacles.filter(o => !o.gone && !o.wall && !o.ledge && !o.solidWall).length;
+    if (r.obstacles.some(o => o.landmark)) withLandmark++;
+    if (r.obstacles.some(o => o.species === 'rubble')) withRubble++;
+  }
+  const densityPerMp = cover / area * 1e6;
+  check('cover density restored for the bigger arena (>2.0/Mpx)', densityPerMp > 2.0, `density=${densityPerMp.toFixed(2)}/Mpx`);
+  check('structural landmark set-pieces occur (>20% of rooms)', withLandmark / rooms > 0.2, `${withLandmark}/${rooms}`);
+  check('breakable rubble fields occur (>20% of rooms)', withRubble / rooms > 0.2, `${withRubble}/${rooms}`);
+}
+
+// ── scale coherence: the bullet emitter tracks the DRAW_SCALE-shrunk muzzle ──
+{
+  const playerMod = await import('../src/systems/player.js');
+  startRun('emitter-scale');
+  const pl = state.run.player, room = state.room;
+  room.bullets.length = 0;
+  pl.aimX = 1; pl.aimY = 0; pl.fireCd = 0; pl.x = room.w / 2; pl.y = room.h / 2;
+  playerMod.firePlayer(pl, room);
+  const shot = room.bullets.find(b => b.owner === 'player');
+  const expected = pl.x + PLAYER.EMITTER_LEN * PLAYER.DRAW_SCALE; // not the raw EMITTER_LEN
+  check('shots leave the scaled muzzle (not the art-size offset)',
+    !!shot && Math.abs(shot.x - expected) < 1.0 && shot.x < pl.x + PLAYER.EMITTER_LEN - 4,
+    `x=${shot && shot.x.toFixed(1)} expected≈${expected.toFixed(1)}`);
 }
 
 

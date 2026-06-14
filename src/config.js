@@ -47,7 +47,10 @@ export const SCORE = {
 };
 
 export const CAPS = {
-  ENEMIES: { mobile: 22, desktop: 32 },
+  // modest lift for the ~1.9x arena so big rooms don't read as under-populated
+  // (the player asked the floor to "earn its size" with content, not just cover).
+  // TOP PLAYTEST DIAL: drop back toward 22/32 if fights feel swingy.
+  ENEMIES: { mobile: 25, desktop: 35 },
   ENEMY_BULLETS: { mobile: 110, desktop: 170 },
   PLAYER_BULLETS: { mobile: 90, desktop: 160 },
   PARTICLES: { mobile: 150, desktop: 260 },

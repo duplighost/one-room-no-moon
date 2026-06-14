@@ -21,6 +21,7 @@ export const SPECIES = {
   moonseedUrn:    { hp: 4, label: 'Moonseed Urn' },
   annexDoor:      { hp: 9, label: 'Sealed Door' },
   wallSegment:    { hp: 7, label: 'Cracked Wall' },
+  rubble:         { hp: 2, label: 'Rubble' },
   volatileShard:  { hp: 2, label: 'Volatile Shard' },
   cacheAltar:     { hp: 8, label: 'Moon Cache' },
   gambitAltar:    { hp: 11, label: 'Gambit Shrine' },
@@ -77,6 +78,10 @@ const effects = {
   },
   moonseedUrn(room, o, x, y) {
     scatterSparks(room, x, y, Math.random() < 0.22 ? 5 : 3);
+  },
+  rubble(room, o, x, y) {
+    // cheap destructible debris — a little dust, an occasional spark
+    if (Math.random() < 0.5) scatterSparks(room, x, y, 1);
   },
   wallSegment(room, o, x, y) {
     // the divider is breached — a wide passage opens
