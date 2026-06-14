@@ -2,21 +2,67 @@
 
 ## What is machine-verified (every commit)
 
-`node tests/headless.mjs` — 69 checks, 5/5 stability runs at time of writing:
+`node tests/headless.mjs` — 99 checks, 5/5 stability runs at time of writing:
 boot → play → clear → portal → draft → transition → death; all four boss brains
 including Warden/Archon phase summons; route win → Overdrive round 21+; item
 hooks (bounce/pierce/homing on spawn, stack caps, overflow→repair); companions
 ticking; event rolls (~45% + pity) and variety; mutator rolls (~10%, never on
 boss rounds); shrine purchase/application; headstart; Oath of Glass stats; daily
 same-board determinism and daily-best banking; notices dedupe; bgm toggle
-persistence; touch-pad suppression; 40-room roller audit (no consecutive
-biome/layout repeats, ≥12 biomes, ≥7 layouts, ≥4 recipes, stages escalate,
-every room has cover and hazards, annexes occur, seeded determinism, tier
+persistence; touch-pad suppression; the hazard de-fang (retired spitters fire
+nothing; surviving altar pulses still go inert on clear; former spitter biomes
+furnish breakable cover); 40-room roller audit (no consecutive biome/layout
+repeats, ≥12 biomes, ≥7 layouts, ≥4 recipes, stages escalate, every room has
+hazards/lanes or breakable cover, annexes occur, seeded determinism, tier
 banding, round-20 final arena).
 
 A 12-round auto-play stress harness (drives the real loop, picks random draft
 cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
-zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
+zero exceptions across all 22 biomes (4 live hazard kits — pulse/ritual/lane/
+sightline — the spitter kits are retired) and all 8+ enemy AIs.
+
+## Adopt ChatGPT base + hazard de-fang (player-directed, 2026-06-14 latest)
+
+The player shared two builds (ours + ChatGPT's "beeeg perfect merge") and asked to use
+ChatGPT's *if* it checked out, then to get rid of the obstacles that **shoot at you** —
+"something you cannot shoot at and kill, which slows gameplay" — and repurpose what's left,
+without making a mess. Two-step delivery:
+
+**1. Adopted ChatGPT's build as the base** (`ad006cc`). Reviewed it against ours: same clean
+axis-based architecture, not a monkey-patch. Net wins adopted — reachability-validated
+`spawnAnchors` (reinforcements can't appear behind a wall, a stronger form of the
+spawn-in-obstacle fix); more structure variety; the drawn gun muzzle derives from the same
+`EMITTER_LEN`/`TWIN_OFFSET` constants `firePlayer` uses (art + bullet origin can't drift);
+enemy gunfire can chew cracked wall segments. Verified before trusting it: all headless +
+13-round stress + real Chromium (zero console errors). Kept the Dash Bell (player said keep
+it this time) and our deliberately-tuned mutator pity 12 over the base's 8.
+
+**2. De-fanged the biome hazards.** Decisions (asked up front): scope = **spitters → breakable
+cover** (leave lasers + altar shockwaves as dodge-variety); gas clouds = **removed**; Dash
+Bell = **kept**.
+
+- *What "shoots":* `room.hazards` are intangible biome zones (nothing in collision touches
+  them) — the player can't destroy them, exactly the complaint. The spitters (spore/snare/
+  thorn/shard/volatile) fired via `fireEnemyShot`; the "stops shooting after clear" code is
+  `if (room.cleared) return` in `updateHazards`.
+- *Removed:* the area-hazard seeding block in `seedHazards`, the three spitter branches in
+  `updateHazards`, the `kitParam` helper + `fireEnemyShot`/`norm`/`levelAt` imports, the dead
+  draw branches (spore/snare/thorn/shard/volatile), and the six retired hazard kits. Net −28 lines.
+- *Repurposed (roomRoller):* glass biomes (shard/volatile) → 3-5 breakable **chain-glass**
+  nodes (reuses `volatileShard`); snare/thorn → breakable biome-styled cover via `rollSpecies`;
+  fen/mycelium (fog/spore, gas removed) → light cover for parity (furniture, not the gas
+  mechanic). All `fits()`-validated; breakable circles never block the reachability flood-fill,
+  so no softlock risk.
+- *Untouched:* altar shockwaves (pulse/ritual) + laser lanes (lane/sightline) stay as the
+  remaining dodge-choreography; `addSlowFog`/lotus consequence-mechanics (rootCyst breaks,
+  captain deaths, Spiggot boss, the enemy-slow lotus) are kept — only *biome ambient* fog is gone.
+- *Tests:* the two assertions that encoded the old behavior were rewritten to the new contract
+  ("retired spitter fires nothing", "surviving hazards go inert after clear", "former spitter
+  biomes furnish breakable cover"); added a `breakables` count to the roller audit.
+
+**Open for the hands** (see STATUS): does retiring the spitters actually read as faster/more
+aggressive; are the former-spitter and fen/mycelium rooms furnished enough; are chain-glass
+counts fun or explosion-soup; do the surviving altar/laser hazards still matter.
 
 ## Cross-build comparison vs ChatGPT's "beeg" build (2026-06-14)
 

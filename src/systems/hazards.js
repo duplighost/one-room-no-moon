@@ -1,18 +1,13 @@
-// The 10 No Moon hazard mechanics at Boon Moots kit scale
-// (boon-moots index.html:690-714 mechanics; No Moon parameters via data/hazardKits.js).
+// Biome hazards at Boon Moots kit scale. The projectile-spitting kinds (spore/
+// snare/thorn/shard/volatile) were retired — they were unkillable and stalled the
+// pace — so roomRoller furnishes those biomes with breakable cover instead. What
+// remains is choreography you dodge, not turrets: altar shockwaves (pulse/ritual),
+// laser lanes (lane/sightline), the enemy-slowing lotus, and the transient slow-fog
+// spawned by broken cysts / captain deaths / the Spiggot boss.
 import { state } from '../state.js';
-import { clamp, dist, norm, rand, randi } from '../rng.js';
+import { clamp, dist, rand, randi } from '../rng.js';
 import { HAZARD_KITS } from '../data/hazardKits.js';
-import { levelAt } from './levels.js';
 import { hurtPlayer } from './combat.js';
-import { fireEnemyShot } from './bullets.js';
-
-function kitParam(kit, key, stage) {
-  let v = kit[key];
-  if (Array.isArray(v)) v = (v[0] + v[1]) / 2;
-  const per = kit.perStage?.[key] || 0;
-  return v + per * stage;
-}
 
 export function seedHazards(room, rng) {
   const type = room.biome.hazard;
@@ -20,8 +15,6 @@ export function seedHazards(room, rng) {
   if (!kit) return;
   const stage = room.stage;
   const w = room.wall;
-  const areaScale = (room.w * room.h) / (1500 * 1020);
-  const bigArenaBonus = areaScale > 1.55 ? 1 : 0;
 
   if (type === 'pulse' || type === 'ritual') {
     const spots = kit.altars === 1
@@ -60,34 +53,16 @@ export function seedHazards(room, rng) {
     return;
   }
 
-  // area hazards: fog/spore/snare/thorn/shard/volatile
-  const n = Math.round(clamp(randi(rng, kit.count[0], kit.count[1]) + (kit.perStage.count || 0) * stage + bigArenaBonus, 2, 10));
-  for (let i = 0; i < n; i++) {
-    for (let tries = 0; tries < 24; tries++) {
-      const x = rand(rng, w + 110, room.w - w - 110);
-      const y = rand(rng, w + 100, room.h - w - 100);
-      if (dist(x, y, room.w / 2, room.h * 0.66) < 330) continue; // not on spawn
-      room.hazards.push({
-        type, x, y, r: (rand(rng, kit.r[0], kit.r[1]) + (kit.perStage.r || 0) * stage) * (bigArenaBonus ? 1.10 : 1),
-        phase: rng() * 6, cd: rng() * 1.2, hitCd: 0,
-        slow: kit.slow, coreFrac: kit.coreFrac, coreDmgCd: kit.coreDmgCd,
-        spitCd: kit.spitCd, spitSpeed: kitParam(kit, 'spitSpeed', stage), spitRange: kit.spitRange,
-        spreadShots: kit.spreadShots || 1,
-        color: (type === 'fog' || type === 'snare') ? room.biome.pal.accent : room.biome.pal.accent2,
-      });
-      break;
-    }
-  }
-  // tag each hazard with the level it sits on (high ground is safe from ground hazards)
-  for (const h of room.hazards) h.level = levelAt(room, h.x, h.y);
-  for (const l of room.lanes) l.level = 0;
+  // Any other biome.hazard (fog/spore/snare/thorn/shard/volatile) seeds nothing.
+  // Those projectile/area hazards are retired: snare/thorn/shard/volatile biomes
+  // get breakable cover from roomRoller; fog/spore biomes stay clear.
 }
 
 export function updateHazards(room, dt) {
   const p = state.run.player;
-  // once the room is cleared the walk to the portal is a victory lap: hazards go
-  // inert (no fire, no contact damage, no slow). In-flight shots were wiped at
-  // clear, and nothing new spawns here. draw.js dims them so it reads as off.
+  // once the room is cleared the walk to the portal is a victory lap: the
+  // remaining hazards (altar pulses, laser lanes, lingering fog) go inert.
+  // draw.js dims them so it reads as off.
   if (room.cleared) return;
   for (const h of room.hazards) {
     h.phase = (h.phase || 0) + dt;
@@ -105,42 +80,12 @@ export function updateHazards(room, dt) {
           e.slowMul = Math.min(e.slowMul, h.slow);
         }
       }
-    } else if (h.type === 'fog' || h.type === 'spore') {
+    } else if (h.type === 'fog') {
+      // transient slow-fog (broken cyst / captain death / Spiggot boss): slows
+      // only — never spits, never damages. Biome ambient fog is no longer seeded.
       if (harm && d < h.r + p.r) {
         p.vx *= Math.pow(h.slow, dt * 8); p.vy *= Math.pow(h.slow, dt * 8);
-        if (h.type === 'spore' && h.cd <= 0 && p.inv <= 0 && d < h.r * h.coreFrac + p.r) {
-          h.cd = h.coreDmgCd;
-          hurtPlayer(1, h.x, h.y, 'hazard');
-        }
       }
-      if (h.type === 'spore' && h.cd <= 0 && d < h.spitRange) {
-        h.cd = rand(Math.random, h.spitCd[0], h.spitCd[1]);
-        const n = norm(p.x - h.x, p.y - h.y);
-        fireEnemyShot(room, h, n.x, n.y, h.spitSpeed, 4.8, 2.2, h.color);
-      }
-    } else if (h.type === 'snare' || h.type === 'thorn') {
-      if (harm && d < h.r + p.r) {
-        p.vx *= Math.pow(0.62, dt * 9); p.vy *= Math.pow(0.62, dt * 9);
-        if (h.cd <= 0 && p.inv <= 0 && d < h.r * h.coreFrac + p.r) {
-          h.cd = h.coreDmgCd;
-          hurtPlayer(1, h.x, h.y, 'hazard');
-        }
-      }
-      if (h.cd <= 0 && d < h.r + h.spitRange) {
-        h.cd = rand(Math.random, h.spitCd[0], h.spitCd[1]);
-        const n = norm(p.x - h.x, p.y - h.y);
-        fireEnemyShot(room, h, n.x, n.y, h.spitSpeed, 5.6, 1.5, h.color);
-      }
-    } else if (h.type === 'shard' || h.type === 'volatile') {
-      if (h.cd <= 0 && d < h.spitRange) {
-        h.cd = rand(Math.random, h.spitCd[0], h.spitCd[1]);
-        const base = Math.atan2(p.y - h.y, p.x - h.x);
-        const spread = h.spreadShots === 3 ? [-0.18, 0, 0.18] : [0];
-        for (const off of spread) {
-          fireEnemyShot(room, h, Math.cos(base + off), Math.sin(base + off), h.spitSpeed, 4.6, 2.15, h.color);
-        }
-      }
-      if (harm && d < h.r + p.r && p.inv <= 0) hurtPlayer(1, h.x, h.y, 'hazard');
     } else if (h.type === 'pulse' || h.type === 'ritual') {
       h.t = ((h.t || 0) + dt) % h.period;
       const on = h.t > 0.64;

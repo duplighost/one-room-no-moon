@@ -186,9 +186,11 @@ function drawHazardsUnder(room, pal) {
   ctx.save();
   if (room.cleared) ctx.globalAlpha = 0.4; // powered down on the victory lap
   for (const h of room.hazards) {
-    if (h.type === 'fog' || h.type === 'spore' || h.type === 'lotus') {
+    if (h.type === 'fog' || h.type === 'lotus') {
+      // soft gas: transient slow-fog and the enemy-slowing lotus. (Biome ambient
+      // fog and the spore/snare/thorn/shard/volatile hazards are retired.)
       const g = ctx.createRadialGradient(h.x, h.y, h.r * 0.2, h.x, h.y, h.r);
-      g.addColorStop(0, hexA(h.color, h.type === 'spore' ? 0.22 : h.type === 'lotus' ? 0.12 : 0.16));
+      g.addColorStop(0, hexA(h.color, h.type === 'lotus' ? 0.12 : 0.16));
       g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(h.x, h.y, h.r + Math.sin(t * 1.4 + h.phase) * 6, 0, TAU); ctx.fill();
@@ -196,30 +198,6 @@ function drawHazardsUnder(room, pal) {
         ctx.strokeStyle = hexA(h.color, 0.4); ctx.lineWidth = 1.6;
         ctx.beginPath(); ctx.arc(h.x, h.y, h.r * 0.96, 0, TAU); ctx.stroke();
       }
-      if (h.type === 'spore') {
-        ctx.strokeStyle = hexA(h.color, 0.5); ctx.lineWidth = 1.4;
-        ctx.beginPath(); ctx.arc(h.x, h.y, h.r * h.coreFrac, 0, TAU); ctx.stroke();
-      }
-    } else if (h.type === 'snare' || h.type === 'thorn') {
-      ctx.strokeStyle = hexA(h.color, 0.55); ctx.lineWidth = 2;
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * TAU + h.phase * 0.4;
-        ctx.beginPath();
-        ctx.moveTo(h.x + Math.cos(a) * h.r * 0.3, h.y + Math.sin(a) * h.r * 0.3);
-        ctx.quadraticCurveTo(
-          h.x + Math.cos(a + 0.5) * h.r * 0.8, h.y + Math.sin(a + 0.5) * h.r * 0.8,
-          h.x + Math.cos(a + 0.2) * h.r, h.y + Math.sin(a + 0.2) * h.r);
-        ctx.stroke();
-      }
-      ctx.fillStyle = hexA(h.color, 0.1);
-      ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, TAU); ctx.fill();
-    } else if (h.type === 'shard' || h.type === 'volatile') {
-      ctx.save();
-      ctx.translate(h.x, h.y); ctx.rotate(h.phase * 0.3);
-      ctx.fillStyle = hexA(h.color, 0.85);
-      ctx.shadowColor = h.color; ctx.shadowBlur = 12;
-      starPath(ctx, 0, 0, h.r, h.r * 0.45, 4); ctx.fill();
-      ctx.restore();
     } else if (h.type === 'pulse' || h.type === 'ritual') {
       ctx.strokeStyle = hexA(h.color, 0.8); ctx.lineWidth = 2.4;
       ctx.beginPath(); ctx.arc(h.x, h.y, h.r * (0.8 + Math.sin(t * 2 + h.phase) * 0.1), 0, TAU); ctx.stroke();

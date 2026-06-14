@@ -154,7 +154,17 @@ check('layout variety ≥ 7', layouts.size >= 7, `got ${layouts.size}`);
 check('recipe variety ≥ 4', recipes.size >= 4, `got ${recipes.size}: ${[...recipes].join(',')}`);
 check('stages escalate', audit.rooms[39].stage > audit.rooms[0].stage);
 check('every room has obstacles', audit.rooms.every(r => r.obstacles >= 2), JSON.stringify(audit.rooms.filter(r => r.obstacles < 2)));
-check('every room has hazards or lanes', audit.rooms.every(r => r.hazards > 0));
+// Spitter biomes no longer seed hazards — they furnish breakable cover instead.
+// The live invariant is that every room still has SOMETHING to engage with.
+check('every room has hazards, lanes, or breakable cover',
+  audit.rooms.every(r => r.hazards > 0 || r.breakables > 0),
+  JSON.stringify(audit.rooms.filter(r => r.hazards === 0 && r.breakables === 0).map(r => r.biome)));
+// the repurpose actually fires: former spitter biomes carry breakable cover
+const SPITTER_BIOMES = new Set(['verdigris', 'mirror', 'rosewire', 'shardreef', 'ossuary', 'umbraharvest', 'blacksungarden', 'frostreliquary']);
+const spitterRooms = audit.rooms.filter(r => SPITTER_BIOMES.has(r.biome));
+check('former spitter biomes furnish breakable cover',
+  spitterRooms.length === 0 || spitterRooms.every(r => r.breakables > 0),
+  JSON.stringify(spitterRooms.filter(r => r.breakables === 0).map(r => r.biome)));
 check('some rooms have annexes', audit.rooms.some(r => r.annex));
 check('captain rounds flagged', audit.rooms.filter(r => r.round % 5 === 0).length === 8);
 
@@ -357,20 +367,32 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
 
 // ── Polish pass: hazards inert on clear, surgical mobile dash ────────────────
 {
-  startRun('hazard-clear');
+  startRun('hazard-defang');
   const hp = state.run.player; hp.maxHp = 9999; hp.hp = 9999;
   const room = state.room;
-  room.bullets.length = 0;
+  room.bullets.length = 0; room.hazards.length = 0;
+  // a fully-configured former spitter, sitting on the player, must fire nothing:
+  // the projectile hazards are retired.
   room.hazards.push({ type: 'spore', x: hp.x, y: hp.y, r: 200, slow: 0.66, coreFrac: 0.46,
     coreDmgCd: 0.1, spitCd: [0.05, 0.05], spitSpeed: 150, spitRange: 800, spreadShots: 1,
     phase: 0, cd: 0, hitCd: 0, color: '#fff' });
-  for (let i = 0; i < 8; i++) tick(1 / 60);
-  check('hazard fires while room is live', room.bullets.some(b => b.owner === 'enemy'));
-  room.cleared = true;
-  room.bullets.length = 0;
-  for (let i = 0; i < 30; i++) tick(1 / 60);
-  check('hazard fires nothing after clear', room.bullets.every(b => b.owner !== 'enemy'),
+  for (let i = 0; i < 12; i++) tick(1 / 60);
+  check('retired spitter hazard fires nothing', room.bullets.every(b => b.owner !== 'enemy'),
     'enemy bullets=' + room.bullets.filter(b => b.owner === 'enemy').length);
+
+  // a surviving altar pulse still ticks while the room is live, then freezes on
+  // clear (the victory-lap inert contract still holds for the kept hazards).
+  room.hazards.length = 0;
+  const pulse = { type: 'pulse', x: room.w / 2, y: room.h / 2, r: 30, period: 1.2,
+    active: 0.42, waveSpan: 400, t: 0, wave: 0, on: false, hitCd: 0, color: '#fff' };
+  room.hazards.push(pulse);
+  for (let i = 0; i < 20; i++) tick(1 / 60);
+  check('surviving pulse hazard ticks while live', pulse.t > 0);
+  room.cleared = true;
+  const frozenT = pulse.t, frozenWave = pulse.wave;
+  for (let i = 0; i < 20; i++) tick(1 / 60);
+  check('surviving hazards go inert after clear', pulse.t === frozenT && pulse.wave === frozenWave,
+    `t ${frozenT}->${pulse.t}`);
 }
 
 {

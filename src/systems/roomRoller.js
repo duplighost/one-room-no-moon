@@ -146,9 +146,11 @@ export function rollRoom(run, round) {
   // by climbing the ramp.
   if (!bossId && !partitioned && chance(rng, 0.34)) maybeTier(room, rng, px, py, portalX, portalY);
 
-  // ── axis 3 prep: volatile shards in glass biomes (chain toys) ──
-  if (biome.hazard === 'volatile' || (biome.hazard === 'shard' && chance(rng, 0.6))) {
-    const n = randi(rng, 2, 3);
+  // ── glass biomes furnish breakable chain-glass (the shard/volatile projectile
+  // hazard is retired; this cover IS their identity now — shoot or dash one and the
+  // blast chains to its neighbours). Breakable circles never block reachability. ──
+  if (biome.hazard === 'volatile' || biome.hazard === 'shard') {
+    const n = randi(rng, 3, 5);
     for (let i = 0; i < n; i++) {
       const o = {
         type: 'circle', x: rand(rng, room.wall + 130, room.w - room.wall - 130),
@@ -158,6 +160,30 @@ export function rollRoom(run, round) {
       };
       if (dist(o.x, o.y, px, py) < 220 || !fits(room, o)) continue;
       room.obstacles.push(o);
+    }
+  }
+
+  // ── biomes that lost their area hazard furnish breakable biome-styled cover in
+  // its place, so they stay as furnished as the altar/laser biomes. Covers the
+  // snare/thorn projectile-roots AND the removed fog/spore gas clouds (fen/mycelium)
+  // — not the gas mechanic, just native furniture. rollSpecies already biases these
+  // plant/fungal/bone biomes toward rootCyst/marrowJar, so the cover reads native. ──
+  const COVER_FROM_HAZARD = new Set(['snare', 'thorn', 'fog', 'spore']);
+  if (!bossId && COVER_FROM_HAZARD.has(biome.hazard)) {
+    const n = randi(rng, 2, 4) + (room.idx >= 4 ? 1 : 0);
+    for (let i = 0; i < n; i++) {
+      for (let tries = 0; tries < 18; tries++) {
+        const species = rollSpecies(rng, biome, room.idx, false);
+        const o = {
+          type: 'circle', x: rand(rng, room.wall + 130, room.w - room.wall - 130),
+          y: rand(rng, room.wall + 120, room.h - room.wall - 150),
+          rad: rand(rng, 34, 56), style: biome.obstacleStyle,
+          breakable: true, species, hp: SPECIES[species].hp + room.idx * 0.6,
+        };
+        if (dist(o.x, o.y, px, py) < ROOM.SPAWN_CLEAR || dist(o.x, o.y, portalX, portalY) < 150 || !fits(room, o)) continue;
+        room.obstacles.push(o);
+        break;
+      }
     }
   }
 

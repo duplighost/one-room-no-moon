@@ -225,6 +225,7 @@ function installDebug(actions) {
           round: i, biome: r.biome.id, layout: r.layoutId, recipe: r.recipeId,
           stage: r.stage, obstacles: r.obstacles.length,
           hazards: r.hazards.length + r.lanes.length,
+          breakables: r.obstacles.filter(o => o.breakable).length,
           waves: r.pendingWaves?.length || 0, annex: r.annex?.kind || null,
           boss: r.bossId || null, event: r.eventId || null,
           floorplan: r.floorplanId, tiers: r.tiers.length,
