@@ -15,6 +15,12 @@ Living snapshot of where we are. Full history + rationale lives in
 
 Feature-complete; in iterative feel/polish driven by playtests. Recently shipped, newest first:
 
+- **Organized-chamber floorplans.** Added 4 chamber layouts with unique, deliberate wall
+  positions + staggered doorways: `gallery` (3 stacked halls, zigzag), `warren` (4 chambers
+  around an open hub), `antechamber` (portal chamber + hall + nook), `Lcourt` (asymmetric
+  corner court). `lineH/lineV` gained an optional door-position arg for organized flow. Nudged
+  `openChance` 0.42→0.38 (~62% of non-boss rooms get chambers — player likes the walls).
+  Audited: all 4 appear at healthy rates, portal reachable 300/300 (no softlocks).
 - **Dash-kill "pop" + stagger.** A dash *kill* now gets a real pop — a directional "slice"
   spray along the dash line, a white core, twin shockwave rings, a `slowMo` beat, and a
   shatter-crunch SFX (vs the plain burst a shot-kill gets). A dash *blow* now **staggers**
@@ -51,6 +57,8 @@ Feature-complete; in iterative feel/polish driven by playtests. Recently shipped
 
 ## Top open tuning dials (only touch if a playtest flags them)
 
+- **Too many / too few chamber rooms** → `openChance` in `roomRoller.js` (0.38; up = fewer).
+  Per-plan wall positions / door stagger live in `data/floorplans.js`.
 - **Former-hazard biomes bare / too busy** → cover counts in `roomRoller.js`: the
   `COVER_FROM_HAZARD` block (snare/thorn/fog/spore, `randi(2,4)`) and the glass `randi(3,5)`.
 - **Fights swingy / too dense** → `CAPS.ENEMIES` (config) back toward 22/32; `DIRECTOR` budget base 6→5.
@@ -71,7 +79,10 @@ Feature-complete; in iterative feel/polish driven by playtests. Recently shipped
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **Dash-kill "pop" + stagger** (this pass) — dash-kills get a directional slice/core/rings/
+1. **Organized-chamber floorplans** (this pass) — 4 new chamber layouts (gallery/warren/
+   antechamber/Lcourt) with deliberate wall positions + staggered doors; `openChance` 0.42→0.38.
+   Audited in Chromium: all appear, portal reachable 300/300, no console errors. **UNPLAYED.**
+2. **Dash-kill "pop" + stagger** (`13acece`) — dash-kills get a directional slice/core/rings/
    slow-mo pop + crunch SFX; dash-hits stagger non-boss enemies (stun-gated AI, dizzy stars);
    executing a reeling enemy flourishes. 5 new headless checks; Chromium-confirmed visually
    (DOUBLE/TRIPLE multi-kill reads great). **UNPLAYED.**

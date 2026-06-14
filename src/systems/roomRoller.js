@@ -80,8 +80,9 @@ export function rollRoom(run, round) {
   // ── floorplan (Phase 8a): partition walls before the cover scatter ──
   if (!bags.floorplan) bags.floorplan = new Bag(FLOORPLAN_IDS, 2);
   // Weighted open-room roll happens outside the Bag. Duplicate 'none' cards get
-  // suppressed by Bag recent-history, so this is the honest way to reduce over-partitioning.
-  const openChance = 0.42;
+  // suppressed by Bag recent-history, so this is the honest way to control partition rate.
+  // 0.38 → ~62% of non-boss rooms get chambers (player likes the walls). Dial up for fewer.
+  const openChance = 0.38;
   let floorplanId = (bossId || chance(rng, openChance)) ? 'none' : bags.floorplan.deal(rng);
   if (floorplanId !== 'none') {
     const plan = FLOORPLANS[floorplanId](room, rng, room.idx);
