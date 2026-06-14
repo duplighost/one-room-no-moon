@@ -18,6 +18,63 @@ A 12-round auto-play stress harness (drives the real loop, picks random draft
 cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
 
+## Big-room structure & density + scale-coherence (player-directed, 2026-06-14)
+
+The player playtested the roomier arena and reported the rooms "feel very vacant and
+empty after we made them bigger… they cannot be large open spaces" — and that a mobile
+"rotate to landscape" hint never went away. They also forwarded a ChatGPT scale-coherence
+audit, with the instruction to **verify, not take its word**. Verdicts on the audit (all
+checked against our code first):
+
+- **Right, fixed:** 0.7 sprite scale was hardcoded → now `PLAYER.DRAW_SCALE` in config, the
+  one knob for body+gun+emitter+rings. Bullet emitter floated ahead of the shrunk muzzle →
+  `EMITTER_LEN/Y` and `TWIN_OFFSET` now ×DRAW_SCALE in `firePlayer` (locked to the drawn gun;
+  `onFire` `oy` scaled too). Hurt/invuln/shield/dash-aura rings were full-size hoops on the
+  smaller body → scaled by DRAW_SCALE. Background pattern counts were absolute → scaled to
+  room area. Obstacles sparse, annexes tiny → both sized up. Hazards thinned in the big area
+  → area hazards +1 count / +12% radius in big rooms.
+- **Diverged, deliberately:** ChatGPT said shrink `SHOT_R` to ~3.6–3.8 to match the smaller
+  gun. **Kept 4.2** — the player is colourblind and bullets already read small at 0.82 zoom;
+  readability beats muzzle realism. Fixing the emitter *offset* solves the real mismatch.
+- **Overruled by the player:** ChatGPT said "don't increase enemy count yet." The player
+  explicitly asked the floor to "earn its size with other things too, not just environmental
+  obstacles," so a *gentle* lift shipped (caps 22/32 → 25/35, +1 budget base, more spawn
+  clusters). Flagged as the top dial to walk back if fights feel swingy.
+- **Wrong here (env-specific):** ChatGPT said `tests/visual.mjs` imports Playwright from a
+  "hardcoded missing path." That path **exists in our environment** (`/opt/pw-browsers` +
+  `PLAYWRIGHT_BROWSERS_PATH`); the test ran fine and screenshots were verified. The absolute
+  import *was* fragile across machines, so it now resolves Playwright from a candidate list.
+
+The room-emptiness fix (the real ask) — the bigger floor needs **architecture, not confetti**:
+- **Landmark set-pieces** (`placeLandmark`): a monument / pillar court / ruined wall / crater
+  anchors most rooms. Ordinary cover (blocks bullets + movement — `bullets.js` already treats
+  non-ledge obstacles as cover, confirmed), so they carve real line-of-fire zones. Spread on a
+  flat ellipse (wide rooms have horizontal room; the spawn→portal lane squeezes vertical
+  pieces), placed off that lane, gapped so they never wall you in, tagged `landmark` so the
+  breakable pass leaves them solid. Must seat ≥3 pieces to count.
+- **Breakable rubble fields** (`rubbleField`): a tight cluster of smashable blocks (`rubble`
+  species, hp 2) — a destructible barricade you carve through. GUARANTEED in the rare open
+  room that drew no landmark, so there are no bare arenas.
+- **Chargers smash soft cover** during their dash (`smashThroughCover` in enemies.js) — the
+  player's "broken by enemies" idea, scoped to rubble + light pots (never doors / wall
+  segments / altars / volatile shards).
+- **Baked floor identity** (`paintFloorIdentity`): a centre medallion / sweeping bands /
+  fracture / plaza frames + corner framing, palette-keyed, low alpha — the big anchor the eye
+  wants. **Partition rate eased 76% → ~57%** (one more `none` in `FLOORPLAN_IDS`) so annexes /
+  tiers / landmarks actually get to appear.
+
+Measured (headless, 30–40 seeds): cover density 1.49 → ~2.9/Mpx (back to the old "full" feel);
+**~98% of rooms now carry major structure** (partition / landmark / tier / rubble); 0
+unreachable portals across 250+-room audits; mutator rate still 10.8%. New headless checks lock
+the density floor, landmark + rubble occurrence, and the scaled muzzle. Real Chromium: 0
+console/page errors desktop + mobile portrait; the rotate hint now fades after ~6s and re-arms
+only on a real rotate (was toggled solely in `resize()` → permanent nag in portrait); rings
+read snug to the smaller Moots; screenshots confirm rich/structured rooms across biomes.
+
+Open for the next human playtest: do the rooms feel *designed* in the hands; is the enemy
+lift pleasant or swingy (`CAPS.ENEMIES`); do chargers smashing cover read well; any room feel
+cramped on a phone. Dials in §"Top open tuning dials" of STATUS.md.
+
 ## Roomier arena pass (player-directed world rescale, 2026-06-14)
 
 The character read as "gigantic in these rooms." Root cause, measured: his sprite

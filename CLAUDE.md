@@ -25,7 +25,8 @@ we are and what still needs a playtest, then `docs/playtest-notes.md` for detail
   from No Moon. Both are tabulated in the docs.
 - Flavor text follows the voice guide (`docs/game-design.md` §10). Reuse real
   lines from the parents before writing new ones. No "teeth" recycling.
-- Branch: `claude/bold-fermi-jio8q5`. Commit per system, push per phase.
+- Branch: `claude/busy-wozniak-tqe5fx` (the live remote branch; earlier notes said
+  `bold-fermi-jio8q5`). Commit per system, push per phase.
 
 **Dev:** `python3 -m http.server 8000` then open `http://localhost:8000/`.
 ES modules require a server (file:// won't work).
