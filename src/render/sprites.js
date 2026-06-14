@@ -101,10 +101,11 @@ export function drawPlayer(ctx, p, room) {
 }
 
 export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, spinPhase = 0) {
+  const S = PLAYER.DRAW_SCALE;
   ctx.save(); ctx.globalAlpha = alpha;
-  shadow(ctx, x, y + 18, 20, 7, ghost ? 0.1 : 0.30);
+  shadow(ctx, x, y + 18 * S, 20 * S, 7 * S, ghost ? 0.1 : 0.30); // shadow tracks the shrunk body
   ctx.translate(x, y);
-  ctx.scale(PLAYER.DRAW_SCALE, PLAYER.DRAW_SCALE); // sprite was ~2x its 40px hitbox → "gigantic"; one knob in config
+  ctx.scale(S, S); // sprite was ~2x its 40px hitbox → "gigantic"; one knob in config
   const spinning = !ghost && Math.abs(spinPhase) > 0.001;
   if (moots.ready && !ghost) {
     const yaw = Math.cos(spinPhase);

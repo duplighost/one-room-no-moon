@@ -192,9 +192,46 @@ export function rollRoom(run, round) {
   // ── axis 5: room event (the spice slot) ──
   rollEvent(room, rng);
 
+  // events (and other late steps) can drop obstacles AFTER waves were built, leaving a
+  // telegraphed spawn sitting inside fresh cover — relocate any such spawn to a clear,
+  // reachable point so nothing materialises inside a rock. (Only touches rng when it
+  // actually has to move something, so it barely perturbs the seed stream.)
+  sanitizeSpawns(room, rng, px, py);
+
   // ── bake the background once ──
   room.background = bakeBackground(room, rng);
   return room;
+}
+
+function spawnBlockedAt(room, x, y, pad = 24) {
+  for (const o of room.obstacles) {
+    if (o.gone) continue;
+    if (o.type === 'circle') { if (dist(x, y, o.x, o.y) < o.rad + pad) return true; }
+    else { const cx = clamp(x, o.x, o.x + o.w), cy = clamp(y, o.y, o.y + o.h); if (dist(x, y, cx, cy) < pad) return true; }
+  }
+  return false;
+}
+function findClearSpawn(room, rng, reach, px, py) {
+  const w = room.wall;
+  for (let t = 0; t < 80; t++) {
+    const side = randi(rng, 0, 3);
+    const x = side === 1 ? room.w - w - rand(rng, 90, 230) : side === 3 ? w + rand(rng, 90, 230) : rand(rng, w + 130, room.w - w - 130);
+    const y = side === 0 ? w + rand(rng, 90, 210) : side === 2 ? room.h - w - rand(rng, 90, 210) : rand(rng, w + 120, room.h - w - 120);
+    if (dist(x, y, px, py) >= 460 && !spawnBlockedAt(room, x, y) && reach.has(x, y)) return { x, y };
+  }
+  return null;
+}
+function sanitizeSpawns(room, rng, px, py) {
+  let reach = null;
+  const fix = (s) => {
+    if (!s) return;
+    if (!spawnBlockedAt(room, s.x, s.y)) return;     // already clear: zero rng spent
+    reach = reach || reachableFrom(room, px, py);
+    const p = findClearSpawn(room, rng, reach, px, py);
+    if (p) { s.x = p.x; s.y = p.y; }
+  };
+  if (room.pendingWaves) for (const wv of room.pendingWaves) if (wv.spawns) for (const s of wv.spawns) fix(s);
+  for (const s of room.spawnQueue) fix(s);
 }
 
 function aabb(o) {
