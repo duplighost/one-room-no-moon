@@ -21,7 +21,35 @@ cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions across all 22 biomes (4 live hazard kits — pulse/ritual/lane/
 sightline — the spitter kits are retired) and all 8+ enemy AIs.
 
-## Adopt ChatGPT base + hazard de-fang (player-directed, 2026-06-14 latest)
+## Feel + biome-identity passes (player-directed, 2026-06-14 latest)
+
+Three quick passes after the de-fang, each committed + pushed to the branch, each verified
+(headless + stress + Chromium, no console errors), all UNPLAYED:
+
+1. **Dash-kill "pop" + stagger** (`13acece`). Dash-kills routed through the same FX as
+   shot-kills; now `killEnemy` takes the kill `kind` and a dash-kill gets a directional slice
+   (along `p.lastDashAngle`), a white core, twin rings, a `slowMo` beat, stronger shake, and a
+   kill+break SFX crunch. Dash *hits* stagger non-boss enemies (`e.stun` 0.35 — AI is gated on
+   stun) with dizzy stun-stars; executing a reeling enemy flourishes. Bosses immune. +5 headless
+   checks. Chromium capture showed the slice + DOUBLE/TRIPLE multi-kill reading great.
+
+2. **Organized-chamber floorplans** (`ade6285`). Player liked the wall density and asked for
+   unique positions / organized chambers. Added gallery (3 stacked halls, zigzag doors), warren
+   (4 chambers, open hub), antechamber (portal chamber + nook), Lcourt (corner court). `lineH/
+   lineV` took an optional door-position arg for staggered flow. `openChance` 0.42→0.38. Audit
+   over 300 rooms: all four appear ~17-19×, portal reachable 300/300.
+
+3. **Per-biome visual identity** (this pass). Each biome gets a **signature floor emblem** baked
+   centre — 9 family archetypes (bloom/tide/fracture/thorn/forge/spore/conduit/astral/rite) in
+   `data/patterns.js`, mapped by biome, drawn in its palette so same-colour biomes still read
+   apart (auricspire's rose window is the standout). Replaced the generic random floor motif in
+   `paintFloorIdentity`. Added a biome **lighting grade** (faint accent glow toward the portal)
+   in `bakeBackground`. Emblems are deliberately low-alpha (colourblind readability: signals stay
+   shape-first). Surveyed all 22 biomes in Chromium (overdrive tier='any' to reach every biome) —
+   distinct, no errors. Note: ring-structured emblems read best; bloom/thorn got concentric rings
+   so the 5 petal/barb biomes read like the others.
+
+## Adopt ChatGPT base + hazard de-fang (player-directed, 2026-06-14)
 
 The player shared two builds (ours + ChatGPT's "beeeg perfect merge") and asked to use
 ChatGPT's *if* it checked out, then to get rid of the obstacles that **shoot at you** —

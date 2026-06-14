@@ -15,6 +15,13 @@ Living snapshot of where we are. Full history + rationale lives in
 
 Feature-complete; in iterative feel/polish driven by playtests. Recently shipped, newest first:
 
+- **Per-biome visual identity.** Each biome now has a **signature floor emblem** baked into the
+  centre — 9 family archetypes (bloom/tide/fracture/thorn/forge/spore/conduit/astral/rite) keyed
+  by biome, drawn in its own palette so two same-colour biomes still read distinct (e.g. the gold
+  rituals: auricspire's rose window vs the others). Replaced the old generic random floor motif.
+  Added a **biome lighting grade** (a faint accent glow toward the portal — warm forges, cold
+  reliquaries). Surveyed all 22 in Chromium: distinct, no console errors. (Emblems are low-alpha
+  to protect colourblind readability — dial in `patterns.js` EMBLEMS / glow in `bakeBackground`.)
 - **Organized-chamber floorplans.** Added 4 chamber layouts with unique, deliberate wall
   positions + staggered doorways: `gallery` (3 stacked halls, zigzag), `warren` (4 chambers
   around an open hub), `antechamber` (portal chamber + hall + nook), `Lcourt` (asymmetric
@@ -43,6 +50,11 @@ Feature-complete; in iterative feel/polish driven by playtests. Recently shipped
   - Stagger duration (`e.stun = 0.35` on dash-hit in `combat.js`) — does the reel read and
     feel fair, or does it trivialise crowds / feel too brief? Stun-star visual in `sprites.js`.
   - Does "dash to stagger, then finish" emerge as a real, fun loop?
+- **The per-biome visual identity is UNPLAYED.** Confirm in the hands:
+  - Do biomes read as distinct *in motion*? Any two still feel samey (esp. the gold rituals
+    or the cyans)? → palettes in `data/biomes.js`.
+  - Are the signature emblems the right strength — present but not busy/distracting against
+    enemies/bullets (colourblind)? → alpha in `patterns.js` EMBLEMS; glow in `bakeBackground`.
 - **The hazard de-fang + ChatGPT base are UNPLAYED.** Confirm in the hands:
   - Former spitter biomes (verdigris/mirror/rosewire/shardreef/ossuary/umbraharvest/
     blacksungarden/frostreliquary) as breakable-cover rooms — do they feel good, not emptier?
@@ -57,6 +69,8 @@ Feature-complete; in iterative feel/polish driven by playtests. Recently shipped
 
 ## Top open tuning dials (only touch if a playtest flags them)
 
+- **Biome emblems too faint / too busy** → `EMBLEMS` alphas + `SIGNATURE_OF` mapping in
+  `data/patterns.js`; biome glow strength in `bakeBackground` (`roomRoller.js`).
 - **Too many / too few chamber rooms** → `openChance` in `roomRoller.js` (0.38; up = fewer).
   Per-plan wall positions / door stagger live in `data/floorplans.js`.
 - **Former-hazard biomes bare / too busy** → cover counts in `roomRoller.js`: the
@@ -70,16 +84,19 @@ Feature-complete; in iterative feel/polish driven by playtests. Recently shipped
 
 ## Next up (player requested — not started)
 
-- **Per-biome visual identity:** each biome stunning *and* internally consistent, but clearly
-  distinct from the others (22 biomes currently share rendering — differentiate palette /
-  patterns / obstacle styles per biome). *The big one.*
+- **Deeper biome identity (optional polish):** per-biome obstacle detailing (12 styles → ~8
+  groups currently share shapes); biome-specific ambient/weather. The signature emblems +
+  palettes + glow are in; this is the next layer if biomes still feel close in motion.
 - **Deeper stagger patterns:** the dash-stagger groundwork is in; could add enemy-specific
   reactions (e.g. a charger you stagger mid-windup, a poise/break meter on tanks).
 - **More enemies / faster, aggressive pacing** (later — touches `CAPS`/director budget).
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **Organized-chamber floorplans** (this pass) — 4 new chamber layouts (gallery/warren/
+1. **Per-biome visual identity** (this pass) — signature floor emblems (9 family archetypes,
+   biome-keyed, palette-coloured) replace the generic floor motif; biome lighting glow. Surveyed
+   all 22 in Chromium, distinct, no console errors. **UNPLAYED.**
+2. **Organized-chamber floorplans** (`ade6285`) — 4 new chamber layouts (gallery/warren/
    antechamber/Lcourt) with deliberate wall positions + staggered doors; `openChance` 0.42→0.38.
    Audited in Chromium: all appear, portal reachable 300/300, no console errors. **UNPLAYED.**
 2. **Dash-kill "pop" + stagger** (`13acece`) — dash-kills get a directional slice/core/rings/

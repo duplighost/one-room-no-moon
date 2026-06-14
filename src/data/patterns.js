@@ -320,3 +320,141 @@ export function paintPattern(name, ctx, w, h, rng, pal) {
   ctx.restore();
   ctx.globalAlpha = 1;
 }
+
+// ── Per-biome signature emblem ────────────────────────────────────────────────
+// One large, faint "hero" motif baked into the floor centre so each biome reads as
+// itself — consistent within a biome, distinct across them. Mapped by family; the
+// biome's own palette differentiates members of a family. Kept low-alpha so it never
+// competes with enemies/bullets (the player is colourblind — signals stay shape-first).
+const SIGNATURE_OF = {
+  verdigris: 'bloom', blacksungarden: 'bloom',
+  fen: 'tide',
+  mirror: 'fracture', shardreef: 'fracture', frostreliquary: 'fracture',
+  rosewire: 'thorn', umbraharvest: 'thorn', ossuary: 'thorn',
+  ember: 'forge', forge: 'forge', solarium: 'forge',
+  mycelium: 'spore',
+  coilroot: 'conduit', stormloom: 'conduit', crownworks: 'conduit',
+  archive: 'astral', noctlith: 'astral',
+  basilica: 'rite', auricspire: 'rite', empyrean: 'rite', nullthrone: 'rite',
+};
+
+export function paintSignature(biome, ctx, w, h, rng, pal) {
+  const fn = EMBLEMS[SIGNATURE_OF[biome.id] || 'astral'];
+  if (!fn) return;
+  ctx.save();
+  ctx.translate(w / 2, h * 0.44);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  fn(ctx, Math.min(w, h) * 0.22, rng, pal);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function emblemStar(ctx, x, y, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const an = (i / 10) * TAU - Math.PI / 2, rr = i % 2 ? r * 0.45 : r; i ? ctx.lineTo(x + Math.cos(an) * rr, y + Math.sin(an) * rr) : ctx.moveTo(x + Math.cos(an) * rr, y + Math.sin(an) * rr); }
+  ctx.closePath(); ctx.fill();
+}
+function polyRing(ctx, R, n, rot = 0) {
+  ctx.beginPath();
+  for (let i = 0; i <= n; i++) { const an = (i / n) * TAU + rot; i ? ctx.lineTo(Math.cos(an) * R, Math.sin(an) * R) : ctx.moveTo(Math.cos(an) * R, Math.sin(an) * R); }
+  ctx.closePath();
+}
+
+const EMBLEMS = {
+  bloom(ctx, R, rng, pal) {                 // botanical: radial petals between two rings
+    const petals = 8 + Math.floor(rng() * 4);
+    ctx.strokeStyle = pal.accent; ctx.globalAlpha = 0.13; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, R * 0.92, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, R * 0.5, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = pal.accent3; ctx.globalAlpha = 0.18; ctx.lineWidth = 2.4;
+    for (let i = 0; i < petals; i++) {
+      ctx.save(); ctx.rotate((i / petals) * TAU);
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(R * 0.28, -R * 0.5, 0, -R);
+      ctx.quadraticCurveTo(-R * 0.28, -R * 0.5, 0, 0); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.fillStyle = pal.accent2; ctx.globalAlpha = 0.1; ctx.beginPath(); ctx.arc(0, 0, R * 0.16, 0, TAU); ctx.fill();
+  },
+  tide(ctx, R, rng, pal) {                  // concentric ripple rings + lily nodes
+    ctx.strokeStyle = pal.accent; ctx.lineWidth = 2.2;
+    for (let i = 1; i <= 5; i++) { ctx.globalAlpha = 0.14 - i * 0.013; ctx.beginPath(); ctx.arc(0, 0, R * (i / 5), 0, TAU); ctx.stroke(); }
+    ctx.fillStyle = pal.accent2; ctx.globalAlpha = 0.12;
+    for (let i = 0; i < 6; i++) { const an = (i / 6) * TAU + rng() * 0.3, rr = R * (0.45 + rng() * 0.5); ctx.beginPath(); ctx.ellipse(Math.cos(an) * rr, Math.sin(an) * rr, 11, 6, an, 0, TAU); ctx.fill(); }
+  },
+  fracture(ctx, R, rng, pal) {              // shattered radial star + crack zigzags
+    const spikes = 6 + Math.floor(rng() * 3);
+    ctx.strokeStyle = pal.accent; ctx.globalAlpha = 0.16; ctx.lineWidth = 2;
+    for (let i = 0; i < spikes; i++) {
+      const an = (i / spikes) * TAU + rng() * 0.1;
+      const mx = Math.cos(an) * R * 0.5, my = Math.sin(an) * R * 0.5;
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      ctx.lineTo(mx + Math.cos(an + 0.4) * R * 0.2, my + Math.sin(an + 0.4) * R * 0.2);
+      ctx.lineTo(Math.cos(an) * R, Math.sin(an) * R); ctx.stroke();
+    }
+    ctx.strokeStyle = pal.accent2; ctx.globalAlpha = 0.12;
+    ctx.beginPath();
+    for (let i = 0; i <= spikes; i++) { const an = (i / spikes) * TAU, rr = i % 2 ? R * 0.55 : R; i ? ctx.lineTo(Math.cos(an) * rr, Math.sin(an) * rr) : ctx.moveTo(Math.cos(an) * rr, Math.sin(an) * rr); }
+    ctx.closePath(); ctx.stroke();
+  },
+  thorn(ctx, R, rng, pal) {                 // a barbed wreath between two rings
+    ctx.strokeStyle = pal.accent; ctx.globalAlpha = 0.12; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = pal.accent3; ctx.globalAlpha = 0.17; ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.arc(0, 0, R * 0.7, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = pal.accent; ctx.globalAlpha = 0.15; ctx.lineWidth = 1.8;
+    for (let i = 0; i < 16; i++) {
+      const an = (i / 16) * TAU, dir = i % 2 ? 1 : -1;
+      const bx = Math.cos(an) * R * 0.7, by = Math.sin(an) * R * 0.7;
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + Math.cos(an + dir * 0.5) * R * 0.3, by + Math.sin(an + dir * 0.5) * R * 0.3); ctx.stroke();
+    }
+    ctx.fillStyle = pal.accent2; ctx.globalAlpha = 0.1; ctx.beginPath(); ctx.arc(0, 0, R * 0.15, 0, TAU); ctx.fill();
+  },
+  forge(ctx, R, rng, pal) {                 // a cracked sun: radial rays + kiln rings
+    ctx.strokeStyle = pal.accent2; ctx.lineWidth = 2;
+    for (let i = 1; i <= 3; i++) { ctx.globalAlpha = 0.11; ctx.beginPath(); ctx.arc(0, 0, R * (0.4 + i * 0.2), 0, TAU); ctx.stroke(); }
+    ctx.strokeStyle = pal.accent; ctx.globalAlpha = 0.16; ctx.lineWidth = 2.4;
+    for (let i = 0; i < 12; i++) { const an = (i / 12) * TAU; ctx.beginPath(); ctx.moveTo(Math.cos(an) * R * 0.2, Math.sin(an) * R * 0.2); ctx.lineTo(Math.cos(an) * R, Math.sin(an) * R); ctx.stroke(); }
+    ctx.fillStyle = pal.accent2; ctx.globalAlpha = 0.14; ctx.beginPath(); ctx.arc(0, 0, R * 0.18, 0, TAU); ctx.fill();
+  },
+  spore(ctx, R, rng, pal) {                 // mandala of spore-rings + dotted halos
+    for (let ring = 1; ring <= 3; ring++) {
+      const rr = R * (ring / 3), dots = 6 * ring;
+      ctx.strokeStyle = pal.accent; ctx.globalAlpha = 0.13; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, rr, 0, TAU); ctx.stroke();
+      ctx.fillStyle = pal.accent2; ctx.globalAlpha = 0.12;
+      for (let i = 0; i < dots; i++) { const an = (i / dots) * TAU; ctx.beginPath(); ctx.arc(Math.cos(an) * rr, Math.sin(an) * rr, 3, 0, TAU); ctx.fill(); }
+    }
+  },
+  conduit(ctx, R, rng, pal) {               // circuit mandala: hexes + traces + nodes
+    ctx.strokeStyle = pal.accent; ctx.globalAlpha = 0.14; ctx.lineWidth = 2;
+    polyRing(ctx, R, 6, -Math.PI / 2); ctx.stroke();
+    polyRing(ctx, R * 0.5, 6, -Math.PI / 2); ctx.stroke();
+    for (let i = 0; i < 6; i++) {
+      const an = (i / 6) * TAU - Math.PI / 2;
+      ctx.strokeStyle = pal.accent3; ctx.globalAlpha = 0.16; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(an) * R, Math.sin(an) * R); ctx.stroke();
+      ctx.fillStyle = pal.accent2; ctx.globalAlpha = 0.15; ctx.beginPath(); ctx.arc(Math.cos(an) * R, Math.sin(an) * R, 4, 0, TAU); ctx.fill();
+    }
+  },
+  astral(ctx, R, rng, pal) {                // constellation: orbital ellipses + stars
+    ctx.strokeStyle = pal.accent3; ctx.globalAlpha = 0.14; ctx.lineWidth = 1.8;
+    for (let i = 0; i < 3; i++) { ctx.save(); ctx.rotate((i / 3) * Math.PI); ctx.beginPath(); ctx.ellipse(0, 0, R, R * 0.42, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
+    ctx.fillStyle = pal.accent2; ctx.globalAlpha = 0.16;
+    for (let i = 0; i < 10; i++) { const an = rng() * TAU, rr = R * (0.2 + rng() * 0.8); emblemStar(ctx, Math.cos(an) * rr, Math.sin(an) * rr, 3 + rng() * 2); }
+    ctx.fillStyle = pal.accent; ctx.globalAlpha = 0.2; emblemStar(ctx, 0, 0, 6);
+  },
+  rite(ctx, R, rng, pal) {                  // rose window: petaled mandala + arches
+    ctx.strokeStyle = pal.accent; ctx.globalAlpha = 0.15; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, R * 0.5, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = pal.accent2; ctx.globalAlpha = 0.13; ctx.lineWidth = 1.8;
+    for (let i = 0; i < 8; i++) {
+      ctx.save(); ctx.rotate((i / 8) * TAU);
+      ctx.beginPath(); ctx.moveTo(0, -R * 0.5);
+      ctx.quadraticCurveTo(R * 0.16, -R * 0.75, 0, -R);
+      ctx.quadraticCurveTo(-R * 0.16, -R * 0.75, 0, -R * 0.5); ctx.stroke();
+      ctx.restore();
+    }
+    ctx.fillStyle = pal.accent3; ctx.globalAlpha = 0.12; ctx.beginPath(); ctx.arc(0, 0, R * 0.16, 0, TAU); ctx.fill();
+  },
+};

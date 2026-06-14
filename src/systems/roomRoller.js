@@ -5,7 +5,7 @@ import { ROOM, TAU } from '../config.js';
 import { Bag, clamp, dist, rand, randi, chance, pick } from '../rng.js';
 import { BIOMES, BIOMES_BY_TIER, tierForRound } from '../data/biomes.js';
 import { LAYOUTS, LAYOUT_IDS } from '../data/layouts.js';
-import { paintPattern } from '../data/patterns.js';
+import { paintPattern, paintSignature } from '../data/patterns.js';
 import { SPECIES } from './breakables.js';
 import { seedHazards } from './hazards.js';
 import { buildWaves, availableRecipes, dangerStage, depthIdx, RECIPES } from './director.js';
@@ -664,61 +664,20 @@ function buildAnnex(room, rng) {
 
 function paintFloorIdentity(ctx, room, rng, pal) {
   const { w, h } = room, wall = room.wall;
-  const cx = w / 2, cy = h * 0.46;
   ctx.save();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // corner brackets frame the floor
   ctx.globalAlpha = 0.13; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 4;
   const m = wall + 36, L = 70 + rng() * 46;
   for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
     const x = sx > 0 ? m : w - m, y = sy > 0 ? m : h - m;
     ctx.beginPath(); ctx.moveTo(x + sx * L, y); ctx.lineTo(x, y); ctx.lineTo(x, y + sy * L); ctx.stroke();
   }
-  const style = Math.floor(rng() * 4);
-  if (style === 0) {
-    const R = Math.min(w, h) * (0.17 + rng() * 0.05);
-    ctx.globalAlpha = 0.13; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 3.5;
-    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
-    ctx.beginPath(); ctx.arc(cx, cy, R * 0.62, 0, TAU); ctx.stroke();
-    ctx.globalAlpha = 0.08; ctx.lineWidth = 2;
-    const spokes = 8 + Math.floor(rng() * 6);
-    for (let i = 0; i < spokes; i++) {
-      const a = (i / spokes) * TAU + rng() * 0.04;
-      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * R * 0.62, cy + Math.sin(a) * R * 0.62);
-      ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); ctx.stroke();
-    }
-  } else if (style === 1) {
-    const vertical = rng() < 0.5;
-    const bands = 1 + (rng() < 0.45 ? 1 : 0);
-    for (let b = 0; b < bands; b++) {
-      const span = (vertical ? w : h), bw = span * (0.09 + rng() * 0.06), pos = span * (0.30 + rng() * 0.40);
-      ctx.globalAlpha = 0.055; ctx.fillStyle = pal.accent;
-      if (vertical) ctx.fillRect(pos - bw / 2, wall, bw, h - wall * 2);
-      else ctx.fillRect(wall, pos - bw / 2, w - wall * 2, bw);
-      ctx.globalAlpha = 0.12; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 2.5;
-      if (vertical) { floorLine(ctx, pos - bw / 2, wall, pos - bw / 2, h - wall); floorLine(ctx, pos + bw / 2, wall, pos + bw / 2, h - wall); }
-      else { floorLine(ctx, wall, pos - bw / 2, w - wall, pos - bw / 2); floorLine(ctx, wall, pos + bw / 2, w - wall, pos + bw / 2); }
-    }
-  } else if (style === 2) {
-    ctx.globalAlpha = 0.14; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 3.5;
-    const horiz = rng() < 0.5;
-    let x = horiz ? wall : rand(rng, w * 0.3, w * 0.7);
-    let y = horiz ? rand(rng, h * 0.3, h * 0.7) : wall;
-    ctx.beginPath(); ctx.moveTo(x, y);
-    const steps = 9 + Math.floor(rng() * 5);
-    for (let i = 0; i < steps; i++) {
-      if (horiz) { x += (w - wall * 2) / steps; y += rand(rng, -60, 60); }
-      else { y += (h - wall * 2) / steps; x += rand(rng, -60, 60); }
-      ctx.lineTo(x, y);
-    }
-    ctx.stroke(); ctx.globalAlpha = 0.065; ctx.lineWidth = 9; ctx.stroke();
-  } else {
-    ctx.globalAlpha = 0.11; ctx.strokeStyle = pal.accent3;
-    const base = Math.min(w, h) * (0.30 + rng() * 0.08);
-    for (let k = 0; k < 3; k++) { const s = base * (1 - k * 0.26); ctx.lineWidth = 3 - k * 0.4; ctx.strokeRect(cx - s / 2, cy - s / 2, s, s); }
-  }
   ctx.restore(); ctx.globalAlpha = 1;
+  // the biome's signature emblem is the centre motif (replaces the old generic one),
+  // so every biome reads as itself even when two share a colour family.
+  paintSignature(room.biome, ctx, w, h, rng, pal);
 }
-function floorLine(ctx, x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
 
 function paintArchitecturalDecals(room, ctx, rng, pal) {
   const spawn = { x: room.w / 2, y: room.h * 0.66 }, portal = { x: room.w / 2, y: room.h * 0.20 };
@@ -807,6 +766,14 @@ function bakeBackground(room, rng) {
     ctx.fillRect(room.annex.rect.x, room.annex.rect.y, room.annex.rect.w, room.annex.rect.h);
     ctx.globalAlpha = 1;
   }
+
+  // biome lighting grade: a faint accent glow toward the portal gives each biome a
+  // distinct light-source mood (warm forges, cold reliquaries) and pulls the eye up-room.
+  const glow = ctx.createRadialGradient(room.w / 2, room.h * 0.2, 0, room.w / 2, room.h * 0.2, Math.max(room.w, room.h) * 0.5);
+  glow.addColorStop(0, hexA(pal.accent, 0.05));
+  glow.addColorStop(1, hexA(pal.accent, 0));
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, room.w, room.h);
 
   // baked edge darkening
   const v = ctx.createRadialGradient(room.w / 2, room.h / 2, Math.min(room.w, room.h) * 0.3, room.w / 2, room.h / 2, Math.max(room.w, room.h) * 0.72);
