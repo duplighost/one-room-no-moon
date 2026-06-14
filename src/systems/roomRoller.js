@@ -92,7 +92,9 @@ export function rollRoom(run, round) {
   // crater). Placed BEFORE the scatter so cover arranges around it. Allowed in
   // partitioned rooms too (it fills a chamber; fits() arbitrates against the walls),
   // just rarer there since the partitions already give those rooms their bones.
-  const landmark = !bossId && chance(rng, partitioned ? 0.3 : 0.72) && placeLandmark(room, rng, px, py, portalX, portalY);
+  // open rooms have no partition bones, so they're nearly guaranteed a centrepiece —
+  // "no large open spaces". Partitioned rooms get one less often (walls already shape them).
+  const landmark = !bossId && chance(rng, partitioned ? 0.32 : 0.9) && placeLandmark(room, rng, px, py, portalX, portalY);
   // scale cover with the (~1.9x) floor so big rooms aren't bare; the landmark/rubble
   // passes add the real structure on top of this baseline scatter.
   const areaK = clamp((room.w * room.h) / 1.55e6, 1, 1.95);
@@ -123,8 +125,10 @@ export function rollRoom(run, round) {
     room.obstacles.push(o);
   }
   // a destructible rubble barricade — smashable cover you carve through (and chargers
-  // plow through, see enemies.js). Pure line-of-fire cover until broken.
-  if (!bossId && chance(rng, 0.5)) rubbleField(room, rng, px, py);
+  // plow through, see enemies.js). Pure line-of-fire cover until broken. GUARANTEED in
+  // the rare open room that rolled no landmark, so there are no bare arenas.
+  const forceRubble = !bossId && !partitioned && !landmark;
+  if (!bossId && (forceRubble || chance(rng, 0.5))) rubbleField(room, rng, px, py);
 
   // ── elevation (Phase 8b): a raised platform as a walled enclosure + ramp ──
   // Skip when partitioned or a boss arena (keep those legible). The platform is
@@ -314,39 +318,43 @@ function placeLandmark(room, rng, px, py, portalX, portalY) {
     cy = room.h * rand(rng, 0.34, 0.56);
     if (clearOf(cx, cy, 80)) break;
   }
+  // satellites spread WIDER than tall (yScale<1): wide rooms have room horizontally,
+  // but the spawn↔portal band squeezes vertical pieces, so a flat ellipse seats more.
   const kind = pick(rng, ['monument', 'pillars', 'ruin', 'crater']);
   let placed = 0;
   if (kind === 'monument') {
-    placed += tryPush({ type: 'circle', x: cx, y: cy, rad: rand(rng, 80, 110), style }) ? 1 : 0;
-    const sat = randi(rng, 3, 5), rr = rand(rng, 150, 210), a0 = rng() * TAU;
+    placed += tryPush({ type: 'circle', x: cx, y: cy, rad: rand(rng, 84, 116), style }) ? 1 : 0;
+    const sat = randi(rng, 4, 6), rx = rand(rng, 150, 220), a0 = rng() * TAU;
     for (let i = 0; i < sat; i++) {
-      const a = a0 + (i / sat) * TAU + rand(rng, -0.3, 0.3);
-      placed += tryPush({ type: 'circle', x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr, rad: rand(rng, 34, 54), style }) ? 1 : 0;
+      const a = a0 + (i / sat) * TAU + rand(rng, -0.25, 0.25);
+      placed += tryPush({ type: 'circle', x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * rx * 0.62, rad: rand(rng, 36, 58), style }) ? 1 : 0;
     }
   } else if (kind === 'pillars') {
-    const n = randi(rng, 4, 6), rr = Math.min(room.w, room.h) * rand(rng, 0.15, 0.21), a0 = rng() * TAU;
+    const n = randi(rng, 5, 7), rx = Math.min(room.w, room.h) * rand(rng, 0.17, 0.24), a0 = rng() * TAU;
     for (let i = 0; i < n; i++) {
       const a = a0 + (i / n) * TAU;
-      placed += tryPush({ type: 'circle', x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr * 0.82, rad: rand(rng, 46, 68), style }) ? 1 : 0;
+      placed += tryPush({ type: 'circle', x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * rx * 0.6, rad: rand(rng, 48, 70), style }) ? 1 : 0;
     }
     if (rng() < 0.5) placed += tryPush({ type: 'circle', x: cx, y: cy, rad: rand(rng, 40, 56), style }) ? 1 : 0;
   } else if (kind === 'ruin') {
     // staggered broken-wall slabs with gaps to weave through
-    const n = randi(rng, 3, 4);
+    const n = randi(rng, 3, 5);
     for (let i = 0; i < n; i++) {
       const horiz = rng() < 0.5;
       const sw = horiz ? rand(rng, 230, 360) : rand(rng, 66, 108);
-      const sh = horiz ? rand(rng, 66, 108) : rand(rng, 200, 330);
-      placed += tryPush({ type: 'rect', x: cx + rand(rng, -250, 250) - sw / 2, y: cy + rand(rng, -170, 170) - sh / 2, w: sw, h: sh, style, round: 14 }) ? 1 : 0;
+      const sh = horiz ? rand(rng, 66, 108) : rand(rng, 190, 300);
+      placed += tryPush({ type: 'rect', x: cx + rand(rng, -270, 270) - sw / 2, y: cy + rand(rng, -150, 150) - sh / 2, w: sw, h: sh, style, round: 14 }) ? 1 : 0;
     }
   } else { // crater — a ring of medium stones around an open eye
-    const n = randi(rng, 7, 10), rr = Math.min(room.w, room.h) * rand(rng, 0.17, 0.23), a0 = rng() * TAU;
+    const n = randi(rng, 8, 11), rx = Math.min(room.w, room.h) * rand(rng, 0.18, 0.25), a0 = rng() * TAU;
     for (let i = 0; i < n; i++) {
       const a = a0 + (i / n) * TAU;
-      placed += tryPush({ type: 'circle', x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr * 0.78, rad: rand(rng, 30, 48), style }) ? 1 : 0;
+      placed += tryPush({ type: 'circle', x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * rx * 0.6, rad: rand(rng, 32, 50), style }) ? 1 : 0;
     }
   }
-  return placed >= 2;
+  // require a SUBSTANTIAL structure (≥3 pieces); a thin 1-2 piece result reads as
+  // stray cover, so fall back to the guaranteed rubble barricade instead.
+  return placed >= 3;
 }
 
 // A tight cluster of smashable blocks — a destructible barricade. Retries the centre
@@ -499,7 +507,7 @@ function paintFloorIdentity(ctx, room, rng, pal) {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
   // corner framing brackets — quiet, consistent "this is a built room"
-  ctx.globalAlpha = 0.11; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 4;
+  ctx.globalAlpha = 0.15; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 4;
   const m = wall + 36, L = 70 + rng() * 46;
   for (const [sx, sy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
     const x = sx > 0 ? m : w - m, y = sy > 0 ? m : h - m;
@@ -510,10 +518,10 @@ function paintFloorIdentity(ctx, room, rng, pal) {
   if (style === 0) {
     // centre medallion — concentric rings + radial spokes + tick glyphs
     const R = Math.min(w, h) * (0.17 + rng() * 0.05);
-    ctx.globalAlpha = 0.10; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.15; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 3.5;
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke();
     ctx.beginPath(); ctx.arc(cx, cy, R * 0.62, 0, TAU); ctx.stroke();
-    ctx.globalAlpha = 0.07; ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.10; ctx.lineWidth = 2;
     const spokes = 8 + Math.floor(rng() * 6);
     for (let i = 0; i < spokes; i++) {
       const a = (i / spokes) * TAU + rng() * 0.04;
@@ -522,7 +530,7 @@ function paintFloorIdentity(ctx, room, rng, pal) {
       ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R);
       ctx.stroke();
     }
-    ctx.globalAlpha = 0.06; ctx.fillStyle = pal.accent;
+    ctx.globalAlpha = 0.09; ctx.fillStyle = pal.accent;
     ctx.beginPath(); ctx.arc(cx, cy, R * 0.2, 0, TAU); ctx.fill();
   } else if (style === 1) {
     // broad sweeping bands — a runner / sigil lane crossing the floor
@@ -532,16 +540,16 @@ function paintFloorIdentity(ctx, room, rng, pal) {
       const span = (vertical ? w : h);
       const bw = span * (0.09 + rng() * 0.06);
       const pos = span * (0.30 + rng() * 0.40);
-      ctx.globalAlpha = 0.05; ctx.fillStyle = pal.accent;
+      ctx.globalAlpha = 0.07; ctx.fillStyle = pal.accent;
       if (vertical) ctx.fillRect(pos - bw / 2, wall, bw, h - wall * 2);
       else ctx.fillRect(wall, pos - bw / 2, w - wall * 2, bw);
-      ctx.globalAlpha = 0.10; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 2.5;
+      ctx.globalAlpha = 0.14; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 2.5;
       if (vertical) { line(ctx, pos - bw / 2, wall, pos - bw / 2, h - wall); line(ctx, pos + bw / 2, wall, pos + bw / 2, h - wall); }
       else { line(ctx, wall, pos - bw / 2, w - wall, pos - bw / 2); line(ctx, wall, pos + bw / 2, w - wall, pos + bw / 2); }
     }
   } else if (style === 2) {
     // a big fracture splitting the floor — one bold jagged seam (ChatGPT: bigger cracks)
-    ctx.globalAlpha = 0.13; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 3.5;
+    ctx.globalAlpha = 0.17; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 3.5;
     const horiz = rng() < 0.5;
     let x = horiz ? wall : rand(rng, w * 0.3, w * 0.7);
     let y = horiz ? rand(rng, h * 0.3, h * 0.7) : wall;
@@ -553,10 +561,10 @@ function paintFloorIdentity(ctx, room, rng, pal) {
       ctx.lineTo(x, y);
     }
     ctx.stroke();
-    ctx.globalAlpha = 0.06; ctx.lineWidth = 9; ctx.stroke(); // soft glow under the seam
+    ctx.globalAlpha = 0.08; ctx.lineWidth = 9; ctx.stroke(); // soft glow under the seam
   } else {
     // plaza — nested square frames around the centre (a stepped dais read)
-    ctx.globalAlpha = 0.09; ctx.strokeStyle = pal.accent3;
+    ctx.globalAlpha = 0.13; ctx.strokeStyle = pal.accent3;
     const base = Math.min(w, h) * (0.30 + rng() * 0.08);
     for (let k = 0; k < 3; k++) {
       const s = base * (1 - k * 0.26); ctx.lineWidth = 3 - k * 0.4;

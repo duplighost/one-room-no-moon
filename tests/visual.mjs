@@ -1,6 +1,20 @@
 // Visual verification: load the real game in Chromium, drive it via
 // window.oneRoomDebug, screenshot key states, report console errors.
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+// Resolve Playwright across environments (local install, env override, or the
+// global install path) instead of a single hardcoded absolute path that only
+// exists on one machine.
+async function loadChromium() {
+  const candidates = [
+    'playwright',
+    process.env.PLAYWRIGHT_PATH,
+    '/opt/node22/lib/node_modules/playwright/index.mjs',
+  ].filter(Boolean);
+  for (const c of candidates) {
+    try { return (await import(c)).chromium; } catch { /* try next */ }
+  }
+  throw new Error('playwright not found — `npm i -D playwright` or set PLAYWRIGHT_PATH');
+}
+const chromium = await loadChromium();
 
 const BASE = 'http://localhost:8400';
 const shots = './tests/shots';
