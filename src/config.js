@@ -23,7 +23,9 @@ export const PLAYER = {
   FIRE_DELAY: 0.15, DAMAGE: 0.88, SHOT_MULT: 0.72, SHOT_SPEED: 860,
   // SHOT_R kept at 4.2 (NOT shrunk with the gun): the player is colourblind and
   // bullets already read small at the 0.82 zoom — readability beats muzzle realism.
-  SHOT_R: 4.2, SHOT_LIFE: 0.82, TWIN_OFFSET: 6,
+  // SHOT_LIFE 0.92 (was 0.82): the gun reaches ~13% farther so it doesn't feel stubby
+  // crossing the bigger arena (~705px → ~791px of travel).
+  SHOT_R: 4.2, SHOT_LIFE: 0.92, TWIN_OFFSET: 6,
   // emitter: shots leave the twin barrel tips at body level, in the aim direction.
   // These are gun-space (art) units; firePlayer multiplies by DRAW_SCALE so the
   // bullet origin tracks the visually-shrunk muzzle instead of floating ahead of it.

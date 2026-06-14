@@ -41,7 +41,10 @@ identity, ~98% of rooms carry major structure, cover density back to ~2.9/Mpx.
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **Big-room structure & density** (`329c945`,`21c5497`) — landmarks, rubble fields,
+1. **Cross-build compare vs ChatGPT** (`c56f485` + borrows) — fixed enemy-spawns-in-obstacles
+   (0/2.6k now); borrowed longer shot range (`SHOT_LIFE` 0.92), mutator pity (force after 12
+   dry rounds), pilgrimage-path floor decal. **UNPLAYED.**
+2. **Big-room structure & density** (`329c945`,`21c5497`) — landmarks, rubble fields,
    floor identity, partition rebalance, enemy/hazard scaling. **UNPLAYED.**
 2. **Scale-coherence + rotate-hint** (`0d633ed`) — `PLAYER.DRAW_SCALE` drives sprite+gun+
    emitter+rings; bullets leave the muzzle; rings sized to the body; rotate hint auto-dismisses. **UNPLAYED.**

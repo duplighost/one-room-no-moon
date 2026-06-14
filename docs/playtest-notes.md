@@ -18,6 +18,31 @@ A 12-round auto-play stress harness (drives the real loop, picks random draft
 cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
 
+## Cross-build comparison vs ChatGPT's "beeg" build (2026-06-14)
+
+The player shared ChatGPT's parallel build (a fork of the same `3a7bfad` base) and asked
+to compare, steal the good bits, and find bugs both ways. We converged on most of the
+scale/density work independently; the interesting deltas:
+
+- **Structure philosophy.** ChatGPT leaned on *walls* (freestanding ribGate / brokenSpine /
+  barricade, reachability-validated); ours leans on *cover + partitions* (non-wall landmark
+  clusters + rebalanced partition rate + guaranteed rubble). Measured: ours denser cover
+  (2.80 vs 2.17/Mpx), theirs more walls (3.25 vs 2.79).
+- **Bug found in OURS (fixed, `c56f485`):** ~0.6% of enemies spawned inside obstacles —
+  the cluster-jitter and event-added cover were never re-validated. Now 0/2.6k via
+  `legalSpawn()` in the director + a post-event `sanitizeSpawns()` in the roller (only
+  spends rng when it actually relocates one). Also scaled the player shadow with DRAW_SCALE.
+- **Bugs in THEIRS (not adopted):** `addRoomStructures` runs on boss rooms too (~22% of
+  boss arenas get a freestanding wall — legibility risk); island/dashBell hardcode
+  `basilicaIdol` style across biomes; rotate hint re-shows on every resize; `room.landmarks`
+  is dead data. (Their build passes the base headless+stress suite — no crashers.)
+- **Borrowed from theirs (player-picked):** longer shot range (`SHOT_LIFE` 0.82→0.92, less
+  stubby in big rooms), a **mutator pity timer** (force one after 12 dry eligible rounds so
+  no seed goes mutator-dry — threshold 12 not 8, which keeps the rate at ~10.6% instead of
+  inflating to 15%), and a faint **pilgrimage-path** floor decal (spawn→middle→portal) for
+  direction. **Did NOT take:** their `dashBell` (player's call), `SHOT_R` 3.8 (kept 4.2 for
+  colourblind readability), and their wall-structure approach (we have partitions+landmarks).
+
 ## Big-room structure & density + scale-coherence (player-directed, 2026-06-14)
 
 The player playtested the roomier arena and reported the rooms "feel very vacant and

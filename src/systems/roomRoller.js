@@ -43,9 +43,18 @@ export function rollRoom(run, round) {
   const bossId = bossForRound(round, run.overdrive);
   const layoutId = bossId ? pick(rng, ['ring', 'crossroads']) : bags.layout.deal(rng);
 
-  // ── axis 6: mutator (rare, loud) ──
-  const mutator = (!bossId && round >= 5 && chance(rng, 0.10))
-    ? MUTATORS[Math.floor(rng() * MUTATORS.length)] : null;
+  // ── axis 6: mutator (rare, loud) — with a pity timer so an unlucky seed never goes
+  // mutator-dry: force one after a long dry streak (resets on any mutator). Threshold
+  // 12 (not 8) keeps mutators feeling rare — it only rescues the unlucky long tail
+  // rather than catching normal variance (which would inflate the rate to ~15%).
+  let mutator = null;
+  if (!bossId && round >= 5) {
+    run.sinceMutator = (run.sinceMutator || 0) + 1;
+    if (run.sinceMutator >= 12 || chance(rng, 0.10)) {
+      mutator = MUTATORS[Math.floor(rng() * MUTATORS.length)];
+      run.sinceMutator = 0;
+    }
+  }
   const sizeScale = mutator?.sizeScale || 1;
 
   const portrait = view.mobile && view.portrait;
@@ -542,6 +551,16 @@ function paintFloorIdentity(ctx, room, rng, pal) {
   const cx = w / 2, cy = h * 0.46;
   ctx.save();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  // pilgrimage path — a faint lane curving spawn → middle → portal gives the huge
+  // floor a sense of direction (adapted from ChatGPT's build). Pure decoration.
+  const midY = h * (room.floorplanId === 'none' ? 0.46 : 0.50);
+  ctx.globalAlpha = 0.10; ctx.strokeStyle = pal.accent3;
+  ctx.lineWidth = Math.max(40, Math.min(w, h) * 0.04);
+  ctx.beginPath(); ctx.moveTo(w / 2, h * 0.66); ctx.bezierCurveTo(w * 0.44, midY, w * 0.56, midY, w / 2, h * 0.20); ctx.stroke();
+  ctx.globalAlpha = 0.14; ctx.strokeStyle = pal.bg; ctx.lineWidth *= 0.46;
+  ctx.beginPath(); ctx.moveTo(w / 2, h * 0.66); ctx.bezierCurveTo(w * 0.46, midY, w * 0.54, midY, w / 2, h * 0.20); ctx.stroke();
+  ctx.globalAlpha = 1;
 
   // corner framing brackets — quiet, consistent "this is a built room"
   ctx.globalAlpha = 0.15; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 4;
