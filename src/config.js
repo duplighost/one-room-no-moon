@@ -6,14 +6,14 @@ export const SAVE_KEY = 'oneRoomNoMoon.v1';
 export const VERSION = '0.2.0';
 
 export const ROOM = {
-  W: 1500, H: 1050, H_PORTRAIT: 1480,
+  W: 2050, H: 1460, H_PORTRAIT: 1820,   // base dims (the roller rolls actual sizes; these document the target)
   WALL: 56,                 // playfield inset
-  SPAWN_CLEAR: 260,         // radius around player spawn kept obstacle-free
+  SPAWN_CLEAR: 360,         // radius around player spawn kept obstacle-free (scales with the bigger arena)
 };
 
 export const PLAYER = {
   R: 20, MAX_HP: 6,
-  SPEED: 304, ACCEL: 24.5, STOP: 37.5, TURN: 30, LATERAL: 13.5,
+  SPEED: 330, ACCEL: 24.5, STOP: 37.5, TURN: 30, LATERAL: 13.5,
   MAX_SPEED_MULT: 1.055, DASH_SPEED_MULT: 5.4,
   FIRE_DELAY: 0.15, DAMAGE: 0.88, SHOT_MULT: 0.72, SHOT_SPEED: 860,
   SHOT_R: 4.2, SHOT_LIFE: 0.82, TWIN_OFFSET: 6,
@@ -26,7 +26,7 @@ export const PLAYER = {
   DASH_KILL_REFUND: 0.05,   // every kill shaves a little off the dash cooldown
   DASH_PRIME_MULT: 1.5, DASH_PRIME_PIERCE: 1, // "dash primes next shot" relic payload
   HURT_IFRAMES: 0.92, HURT_KNOCK: 370,
-  PICKUP_RANGE: 104,
+  PICKUP_RANGE: 132,
 };
 
 export const COMBO = { PER_KILL: 0.14, PER_BOSS: 0.9, CAP: 12, WINDOW: 2.6 };

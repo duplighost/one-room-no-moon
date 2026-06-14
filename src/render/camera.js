@@ -17,7 +17,8 @@ export function resize(canvas, bloomCanvas) {
   // phone instead of the old fixed 0.52 portrait (which shrank everything to a dot —
   // the "harder to see on mobile" gripe). Bigger phones get a touch more zoom.
   const small = Math.min(iw, ih);
-  view.baseScale = view.mobile ? clamp(small / 560, 0.62, 0.92) : 1;
+  // desktop zooms out to 0.82 so the larger arena reads as roomy (was 1.0); mobile stays adaptive
+  view.baseScale = view.mobile ? clamp(small / 560, 0.62, 0.92) : 0.82;
   view.scale = view.baseScale * view.zoom;
   view.W = Math.max(320, Math.floor(iw));
   view.H = Math.max(320, Math.floor(ih));

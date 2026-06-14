@@ -77,7 +77,7 @@ function spawnPoints(room, rng, n) {
       const y = side === 0 ? w + rand(rng, 60, 150)
         : side === 2 ? room.h - w - rand(rng, 60, 150)
         : rand(rng, w + 80, room.h - w - 80);
-      if (dist(x, y, room.w / 2, room.h * 0.66) < 330) continue;
+      if (dist(x, y, room.w / 2, room.h * 0.66) < 460) continue;
       let blocked = false;
       for (const o of room.obstacles) {
         const ox = o.type === 'circle' ? o.x : o.x + o.w / 2;

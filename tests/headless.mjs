@@ -75,6 +75,7 @@ const { state } = await import('../src/state.js');
 const { startRun } = await import('../src/systems/rooms.js');
 const { rollRoom } = await import('../src/systems/roomRoller.js');
 const { damageEnemy } = await import('../src/systems/combat.js');
+const { PLAYER } = await import('../src/config.js');
 const { decayFx } = await import('../src/systems/juice.js');
 const tick = (dt) => { decayFx(dt); step(dt); };
 
@@ -292,7 +293,7 @@ check('shrine buy works', buyShrine('shrine_hp') && state.save.shrine.shrine_hp 
 check('shrine rejects rebuy', buyShrine('shrine_hp') === false);
 buyShrine('shrine_speed');
 startRun('shrine-check');
-check('shrine applies on run start', state.run.player.maxHp === 7 && state.run.player.baseSpeed === 322,
+check('shrine applies on run start', state.run.player.maxHp === 7 && state.run.player.baseSpeed === PLAYER.SPEED + 18,
   `maxHp=${state.run.player.maxHp} base=${state.run.player.baseSpeed}`);
 state.save.shrine.shrine_head = true;
 startRun('headstart-check');

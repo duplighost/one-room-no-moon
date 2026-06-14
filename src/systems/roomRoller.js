@@ -53,8 +53,8 @@ export function rollRoom(run, round) {
     round, idx: depthIdx(round), stage: dangerStage(round, run.overdrive),
     biome, layoutId, recipeId, mutatorId: mutator?.id || null, mutator, eventId: null, bossId,
     floorplanId: 'none', openings: [], sanctum: null, tiers: [],
-    w: Math.round(rand(rng, bossId ? 1480 : 1380, bossId ? 1620 : 1560) * sizeScale),
-    h: Math.round((portrait ? rand(rng, 1400, 1520) : rand(rng, bossId ? 1040 : 980, bossId ? 1140 : 1100)) * sizeScale),
+    w: Math.round(rand(rng, bossId ? 1980 : 1900, bossId ? 2260 : 2160) * sizeScale),
+    h: Math.round((portrait ? rand(rng, 1760, 1900) : rand(rng, bossId ? 1440 : 1360, bossId ? 1600 : 1540)) * sizeScale),
     wall: ROOM.WALL,
     obstacles: [], annex: null, hazards: [], lanes: [],
     enemies: [], bullets: [], pickups: [], particles: [], floats: [],
@@ -88,7 +88,7 @@ export function rollRoom(run, round) {
 
   // ── axis 2 continued: obstacles from the layout generator ──
   const density = (RECIPES[recipeId]?.density || 0);
-  const count = clamp(5 + density + Math.floor(room.stage * 0.4) + randi(rng, 0, 2) - (partitioned ? 2 : 0), partitioned ? 1 : 3, 10);
+  const count = clamp(6 + density + Math.floor(room.stage * 0.4) + randi(rng, 0, 2) - (partitioned ? 2 : 0), partitioned ? 1 : 4, 12);
   const spots = LAYOUTS[layoutId](room, rng, count);
   for (const s of spots) {
     if (dist(s.x, s.y, px, py) < ROOM.SPAWN_CLEAR) continue;

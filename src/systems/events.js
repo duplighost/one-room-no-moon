@@ -42,7 +42,7 @@ function eventSpot(room, rng, margin = 200) {
   for (let tries = 0; tries < 30; tries++) {
     const x = rand(rng, room.wall + margin, room.w - room.wall - margin);
     const y = rand(rng, room.wall + margin * 0.7, room.h - room.wall - margin);
-    if (dist(x, y, room.w / 2, room.h * 0.66) < 280) continue;
+    if (dist(x, y, room.w / 2, room.h * 0.66) < 390) continue;
     let ok = true;
     for (const o of room.obstacles) {
       const ox = o.type === 'circle' ? o.x : o.x + o.w / 2;

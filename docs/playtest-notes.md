@@ -18,6 +18,43 @@ A 12-round auto-play stress harness (drives the real loop, picks random draft
 cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions and touches all 10 hazard kits and all 8 enemy AIs.
 
+## Roomier arena pass (player-directed world rescale, 2026-06-14)
+
+The character read as "gigantic in these rooms." Root cause, measured: his sprite
+was drawn at 72×106 for a 40px hitbox (~2× his footprint), and the camera/rooms
+were tight. Player chose the full rescale. Key idea documented for next time:
+"smaller character + bigger room" done *proportionally* is just a camera zoom —
+what actually changes feel is (a) the sprite-to-hitbox mismatch (free to fix) and
+(b) the player-to-roomspace ratio (real balance). Shipped:
+
+- **Sprite drawn at 0.7×** — a single `ctx.scale` in `drawPlayerBody`, so body, gun,
+  eyes, and afterimages all shrink together; now matches his footprint and lines up
+  with enemies (drawn ~hitbox size). Pure render; **hitbox unchanged** (zero balance
+  shift). Shadow shrunk to match.
+- **Rooms ~1.4× bigger** (roller rolls: non-boss ~1900–2160 w × 1360–1540 h, boss
+  larger, portrait ~1760–1900 h). A mid-game room measured ~2100×1530 (was ~1490×1075).
+- **Desktop camera zoomed to 0.82** (was 1.0) so the larger arena reads roomy; mobile
+  stays adaptive.
+- **Spawn distances scaled** with the arena (SPAWN_CLEAR 260→360; director 330→460;
+  hazards 240→330; events 280→390) and obstacle count base/cap raised so bigger rooms
+  aren't empty.
+- **Base speed 304→330, pickup range 104→132** so traversal/vacuum keep pace. Dash
+  kept absolute (1550/0.42) — now **21% of room width (was 29%)**, so it reads as a
+  dodge, not a teleport.
+
+On screen (desktop): player sprite ~72→41px wide; you now see ~39 player-widths across
+(was 32). Verified: full headless suite + stress green (a brittle test that hardcoded
+the old 304 base speed was made relative to `PLAYER.SPEED`); 0 console errors in real
+Chromium desktop + mobile; screenshots confirm the roomy proportions.
+
+Open for human eyes (the "full" option's retuning): does the bigger floor feel spacious
+or too empty (enemy density is lower now — bump `DIRECTOR` budget / `CAPS.ENEMIES` if
+sparse); are bullets/enemies readable at 0.82 desktop zoom (esp. colourblind shape-reads
+— if small, nudge zoom to ~0.86 or bump `SHOT_R`); does mobile portrait show enough of
+the bigger room (the rotate-to-landscape hint matters more now); boss arenas — more dodge
+room may ease fights (watch TTK). Dials: `config.js` (ROOM, PLAYER.SPEED), `roomRoller.js`
+(size rolls), `render/camera.js` (0.82), `render/sprites.js` (0.7 sprite scale).
+
 ## Grave Signal tempo + mobile-readability pass (player-directed, 2026-06-13 latest)
 
 Player reviewed four ChatGPT prototypes and asked to pull the coolest bits into

@@ -101,8 +101,9 @@ export function drawPlayer(ctx, p, room) {
 
 export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, spinPhase = 0) {
   ctx.save(); ctx.globalAlpha = alpha;
-  shadow(ctx, x, y + 25, 28, 9, ghost ? 0.1 : 0.30);
+  shadow(ctx, x, y + 18, 20, 7, ghost ? 0.1 : 0.30);
   ctx.translate(x, y);
+  ctx.scale(0.7, 0.7); // draw Moots at ~0.7x: the sprite was ~2x its 40px hitbox, which read as "gigantic"
   const spinning = !ghost && Math.abs(spinPhase) > 0.001;
   if (moots.ready && !ghost) {
     const yaw = Math.cos(spinPhase);

@@ -64,7 +64,7 @@ export function seedHazards(room, rng) {
     for (let tries = 0; tries < 24; tries++) {
       const x = rand(rng, w + 110, room.w - w - 110);
       const y = rand(rng, w + 100, room.h - w - 100);
-      if (dist(x, y, room.w / 2, room.h * 0.66) < 240) continue; // not on spawn
+      if (dist(x, y, room.w / 2, room.h * 0.66) < 330) continue; // not on spawn
       room.hazards.push({
         type, x, y, r: rand(rng, kit.r[0], kit.r[1]) + (kit.perStage.r || 0) * stage,
         phase: rng() * 6, cd: rng() * 1.2, hitCd: 0,
