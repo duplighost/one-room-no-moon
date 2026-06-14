@@ -1,9 +1,13 @@
 # One Room No Moon — working notes for Claude
 
 This repo builds a new game: a one-room arcade re-imagining of No Moon, starring
-the Boon Moots character. Planning is complete; implementation has not started.
+the Boon Moots character. Implementation is well underway — feature-complete and
+in iterative playtest polish.
 
-**Start here, in order:**
+**Resuming a session? Read `docs/STATUS.md` first** — the living snapshot of where
+we are and what still needs a playtest, then `docs/playtest-notes.md` for detail.
+
+**Start here for the original plan/specs, in order:**
 1. `PLAN.md` — the master plan and map of everything.
 2. `docs/build-order.md` — find the first unchecked phase; that's the work.
 3. `docs/architecture.md` — file layout and module rules before writing code.
