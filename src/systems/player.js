@@ -153,8 +153,12 @@ export function firePlayer(p, room) {
   p.shots++;
   sfx('shot');
   const ax = p.aimX, ay = p.aimY;
-  // shots leave the emitter barrel tip (body level, in the aim direction)
-  const ex = p.x + ax * PLAYER.EMITTER_LEN, ey = p.y + PLAYER.EMITTER_Y + ay * PLAYER.EMITTER_LEN;
+  // shots leave the emitter barrel tip (body level, in the aim direction). The gun
+  // is DRAWN at DRAW_SCALE, so scale the spawn offsets to match — otherwise bullets
+  // float ahead of / above the smaller muzzle (the ChatGPT mismatch).
+  const S = PLAYER.DRAW_SCALE;
+  const elen = PLAYER.EMITTER_LEN * S, eoy = PLAYER.EMITTER_Y * S, toff = PLAYER.TWIN_OFFSET * S;
+  const ex = p.x + ax * elen, ey = p.y + eoy + ay * elen;
   // louder muzzle: a bright pop + a wider spray of sparks at the barrel tips
   particle(room, ex, ey, '#ffffff', ax * 70, ay * 70, 0.07, 5.5);
   for (let i = 0; i < 5; i++) {
@@ -174,12 +178,12 @@ export function firePlayer(p, room) {
   const col = primed ? '#eaffff' : (crit ? '#ffffff' : room.biome.pal.accent);
   for (let side = -1; side <= 1; side += 2) {
     spawnBullet(room, 'player',
-      ex + px * PLAYER.TWIN_OFFSET * side, ey + py * PLAYER.TWIN_OFFSET * side,
+      ex + px * toff * side, ey + py * toff * side,
       ax * PLAYER.SHOT_SPEED + px * 28 * side, ay * PLAYER.SHOT_SPEED + py * 28 * side,
       r, dmg, PLAYER.SHOT_LIFE, col,
       { level: p.level, pierce: primed ? PLAYER.DASH_PRIME_PIERCE : 0, primed });
   }
-  hooks.run('onFire', p, { x: ax, y: ay, oy: PLAYER.EMITTER_Y });
+  hooks.run('onFire', p, { x: ax, y: ay, oy: eoy });
 }
 
 // The dash is a continuous sweep: called at launch (big bite) and every frame while

@@ -1,5 +1,5 @@
 // Entity painters: the Moots sprite + vector enemies/obstacles (No Moon/BM idiom).
-import { TAU } from '../config.js';
+import { TAU, PLAYER } from '../config.js';
 import { clamp } from '../rng.js';
 import { dashSpinPhase } from '../systems/player.js';
 
@@ -31,6 +31,7 @@ function shadow(ctx, x, y, w, h, a) {
 export function drawPlayer(ctx, p, room) {
   const pal = room.biome.pal;
   const spin = dashSpinPhase(p);
+  const S = PLAYER.DRAW_SCALE; // body-hugging FX shrink with the sprite (no giant hula-hoops)
   // slipstream trail — directional speed-smear behind movement (concept panel 3)
   const sp = Math.hypot(p.vx, p.vy);
   if (sp > 150) {
@@ -58,7 +59,7 @@ export function drawPlayer(ctx, p, room) {
   }
   if (p.dashT > 0) {
     const k = clamp(p.dashT / (p.dashDur || 0.001), 0, 1), ring = 1 - k;
-    ctx.save(); ctx.translate(p.x, p.y - 20);
+    ctx.save(); ctx.translate(p.x, p.y); ctx.scale(S, S); ctx.translate(0, -20);
     ctx.globalAlpha = 0.30 + 0.34 * Math.sin(ring * Math.PI);
     ctx.strokeStyle = pal.accent3; ctx.shadowColor = pal.accent3; ctx.shadowBlur = 20; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.ellipse(0, 0, 42 + ring * 10, 12 + Math.sin(spin * 2) * 3, Math.sin(spin) * 0.10, 0, TAU); ctx.stroke();
@@ -87,15 +88,15 @@ export function drawPlayer(ctx, p, room) {
   drawPlayerBody(ctx, p.x, p.y, p.face, pal, 1, false, spin);
   if (p.hurt > 0) {
     ctx.strokeStyle = pal.bad + 'cc'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 42 + (1 - p.hurt / 0.42) * 28, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x, p.y, (42 + (1 - p.hurt / 0.42) * 28) * S, 0, TAU); ctx.stroke();
   }
   if (p.inv > 0 && p.hurt <= 0) {
     ctx.strokeStyle = pal.accent3 + 'aa'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 31 + Math.sin(performance.now() / 80) * 3, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(p.x, p.y, (31 + Math.sin(performance.now() / 80) * 3) * S, 0, TAU); ctx.stroke();
   }
   if (p.shield > 0) {
     ctx.strokeStyle = pal.accent + '99'; ctx.lineWidth = 2;
-    for (let i = 0; i < p.shield; i++) { ctx.beginPath(); ctx.arc(p.x, p.y, 38 + i * 5, 0, TAU); ctx.stroke(); }
+    for (let i = 0; i < p.shield; i++) { ctx.beginPath(); ctx.arc(p.x, p.y, (38 + i * 5) * S, 0, TAU); ctx.stroke(); }
   }
 }
 
@@ -103,7 +104,7 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
   ctx.save(); ctx.globalAlpha = alpha;
   shadow(ctx, x, y + 18, 20, 7, ghost ? 0.1 : 0.30);
   ctx.translate(x, y);
-  ctx.scale(0.7, 0.7); // draw Moots at ~0.7x: the sprite was ~2x its 40px hitbox, which read as "gigantic"
+  ctx.scale(PLAYER.DRAW_SCALE, PLAYER.DRAW_SCALE); // sprite was ~2x its 40px hitbox → "gigantic"; one knob in config
   const spinning = !ghost && Math.abs(spinPhase) > 0.001;
   if (moots.ready && !ghost) {
     const yaw = Math.cos(spinPhase);
@@ -144,7 +145,7 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
 // Held at body level pointing where you aim; shots leave the barrel tips.
 function drawEmitter(ctx, face, pal) {
   ctx.save();
-  ctx.translate(0, -16); // matches PLAYER.EMITTER_Y
+  ctx.translate(0, PLAYER.EMITTER_Y); // gun pivot — drawn inside the DRAW_SCALE, so the muzzle lands where bullets spawn
   ctx.rotate(face);
   ctx.lineJoin = 'round';
   const ink = '#0b0c14', metal = '#322b44', metalHi = '#4d4366', barrel = '#241f30';

@@ -13,11 +13,20 @@ export const ROOM = {
 
 export const PLAYER = {
   R: 20, MAX_HP: 6,
+  // Moots is DRAWN at this fraction of his art size (the sprite was ~2× his 40px
+  // hitbox, which read as "gigantic"). One knob: body, gun, eyes, afterimages,
+  // body-hugging rings, AND the bullet emitter all key off it so they never drift
+  // apart. Hitbox (R) is unchanged — pure render. (ChatGPT scale-coherence pass.)
+  DRAW_SCALE: 0.7,
   SPEED: 330, ACCEL: 24.5, STOP: 37.5, TURN: 30, LATERAL: 13.5,
   MAX_SPEED_MULT: 1.055, DASH_SPEED_MULT: 5.4,
   FIRE_DELAY: 0.15, DAMAGE: 0.88, SHOT_MULT: 0.72, SHOT_SPEED: 860,
+  // SHOT_R kept at 4.2 (NOT shrunk with the gun): the player is colourblind and
+  // bullets already read small at the 0.82 zoom — readability beats muzzle realism.
   SHOT_R: 4.2, SHOT_LIFE: 0.82, TWIN_OFFSET: 6,
-  // emitter: shots leave the twin barrel tips at body level, in the aim direction
+  // emitter: shots leave the twin barrel tips at body level, in the aim direction.
+  // These are gun-space (art) units; firePlayer multiplies by DRAW_SCALE so the
+  // bullet origin tracks the visually-shrunk muzzle instead of floating ahead of it.
   EMITTER_Y: -16, EMITTER_LEN: 32,
   CRIT: 0.03, CRIT_MULT: 1.8,
   // the dash is the centerpiece: long, far, invincible throughout, hits hard+wide

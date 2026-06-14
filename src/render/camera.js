@@ -32,10 +32,24 @@ export function resize(canvas, bloomCanvas) {
     bloomCanvas.width = Math.max(1, Math.floor(view.W * view.DPR * 0.5));
     bloomCanvas.height = Math.max(1, Math.floor(view.H * view.DPR * 0.5));
   }
-  // nudge phone players to landscape, where the wider screen shows more arena (Grave Signal's hint)
+  // nudge phone players to landscape (wider screen = more arena). It's a ONE-TIME
+  // hint: fade it in when portrait begins, auto-dismiss after a few seconds, and
+  // only re-arm when they actually rotate to landscape and back — never a sticky nag.
   if (typeof document !== 'undefined') {
     const hint = document.getElementById('rotateHint');
-    if (hint) hint.style.display = (view.mobile && view.portrait) ? 'block' : 'none';
+    if (hint) {
+      const inPortrait = view.mobile && view.portrait;
+      if (inPortrait && !view._rotateHintArmed) {
+        view._rotateHintArmed = true;
+        hint.classList.add('show');
+        clearTimeout(view._rotateHintTimer);
+        view._rotateHintTimer = setTimeout(() => hint.classList.remove('show'), 6000);
+      } else if (!inPortrait) {
+        view._rotateHintArmed = false;        // rotating to landscape re-arms the one-time hint
+        clearTimeout(view._rotateHintTimer);
+        hint.classList.remove('show');
+      }
+    }
   }
 }
 
