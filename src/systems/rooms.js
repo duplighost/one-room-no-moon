@@ -14,7 +14,7 @@ import { sfx } from '../audio/sfx.js';
 import { suppressInput } from '../ui/input.js';
 import { showDeath, showOverlay, hideOverlays, updateHud, whisper } from '../ui/overlays.js';
 import { hooks } from './items.js';
-import { autoGrant, openDraft, chooseCards, grantItem } from './draft.js';
+import { openDraft, chooseCards, grantItem } from './draft.js';
 import { dropPickup } from './pickups.js';
 import { applyShrine, applyOath, bankDaily } from './meta.js';
 import { notice } from './notices.js';
@@ -123,15 +123,10 @@ export function updateRound(dt) {
 
 function enterPortal() {
   sfx('portal');
-  // Most rooms: instant power-up, no stop (constant flow). After a BOSS — an earned
-  // beat — a real draft choice, restoring the "I chose this build" feeling without
-  // breaking the flow everywhere else. (ChatGPT's hybrid; player picked it.)
-  if (state.room.bossId) {
-    openDraft(() => startTransition());
-  } else {
-    autoGrant();
-    startTransition();
-  }
+  // A real draft choice at the end of EVERY level. The player asked to bring this back:
+  // picking your build each level IS the fun, and the menu holds the cards on screen until
+  // you choose (the old auto-grant flashed the reward too briefly to register).
+  openDraft(() => startTransition());
 }
 
 export function startTransition() {

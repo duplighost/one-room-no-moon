@@ -21,7 +21,7 @@ export function makePlayer() {
     accel: PLAYER.ACCEL, stop: PLAYER.STOP, turn: PLAYER.TURN, lateral: PLAYER.LATERAL,
     fireDelay: PLAYER.FIRE_DELAY, fireCd: 0, damage: PLAYER.DAMAGE, crit: PLAYER.CRIT,
     dashCdBase: PLAYER.DASH_CD, dashCd: 0, dashT: 0, dashDur: PLAYER.DASH_DUR,
-    dashSpinDir: 1, lastDashAngle: null, after: [],
+    dashSpinDir: 1, lastDashAngle: null, after: [], faceDir: 1, walkPhase: 0,
     pickup: PLAYER.PICKUP_RANGE,
     perks: { damage: 0, fire: 0, speed: 0, maxHp: 0 },
     modules: {},
@@ -65,6 +65,8 @@ export function updatePlayer(p, move, aim, room, dt) {
     if (tgt) { const n = norm(tgt.x - p.x, tgt.y - p.y); p.aimX = n.x; p.aimY = n.y; firing = true; }
   }
   p.face = Math.atan2(p.aimY, p.aimX);
+  if (Math.abs(p.aimX) > 0.12) p.faceDir = p.aimX < 0 ? -1 : 1; // persistent horizontal facing (no flicker)
+  p.walkPhase += Math.hypot(p.vx, p.vy) * dt * 0.05;            // stride synced to distance moved
   if (firing && p.fireCd <= 0) firePlayer(p, room);
 
   // Boon Moots movement model (index.html:612-643)

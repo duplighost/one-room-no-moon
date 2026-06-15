@@ -127,7 +127,10 @@ p.x = state.room.portal.x; p.y = state.room.portal.y;
 try {
   for (let i = 0; i < 30; i++) tick(1 / 60);
 } catch (e) { failures++; console.error('FAIL portal entry', e); }
-check('portal auto-grants a power-up + goes straight to transition (no draft stop)',
+check('portal opens a draft every level (player restored per-level choice)',
+  state.mode === 'portalDraft', `mode=${state.mode}`);
+window.oneRoomDebug.pick(0); // choose a card
+check('picking a card grants a module + starts the transition',
   state.mode === 'transition' && Object.keys(p.modules).length >= 1,
   `mode=${state.mode} mods=${Object.keys(p.modules).length}`);
 try {
@@ -210,7 +213,7 @@ try { for (let i = 0; i < 300; i++) tick(1 / 60); } catch (e) { p4err = e; }
 check('companion items tick', !p4err, p4err ? p4err.stack.split('\n')[0] : '');
 check('orbitals exist', (p4._orbitals || []).length === 1);
 
-// auto-grant flow: clear room → portal → auto-grant power-up → transition → next round
+// draft flow: clear room → portal → draft choice → transition → next round
 const roundBefore = state.run.round;
 for (let attempt = 0; attempt < 6 && !state.room.portal; attempt++) {
   window.oneRoomDebug.killAll();
@@ -218,16 +221,18 @@ for (let attempt = 0; attempt < 6 && !state.room.portal; attempt++) {
 }
 check('phase4 room cleared', !!state.room.portal);
 p4.x = state.room.portal.x; p4.y = state.room.portal.y; p4.vx = p4.vy = 0;
-// hold the player on the portal until the transition kicks in (portal goes null at swap)
+// walk onto the portal until the draft opens
 for (let i = 0; i < 120 && state.mode === 'play'; i++) {
   tick(1 / 60);
   if (state.room.portal) { p4.x = state.room.portal.x; p4.y = state.room.portal.y; }
 }
-check('portal auto-grants + starts transition (no draft)', state.mode === 'transition', 'mode=' + state.mode);
+check('portal opens the draft choice', state.mode === 'portalDraft', 'mode=' + state.mode);
+window.oneRoomDebug.pick(0);
+check('picking a card starts the transition', state.mode === 'transition', 'mode=' + state.mode);
 for (let i = 0; i < 120; i++) tick(1 / 60);
-check('auto-grant advances round', state.run.round === roundBefore + 1 && state.mode === 'play',
+check('draft advances the round', state.run.round === roundBefore + 1 && state.mode === 'play',
   `round=${state.run.round} mode=${state.mode}`);
-check('a module was auto-granted', Object.keys(p4.modules).length >= 1);
+check('the draft granted a module', Object.keys(p4.modules).length >= 1);
 
 // boon reroll economy: charges accrue from clears
 check('boon lacing progressed', p4.boon.progress >= 1 || p4.boon.charges >= 1);
@@ -291,8 +296,8 @@ for (let i = 0; i < 60 && state.mode === 'play'; i++) {
   tick(1 / 60);
   if (state.room.portal) { p5.x = state.room.portal.x; p5.y = state.room.portal.y; }
 }
-// round 20 is the Archon boss → the hybrid opens a REAL draft choice (not auto-grant)
-check('boss portal opens a real draft choice (hybrid)', state.mode === 'portalDraft', 'mode=' + state.mode);
+// every portal opens a draft choice (the round-20 Archon boss portal included)
+check('boss portal opens a draft choice', state.mode === 'portalDraft', 'mode=' + state.mode);
 window.oneRoomDebug.pick(0);
 for (let i = 0; i < 160; i++) tick(1 / 60);
 check('overdrive round 21 live', state.run.round === 21 && state.mode === 'play', `round=${state.run.round} mode=${state.mode}`);

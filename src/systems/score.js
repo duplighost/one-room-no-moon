@@ -21,6 +21,14 @@ function comboMilestone(tier, e) {
   addFloat(room, e.x, e.y - 78, `×${tier}  ${name}`.trim(), hot, true, 1.05 + k * 0.7);
   burst(room, e.x, e.y, hot, 10 + tier * 2, 210 + tier * 28, 0.5, 3);
   sfx('pulse');
+  // A good combo patches you up — a piece of integrity, but never the LAST point: caps
+  // at maxHp-1 so combos can't fully heal you and damage always still matters.
+  const p = state.run?.player;
+  if (tier >= 3 && p && p.hp < p.maxHp - 1) {
+    p.hp = Math.min(p.maxHp - 1, p.hp + 1);
+    addFloat(room, p.x, p.y - 54, 'MEND +1', '#7efab7', true, 0.95);
+    sfx('care');
+  }
 }
 
 export function tickCombo(raw) {

@@ -106,7 +106,20 @@ export function drawPlayer(ctx, p, room) {
     ctx.restore();
   }
   if (p._cat) drawCat(ctx, p._cat.x, p._cat.y, 0.58, pal);
-  drawPlayerBody(ctx, p.x, p.y, p.face, pal, 1, false, spin);
+  // procedural body animation so he never just stands there / "looks the same":
+  // a stride-bob when moving (breathing when idle), a lean into motion, a persistent
+  // left/right facing, and a subtle squash-stretch.
+  const psp = Math.hypot(p.vx, p.vy), pmoving = psp > 50, ptt = performance.now() / 1000;
+  const anim = {
+    bob: pmoving ? Math.abs(Math.sin(p.walkPhase)) * (4.5 + Math.min(6, psp / 180))
+                 : (0.5 + 0.5 * Math.sin(ptt * 2.2)) * 2.2,
+    // squash-stretch aligned to the bob: taller at the top of the bounce, squashed at the bottom
+    stretch: pmoving ? 1 + (Math.abs(Math.sin(p.walkPhase)) - 0.4) * 0.13
+                     : 1 + Math.sin(ptt * 2.2) * 0.03,
+    lean: clamp(p.vx / 1000 + (p.aimX || 0) * 0.04, -0.19, 0.19),
+    faceX: p.faceDir || 1,
+  };
+  drawPlayerBody(ctx, p.x, p.y, p.face, pal, 1, false, spin, anim);
   if (p.hurt > 0) {
     ctx.strokeStyle = pal.bad + 'cc'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.arc(p.x, p.y, (42 + (1 - p.hurt / 0.42) * 28) * PLAYER_EFFECT_SCALE, 0, TAU); ctx.stroke();
@@ -121,18 +134,25 @@ export function drawPlayer(ctx, p, room) {
   }
 }
 
-export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, spinPhase = 0) {
+export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, spinPhase = 0, anim = null) {
   ctx.save(); ctx.globalAlpha = alpha;
-  shadow(ctx, x, y + 18 * PLAYER_DRAW_SCALE, 20 * PLAYER_DRAW_SCALE, 7 * PLAYER_DRAW_SCALE, ghost ? 0.1 : 0.30);
-  ctx.translate(x, y);
-  ctx.scale(PLAYER_DRAW_SCALE, PLAYER_DRAW_SCALE); // visual scale lives in config; collision stays separate
   const spinning = !ghost && Math.abs(spinPhase) > 0.001;
+  // procedural animation (real player only, not while dash-spinning): stride/breathing
+  // bob, a lean into movement, a persistent left/right facing, and a squash-stretch.
+  const a = (anim && !spinning) ? anim : null;
+  const bob = a ? a.bob : 0;
+  // the shadow stays grounded + shrinks a touch as he lifts — sells the bob as real height
+  shadow(ctx, x, y + 18 * PLAYER_DRAW_SCALE, (20 - bob * 0.35) * PLAYER_DRAW_SCALE, 7 * PLAYER_DRAW_SCALE, ghost ? 0.1 : 0.30);
+  ctx.translate(x, y - bob);
+  ctx.scale(PLAYER_DRAW_SCALE, PLAYER_DRAW_SCALE); // visual scale lives in config; collision stays separate
   if (moots.ready && !ghost) {
     const yaw = Math.cos(spinPhase);
     const sx = spinning ? (0.28 + 0.72 * Math.abs(yaw)) : 1;
-    const flip = spinning ? (yaw < 0 ? -1 : 1) : 1;
+    const flip = spinning ? (yaw < 0 ? -1 : 1) : (a ? a.faceX : 1);
+    const sy = (1 + 0.035 * Math.sin(spinPhase * 2)) * (a ? a.stretch : 1);
     ctx.save();
-    ctx.scale(sx * flip, 1 + 0.035 * Math.sin(spinPhase * 2));
+    if (a) ctx.rotate(a.lean);                 // body leans into the run (gun is drawn after, on true aim)
+    ctx.scale(sx * flip, sy);
     ctx.drawImage(moots.img, -36, -72, 72, 106);
     ctx.restore();
     if (spinning) {
@@ -144,9 +164,12 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
     drawEmitter(ctx, face, pal);
   } else {
     // fallback blob until the sprite loads (Boon Moots index.html:1416)
+    ctx.save();
     if (spinning) {
       const yaw = Math.cos(spinPhase);
       ctx.scale((0.35 + 0.65 * Math.abs(yaw)) * (yaw < 0 ? -1 : 1), 1 + 0.035 * Math.sin(spinPhase * 2));
+    } else if (a) {
+      ctx.rotate(a.lean); ctx.scale(a.faceX, a.stretch);
     }
     ctx.fillStyle = ghost ? pal.accent : '#fff5f8';
     ctx.strokeStyle = '#05030a'; ctx.lineWidth = 5;
@@ -155,6 +178,7 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
     ctx.beginPath(); ctx.arc(-8, -12, 4, 0, TAU); ctx.arc(8, -12, 4, 0, TAU); ctx.fill();
     ctx.fillStyle = pal.accent2;
     ctx.fillRect(-17, 19, 14, 16); ctx.fillRect(4, 19, 14, 16);
+    ctx.restore();
     drawEmitter(ctx, face, pal);
   }
   ctx.restore(); ctx.globalAlpha = 1;

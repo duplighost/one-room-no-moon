@@ -31,17 +31,6 @@ button:hover{border-color:rgba(255,255,255,.22)}
 #hp{letter-spacing:2px; font-size:14px}
 #hp .hurt{color:var(--bad)}
 #score{font-weight:900; font-variant-numeric:tabular-nums}
-#pulseWrap{display:block; width:120px; height:9px; border-radius:99px; background:rgba(255,255,255,.08);
-  overflow:hidden; align-self:center}
-#pulseFill{display:block; height:100%; width:0%; background:linear-gradient(90deg,#7dfdff,#f3dcff);
-  border-radius:99px; transition:width 120ms linear}
-#pulseWrap.ready #pulseFill{
-  background:linear-gradient(90deg,#7dfdff,#eaffff,#f3dcff,#7dfdff);
-  background-size:220% 100%;
-  animation:pulseSheen .9s linear infinite;
-  box-shadow:0 0 14px #7dfdff, inset 0 0 6px rgba(255,255,255,.7);
-}
-@keyframes pulseSheen{from{background-position:220% 0}to{background-position:0 0}}
 .miniBtn{pointer-events:auto; padding:6px 10px; font-size:12px; border-radius:10px; color:var(--dim)}
 #buildChips{position:fixed; left:10px; bottom:10px; display:flex; gap:6px; flex-wrap:wrap; max-width:60vw;
   pointer-events:none; z-index:5}
@@ -113,7 +102,6 @@ button:hover{border-color:rgba(255,255,255,.22)}
     <span id="zone">One Room No Moon</span>
     <span id="roomNo">round 0</span>
     <span id="hp">♥♥♥♥♥♥</span>
-    <span id="pulseWrap"><span id="pulseFill"></span></span>
   </div>
   <div class="chip panel">
     <span id="score">0</span>
