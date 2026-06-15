@@ -9,7 +9,7 @@ import { spawnTelegraphed, makeEnemy } from './enemies.js';
 import { addFloat, burst, ripple } from '../render/particles.js';
 import { addSlowFog, distPointSegment } from './hazards.js';
 import { hurtPlayer } from './combat.js';
-import { addShake, addFlash } from './juice.js';
+import { addShake, addFlash, slowMo } from './juice.js';
 import { sfx } from '../audio/sfx.js';
 
 export const BOSSES = {
@@ -77,6 +77,22 @@ function summonFromBoss(boss, types, room) {
   sfx('telegraph');
 }
 
+// Cinematic entrance, run on the boss's first live tick: bullet-time, a flash, the
+// name slams in (rendered huge by draw.js off introT), the boss holds menacingly and
+// is untouchable, then the fight begins. Returns true while the intro is still playing.
+function bossIntro(e, room, dt) {
+  if (e.introT === undefined) {
+    e.introT = 1.05; e.invulnT = 1.05;
+    slowMo(0.45); addFlash(0.42); addShake(0.6); sfx('telegraph');
+  }
+  e.introT -= dt;
+  if (e.introT > 0) {
+    e.vx = damp(e.vx, 0, 4, dt); e.vy = damp(e.vy, 0, 4, dt); // hold, coiled
+    return true;
+  }
+  return false;
+}
+
 // A boss crossing 50% HP TRANSFORMS — a theatrical phase shift: wipe incoming fire
 // (a fair reset, not a free hit), shockwave + flash + shake, the boss grows/recolors
 // and goes ENRAGED, briefly untouchable while it changes. Each brain escalates its
@@ -99,6 +115,7 @@ function bossPhaseShift(e, room, label, hotColor) {
 
 // ── Graven Warden (game_inline.js:9025-9055) ────────────────────────────────
 function wardenBrain(e, room, p, to, d, dt) {
+  if (bossIntro(e, room, dt)) return;
   const idx = room.idx;
   const hpFrac = e.hp / e.maxHp;
   e.phaseLock = Math.max(0, (e.phaseLock || 0) - dt);
@@ -135,6 +152,7 @@ function wardenBrain(e, room, p, to, d, dt) {
 
 // ── Null Archon (game_inline.js:9056-9087) ──────────────────────────────────
 function archonBrain(e, room, p, to, d, dt) {
+  if (bossIntro(e, room, dt)) return;
   const idx = room.idx;
   const hpFrac = e.hp / e.maxHp;
   e.phaseLock = Math.max(0, (e.phaseLock || 0) - dt);
@@ -191,6 +209,7 @@ function archonBrain(e, room, p, to, d, dt) {
 
 // ── False Moon (miniboss: mirrors your aim back at you) ─────────────────────
 function falseMoonBrain(e, room, p, to, d, dt) {
+  if (bossIntro(e, room, dt)) return;
   const idx = room.idx;
   const hpFrac = e.hp / e.maxHp;
   // slow orbit, keeps middle distance
@@ -243,6 +262,7 @@ function falseMoonBrain(e, room, p, to, d, dt) {
 
 // ── Spiggot (miniboss: spore rings + skitter brood) ─────────────────────────
 function spiggotBrain(e, room, p, to, d, dt) {
+  if (bossIntro(e, room, dt)) return;
   const idx = room.idx;
   const hpFrac = e.hp / e.maxHp;
   const ax = to.x * e.speed * 0.7 + Math.cos(e.phase * 1.4) * 50;

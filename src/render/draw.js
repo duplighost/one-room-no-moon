@@ -132,6 +132,7 @@ export function drawFrame() {
   if (p && state.mode === 'play' && state.run?.oath !== 'blind') drawDangerTriangles(room, p);
   if (room.portal) drawPortalArrow(room);
   drawBossBar(room);
+  drawBossIntro(room);
   if (state.mode === 'play') { drawPad(moveTouch, '#7dfdff'); drawPad(aimTouch, '#ffd36e'); }
 
   if (state.fx.flash > 0) {
@@ -607,6 +608,28 @@ function drawPortalArrow(room) {
   ctx.rotate(-angle);
   starPath(ctx, -22 * Math.cos(angle), -22 * Math.sin(angle), 7, 3, 6);
   ctx.fill();
+  ctx.restore();
+}
+
+// Cinematic boss entrance: the name slams in huge + fades over the ~1s intro hold.
+function drawBossIntro(room) {
+  const boss = room.enemies?.find(e => e.boss && (e.introT || 0) > 0);
+  if (!boss) return;
+  const a = clamp(boss.introT / 1.05, 0, 1);
+  const pop = 1 + (1 - a) * 0.18;
+  const cx = view.W / 2, cy = view.H * 0.4;
+  ctx.save();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.globalAlpha = Math.min(1, a * 1.7);
+  ctx.font = `900 ${Math.round(Math.min(66, view.W * 0.072) * pop)}px Inter, system-ui, sans-serif`;
+  ctx.shadowColor = boss.color; ctx.shadowBlur = 26;
+  ctx.fillStyle = boss.color;
+  ctx.fillText(boss.display.toUpperCase(), cx, cy);
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = Math.min(1, a * 1.7) * 0.85;
+  ctx.font = `600 ${Math.round(Math.min(18, view.W * 0.02))}px Inter, system-ui, sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('— HOLDS THE ROOM —', cx, cy + Math.min(46, view.W * 0.05));
   ctx.restore();
 }
 
