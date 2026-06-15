@@ -115,6 +115,20 @@ export function drawFrame() {
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, view.W, view.H);
 
+  // combo "on fire" edge-glow — ambient heat that builds + shifts colour with your
+  // score multiplier (the screen itself starts burning as you chain kills).
+  const combo = state.run?.combo || 1;
+  if (combo > 2.2 && !reduced()) {
+    const k = Math.min(1, (combo - 2.2) / 8);
+    const pulse = 0.7 + 0.3 * Math.sin(performance.now() / 1000 * 6);
+    const col = combo > 9 ? '255,255,255' : combo > 5 ? '255,150,240' : '255,210,120';
+    const cg = ctx.createRadialGradient(view.W / 2, view.H / 2, Math.min(view.W, view.H) * 0.34, view.W / 2, view.H / 2, Math.max(view.W, view.H) * 0.7);
+    cg.addColorStop(0, 'rgba(0,0,0,0)');
+    cg.addColorStop(1, `rgba(${col},${((0.06 + k * 0.17) * pulse).toFixed(3)})`);
+    ctx.fillStyle = cg;
+    ctx.fillRect(0, 0, view.W, view.H);
+  }
+
   if (p && state.mode === 'play' && state.run?.oath !== 'blind') drawDangerTriangles(room, p);
   if (room.portal) drawPortalArrow(room);
   drawBossBar(room);

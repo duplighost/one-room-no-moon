@@ -2,6 +2,8 @@
 import { TAU, PLAYER } from '../config.js';
 import { clamp } from '../rng.js';
 import { dashSpinPhase } from '../systems/player.js';
+import { state } from '../state.js';
+import { reduced } from '../systems/juice.js';
 
 export const moots = { img: null, ready: false };
 export const bossCards = {}; // bossId -> {img, ready}
@@ -34,6 +36,21 @@ function shadow(ctx, x, y, w, h, a) {
 export function drawPlayer(ctx, p, room) {
   const pal = room.biome.pal;
   const spin = dashSpinPhase(p);
+  // combo charged aura: at a high score multiplier the passenger runs hot — a pulsing
+  // ring that intensifies + shifts colour with the combo (completes the power fantasy).
+  const combo = state.run?.combo || 1;
+  if (combo > 2.4 && !reduced()) {
+    const k = Math.min(1, (combo - 2.4) / 8), tt = performance.now() / 1000;
+    const col = combo > 9 ? '#ffffff' : combo > 5 ? '#ff9bf5' : pal.accent3;
+    const rr = (p.r + 12 + Math.sin(tt * 7) * 3) * (1 + k * 0.5);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = (0.16 + k * 0.30) * (0.7 + 0.3 * Math.sin(tt * 9));
+    ctx.strokeStyle = col; ctx.lineWidth = 2 + k * 2.5;
+    ctx.shadowColor = col; ctx.shadowBlur = 10 + k * 14;
+    ctx.beginPath(); ctx.arc(p.x, p.y - 6, rr, 0, TAU); ctx.stroke();
+    ctx.restore();
+  }
   // slipstream trail — directional speed-smear behind movement (concept panel 3)
   const sp = Math.hypot(p.vx, p.vy);
   if (sp > 150) {

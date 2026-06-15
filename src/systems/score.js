@@ -1,8 +1,27 @@
 // Combo, streaks, bonuses, bests.
 import { COMBO, SCORE, STREAK_NAMES } from '../config.js';
 import { state, saveNow } from '../state.js';
-import { addFloat } from '../render/particles.js';
+import { addFloat, burst } from '../render/particles.js';
+import { addFlash, addShake } from './juice.js';
+import { sfx } from '../audio/sfx.js';
 import { damp } from '../rng.js';
+
+const COMBO_TIER_NAMES = ['', '', 'WARMING UP', 'IN THE POCKET', 'ON A TEAR', 'RAMPAGE RECEIPT',
+  'UNTOUCHED', 'A BEAUTIFUL BLUR', 'UNSTOPPABLE PASSENGER', 'MOON-DRUNK', 'CITYWIDE WARRANT',
+  'NULL AND VOID', 'PERFECT STORM'];
+
+// Crossing an integer combo tier (×2, ×3 …) fires escalating juice — the climb feels huge.
+function comboMilestone(tier, e) {
+  const room = state.room; if (!room) return;
+  const k = Math.min(1, (tier - 2) / 10);
+  addFlash(0.12 + k * 0.30);
+  addShake(0.22 + k * 0.75);
+  const hot = tier >= 10 ? '#ffffff' : tier >= 6 ? '#ff9bf5' : (room.biome?.pal.accent3 || '#ffd36e');
+  const name = COMBO_TIER_NAMES[Math.min(COMBO_TIER_NAMES.length - 1, tier)] || '';
+  addFloat(room, e.x, e.y - 78, `×${tier}  ${name}`.trim(), hot, true, 1.05 + k * 0.7);
+  burst(room, e.x, e.y, hot, 10 + tier * 2, 210 + tier * 28, 0.5, 3);
+  sfx('pulse');
+}
 
 export function tickCombo(raw) {
   const run = state.run;
@@ -17,7 +36,10 @@ export function tickCombo(raw) {
 
 export function killScore(e) {
   const run = state.run;
+  const prevTier = Math.floor(run.combo);
   run.combo = Math.min(COMBO.CAP, run.combo + (e.boss ? COMBO.PER_BOSS : COMBO.PER_KILL));
+  const tier = Math.floor(run.combo);
+  if (tier > prevTier && tier >= 2) comboMilestone(tier, e);
   run.comboT = COMBO.WINDOW;
   const pts = Math.floor(e.score * run.combo
     * (run.overdrive ? SCORE.OVERDRIVE_MULT : 1)
