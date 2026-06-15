@@ -60,14 +60,17 @@ export function killEnemy(e, kind = 'shot', staggered = false) {
   if (repairsAllowed && (e.boss || Math.random() < 0.035) && p.hp < p.maxHp) {
     room.pickups.push({ type: 'repair', x: e.x, y: e.y, vx: Math.random() * 160 - 80, vy: Math.random() * 160 - 80, r: 11, life: 8 });
   }
-  // death FX: a dash-kill gets the big "pop"; anything else the standard burst.
-  if (kind === 'dash') {
+  // death FX: a BOSS going down is the run's climax (below); a dash-kill gets the big
+  // "pop"; anything else the standard burst.
+  if (e.boss) {
+    bossDeathFX(room, e);
+  } else if (kind === 'dash') {
     dashKillPop(room, e, p);
     sfx('kill'); sfx('break'); // shatter crunch layered on the kill chime
   } else {
-    burst(room, e.x, e.y, e.color, e.boss ? 42 : 13, 170, 0.5, 3);
-    hitPause(e.boss ? 'boss' : 'kill');
-    addShake(e.boss ? 0.5 : 0.18);
+    burst(room, e.x, e.y, e.color, 13, 170, 0.5, 3);
+    hitPause('kill');
+    addShake(0.18);
     sfx('kill');
   }
   // executing an already-reeling enemy is a skill beat — punctuate it
@@ -77,6 +80,20 @@ export function killEnemy(e, kind = 'shot', staggered = false) {
   }
   if (e.captainDeath) e.captainDeath(e);
   hooks.run('onKill', e);
+}
+
+// A boss going down is the climax of the run — earn it: big bullet-time, a staged
+// shatter, twin shockwaves, the screen wiped clear (you won the exchange), a callout.
+function bossDeathFX(room, e) {
+  slowMo(0.9);
+  addFlash(0.6); addShake(1.2); hitPause('boss');
+  burst(room, e.x, e.y, e.color, 60, 540, 0.95, 6);
+  burst(room, e.x, e.y, '#ffffff', 30, 320, 0.7, 4);
+  ripple(room, e.x, e.y, '#ffffff', 430, 1.2);
+  ripple(room, e.x, e.y, e.color, 300, 1.0);
+  room.bullets = room.bullets.filter(b => b.owner !== 'enemy'); // wipe the screen — you won
+  addFloat(room, e.x, e.y - (e.r || 40) - 30, 'DOWN', '#ffffff', true, 1.7);
+  sfx('kill'); sfx('clear'); sfx('break');
 }
 
 // The dash-kill "pop": a directional slice along the dash line, a white core, twin
