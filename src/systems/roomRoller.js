@@ -61,6 +61,9 @@ export function rollRoom(run, round) {
   const sizeScale = mutator?.sizeScale || 1;
 
   const portrait = view.mobile && view.portrait;
+  // Giant sprawl on desktop; phones pull the landscape size back (portrait stays modest).
+  // Safe to go big: floor/lanes are viewport-culled and the enemy budget is already capped.
+  const deviceScale = view.mobile ? (portrait ? 1 : 0.7) : 1;
   const room = {
     round, idx: depthIdx(round), stage: dangerStage(round, run.overdrive),
     biome, layoutId, recipeId, mutatorId: mutator?.id || null, mutator, eventId: null, bossId,
@@ -68,8 +71,8 @@ export function rollRoom(run, round) {
     districts: [], flowLanes: [], skyways: [], signs: [], traffic: [], districtName: '', districtSubtitle: '', backgroundScale: 1,
     // city-scale sprawl — give the player a LOT of ground to dash across. Density
     // (cover, ambient, enemy budget) scales with area below so the space stays full.
-    w: Math.round((portrait ? rand(rng, 1860, 2200) : rand(rng, bossId ? 2650 : 2520, bossId ? 3120 : 2960)) * sizeScale),
-    h: Math.round((portrait ? rand(rng, 2300, 2680) : rand(rng, bossId ? 1940 : 1840, bossId ? 2300 : 2160)) * sizeScale),
+    w: Math.round((portrait ? rand(rng, 1900, 2280) : rand(rng, bossId ? 3300 : 3800, bossId ? 4000 : 4400)) * sizeScale * deviceScale),
+    h: Math.round((portrait ? rand(rng, 2400, 2800) : rand(rng, bossId ? 2500 : 2700, bossId ? 3000 : 3150)) * sizeScale * deviceScale),
     wall: ROOM.WALL,
     obstacles: [], landmarks: [], annex: null, hazards: [], lanes: [],
     enemies: [], bullets: [], pickups: [], particles: [], floats: [],
@@ -120,9 +123,11 @@ export function rollRoom(run, round) {
   const landmark = !bossId && chance(rng, partitioned ? 0.30 : 0.84) && placeLandmark(room, rng, px, py, portalX, portalY);
   // cover scales ~linearly with area so density holds across the much bigger floor
   // (kept moderate — the sprawl reads full from ambient/decals/enemies, not a cover maze).
-  const areaBonus = Math.max(2, Math.round((roomAreaScale(room) - 1) * 4));
+  const areaBonus = Math.max(2, Math.round((roomAreaScale(room) - 1) * 6));
+  // cap scales with area so cover density holds across the much bigger sprawl
+  const coverCap = Math.round((partitioned ? 22 : 28) * clamp(roomAreaScale(room) / 4, 1, 2.1));
   const count = clamp(6 + density + areaBonus + Math.floor(room.stage * 0.45) + randi(rng, 0, 2)
-    - (partitioned ? 2 : 0) - (landmark ? 2 : 0), partitioned ? 4 : 6, partitioned ? 22 : 28);
+    - (partitioned ? 2 : 0) - (landmark ? 2 : 0), partitioned ? 4 : 6, coverCap);
   const spots = LAYOUTS[layoutId](room, rng, count);
   for (const s of spots) {
     if (dist(s.x, s.y, px, py) < ROOM.SPAWN_CLEAR) continue;

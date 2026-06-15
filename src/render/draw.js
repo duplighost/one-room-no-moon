@@ -65,7 +65,12 @@ export function drawFrame() {
   // y-sorted entities; raised (level>0) things sort above ground and lift visually
   const LIFT = TIER_LIFT;
   const renderables = [];
+  const ov = visibleRect(140);
   for (const o of room.obstacles) if (!o.gone) {
+    // viewport-cull cover: giant rooms only render the obstacles actually on screen
+    const bx0 = o.type === 'circle' ? o.x - o.rad : o.x, by0 = o.type === 'circle' ? o.y - o.rad : o.y;
+    const bx1 = o.type === 'circle' ? o.x + o.rad : o.x + o.w, by1 = o.type === 'circle' ? o.y + o.rad : o.y + o.h;
+    if (bx1 < ov.l || bx0 > ov.r || by1 < ov.t || by0 > ov.b) continue;
     const lv = o.ledge ? 1 : 0;
     renderables.push({ y: o.type === 'circle' ? o.y + o.rad : o.y + o.h, lv, lift: 0, draw: () => drawObstacle(ctx, o, room) });
   }
@@ -185,10 +190,19 @@ function drawTiers(room, pal) {
 
 // The living, moving floor: slow biome-specific currents under the fight. Ported from
 // ChatGPT's "neon districts" build. No shadowBlur (perf), gated by reduced()/lowFx.
+// The world rect currently visible through the camera (world-space), padded by margin.
+// Per-frame renderers cull to this so room size costs nothing — a giant room only ever
+// draws the viewport's worth of currents/lanes.
+function visibleRect(margin = 0) {
+  const invS = 1 / (view.scale || 1);
+  return { l: cam.x - margin, t: cam.y - margin, r: cam.x + view.W * invS + margin, b: cam.y + view.H * invS + margin };
+}
+
 function drawFloorMotion(room, pal) {
   if (reduced() || state.lowFx) return;
   const t = room.time || performance.now() / 1000;
   const wall = room.wall + 22;
+  const vis = visibleRect(120);
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   // slow water/stained-glass currents (faint — preserve biome identity, not neon soup)
@@ -197,11 +211,14 @@ function drawFloorMotion(room, pal) {
   ctx.globalAlpha = room.cleared ? 0.055 : 0.085;
   ctx.strokeStyle = pal.accent2;
   ctx.lineWidth = 1.35;
+  const gx0 = Math.max(wall, vis.l), gx1 = Math.min(room.w - wall, vis.r);
   for (let y = wall + ((t * 36) % gap); y < room.h - wall; y += gap) {
+    if (y < vis.t || y > vis.b || gx0 > gx1) continue;   // cull off-screen currents
     ctx.beginPath();
-    for (let x = wall; x <= room.w - wall; x += 64) {
+    let first = true;
+    for (let x = gx0; x <= gx1; x += 64) {
       const yy = y + Math.sin(t * 1.45 + x * 0.012 + y * 0.017) * wave;
-      if (x === wall) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+      if (first) { ctx.moveTo(x, yy); first = false; } else ctx.lineTo(x, yy);
     }
     ctx.stroke();
   }
@@ -262,7 +279,10 @@ function drawFlowLanes(room, pal, player) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.lineCap = 'round';
+  const vis = visibleRect(160);
   for (const l of lanes) {
+    // cull lanes whose span is entirely off-screen (giant rooms stay cheap)
+    if (Math.max(l.x1, l.x2) < vis.l || Math.min(l.x1, l.x2) > vis.r || Math.max(l.y1, l.y2) < vis.t || Math.min(l.y1, l.y2) > vis.b) continue;
     const active = player && flowDist(player.x, player.y, l.x1, l.y1, l.x2, l.y2) < (l.width || 78) + player.r + 12;
     const color = (arming || lethal) ? '#ff4d4d' : (l.color || pal.accent3);
     const width = l.width || 78;
