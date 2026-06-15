@@ -46,6 +46,9 @@ function applyRoom(room) {
   const p = state.run.player;
   p.x = room.w / 2; p.y = room.h * 0.66;
   p.vx = p.vy = 0;
+  // clear transient movement states from the previous room — otherwise a rail/vent/launch
+  // in progress at the transition leaks in and overrides the spawn (yanks you to the edge).
+  p.railing = false; p.railCd = 0; p.launchT = 0; p.launchHop = 0; p.ventCd = 0; p.dashT = 0;
   p.inv = Math.max(p.inv, 0.9);
   p.roomHit = false;
   p.after.length = 0;

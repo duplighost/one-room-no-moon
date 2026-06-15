@@ -105,10 +105,19 @@ function frame(t) {
     if (avg > 0.024) state.lowFx = true;
   }
 
-  decayFx(raw);
-  step(raw);
-  drawFrame();
-  updateHud();
+  // Safety net: a single bad frame must never break the rAF chain (that froze the game on
+  // the boss-kill bug). Recover and keep running; log so we can still find the cause.
+  try {
+    decayFx(raw);
+    step(raw);
+    drawFrame();
+    updateHud();
+  } catch (e) {
+    if (!frame._loggedErr || performance.now() - frame._loggedErr > 2000) {
+      console.error('[frame recovered]', e);
+      frame._loggedErr = performance.now();
+    }
+  }
   requestAnimationFrame(frame);
 }
 

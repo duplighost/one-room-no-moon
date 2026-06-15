@@ -31,6 +31,7 @@ const { boot, step } = await import('../src/main.js');
 const { state } = await import('../src/state.js');
 const { startRun } = await import('../src/systems/rooms.js');
 const { decayFx } = await import('../src/systems/juice.js');
+const { tryDash } = await import('../src/systems/player.js');
 const tick = (dt) => { decayFx(dt); step(dt); };
 
 boot();
@@ -40,7 +41,7 @@ p.maxHp = 99999; p.hp = 99999;
 let frames = 0, errors = 0;
 const seen = { biomes: new Set(), hazardKits: new Set(), enemyTypes: new Set(), captains: 0 };
 try {
-  for (let round = 1; round <= 12; round++) {
+  for (let round = 1; round <= 16; round++) {
     seen.biomes.add(state.room.biome.id);
     seen.hazardKits.add(state.room.biome.hazard);
     // let the room run a while (waves spawn, AI executes, hazards tick)
@@ -49,6 +50,18 @@ try {
       for (const e of state.room.enemies) { seen.enemyTypes.add(e.type); if (e.captain) seen.captains++; }
       // jiggle the player so spatial code paths run
       p.x += Math.sin(frames * 0.05) * 3; p.y += Math.cos(frames * 0.04) * 3;
+      // CHAOS: hammer the rail + vent paths so any exception there surfaces (caught below)
+      const room = state.room;
+      if (i % 80 === 0) {
+        p.dashCd = 0; p.railing = false; p.railCd = 0;
+        const side = (frames >> 4) % 4;
+        if (side === 0) { p.x = room.wall + 30; p.y = room.h / 2; tryDash(-1, 0.2, null); }
+        else if (side === 1) { p.x = room.w - room.wall - 30; p.y = room.h / 2; tryDash(1, -0.2, null); }
+        else if (side === 2) { p.x = room.w / 2; p.y = room.wall + 30; tryDash(0.2, -1, null); }
+        else { p.x = room.w / 2; p.y = room.h - room.wall - 30; tryDash(-0.2, 1, null); }
+      }
+      if (i % 80 === 40 && p.railing) tryDash(0, 0, { active: true, x: Math.random() - 0.5, y: Math.random() - 0.5 }); // leap off
+      if (i % 110 === 0 && (room.vents || []).length) { const v = room.vents[Math.floor(Math.random() * room.vents.length)]; p.x = v.x; p.y = v.y; p.ventCd = 0; p.level = 0; }
     }
     for (let attempt = 0; attempt < 6 && !state.room.portal; attempt++) {
       window.oneRoomDebug.killAll();
@@ -56,6 +69,7 @@ try {
     }
     if (!state.room.portal) { console.log('NO PORTAL round', round); errors++; break; }
     for (let i = 0; i < 60; i++) tick(1 / 60);
+    p.railing = false; p.launchT = 0; p.dashT = 0; p.ventCd = 0; // drop any chaos rail/vent before walking the portal
     p.x = state.room.portal.x; p.y = state.room.portal.y; p.vx = p.vy = 0;
     for (let i = 0; i < 60 && state.mode !== 'portalDraft'; i++) { tick(1 / 60); frames++; }
     if (state.mode === 'portalDraft') window.oneRoomDebug.pick(Math.floor(Math.random() * 3));
