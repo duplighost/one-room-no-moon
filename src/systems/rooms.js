@@ -8,7 +8,8 @@ import { makePlayer } from './player.js';
 import { roomClearScore } from './score.js';
 import { vacuumSparks } from './pickups.js';
 import { wavesDone } from './director.js';
-import { addFloat, burst } from '../render/particles.js';
+import { addFloat, burst, ripple } from '../render/particles.js';
+import { addFlash, addShake, slowMo } from './juice.js';
 import { snapCamera } from '../render/camera.js';
 import { sfx } from '../audio/sfx.js';
 import { suppressInput, keys } from '../ui/input.js';
@@ -115,10 +116,16 @@ function updateVendor(room, p) {
       state.run.score -= v.cost;
       const choices = chooseCards(3);
       const item = choices.length ? choices[Math.floor(state.run.rng() * choices.length)] : null;
-      if (item) { grantItem(item.id, 'shop'); addFloat(room, v.x, v.y - 66, `GOT: ${item.name}`, item.color || '#ffd36e', true, 1.4); }
+      // make the purchase FELT — a real reward beat: slow-mo, flash, twin rings in the
+      // item's colour, a big shard burst, shake, and the item streaking up to the player.
+      const col = (item && item.color) || '#ffd36e';
+      if (item) { grantItem(item.id, 'shop'); addFloat(room, v.x, v.y - 66, item.name, col, true, 1.5); }
       else addFloat(room, v.x, v.y - 66, 'STOCK OUT', '#ffd36e', true, 1.0);
-      burst(room, v.x, v.y, '#ffd36e', 28, 340, 0.6, 4);
-      sfx('pickup');
+      burst(room, v.x, v.y, col, 44, 520, 0.85, 6);
+      burst(room, v.x, v.y, '#ffffff', 18, 300, 0.6, 4);
+      ripple(room, v.x, v.y, '#ffffff', 210, 0.7); ripple(room, v.x, v.y, col, 140, 0.6);
+      addFlash(0.3); addShake(0.45); slowMo(0.22);
+      sfx('pickup'); sfx('care');
     } else {
       addFloat(room, v.x, v.y - 66, `NEED ${v.cost}`, '#ff8a8a', true, 0.9);
       sfx('break');

@@ -358,10 +358,24 @@ function drawHazardsUnder(room, pal) {
         ctx.beginPath(); ctx.arc(h.x, h.y, h.r * 0.96, 0, TAU); ctx.stroke();
       }
     } else if (h.type === 'pulse' || h.type === 'ritual') {
-      ctx.strokeStyle = hexA(h.color, 0.8); ctx.lineWidth = 2.4;
-      ctx.beginPath(); ctx.arc(h.x, h.y, h.r * (0.8 + Math.sin(t * 2 + h.phase) * 0.1), 0, TAU); ctx.stroke();
-      ctx.fillStyle = hexA(h.color, 0.25);
-      ctx.beginPath(); ctx.arc(h.x, h.y, h.r * 0.45, 0, TAU); ctx.fill();
+      // ARCHITECTURE, not a creature: a floor-mounted emitter (geometric hexagonal rune +
+      // spokes + a slowly-spinning core) so it clearly reads as a fixture you DODGE, not an
+      // enemy you kill. The danger is the expanding shockwave, drawn separately.
+      const rr = h.r * 0.58;
+      ctx.save(); ctx.translate(h.x, h.y);
+      ctx.strokeStyle = hexA(h.color, 0.62); ctx.lineWidth = 2.4; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + Math.PI / 6, px = Math.cos(a) * rr, py = Math.sin(a) * rr; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.closePath(); ctx.stroke();
+      ctx.globalAlpha = 0.4; ctx.lineWidth = 1.3;
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + Math.PI / 6; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); ctx.stroke(); }
+      ctx.rotate(t * (h.type === 'ritual' ? 0.55 : -0.42));   // a powered, rotating fixture
+      ctx.globalAlpha = 0.85; ctx.strokeStyle = hexA(h.color, 0.9); ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < 3; i++) { const a = (i / 3) * TAU, b = a + 2.094; ctx.moveTo(Math.cos(a) * rr * 0.62, Math.sin(a) * rr * 0.62); ctx.lineTo(Math.cos(b) * rr * 0.62, Math.sin(b) * rr * 0.62); }
+      ctx.stroke();
+      ctx.fillStyle = hexA(h.color, 0.3); ctx.beginPath(); ctx.arc(0, 0, rr * 0.22, 0, TAU); ctx.fill();
+      ctx.restore();
       if (h.on && h.wave > 0) {
         ctx.strokeStyle = hexA(h.color, clamp(1 - h.wave / h.waveSpan, 0.15, 0.9));
         ctx.lineWidth = 7;
