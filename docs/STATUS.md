@@ -26,6 +26,11 @@ light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
   crossing lanes fought each other (net slowdown at junctions) — now you ride only the single
   best-aligned lane. Perf: dropped per-stroke `shadowBlur` (it hung rendering at city scale —
   bloom gives the glow free) + trimmed the lane grid.
+- **Moving floor** (`drawFloorMotion`, also from ChatGPT). The floor is alive: slow water/
+  stained-glass currents + a biome-specific motion language per hazard tag (pulse→rings,
+  thorn→tendrils, shard→glints, fog→drift, lane→wobble). No shadowBlur (perf-safe); gated by
+  `reduced()`/`lowFx` so mobile pays nothing. (Skipped its `clearNode` pilgrimage line — we
+  already bake a pilgrimage path.)
 - **City-scale rooms + constant flow.** Rooms are now ~2× area (≈2800×2150, 6+ Mpx, "almost a
   city"); cover/ambient/enemy budget all scale with area so the sprawl stays *full of action*,
   not empty. **Always-fire + auto-aim** (the gun never stops — locks the nearest enemy when you
@@ -110,8 +115,10 @@ light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
 ## Next up (the "neon cyberpunk space districts" vision — not started)
 
-- **Moving floor / living sprawl:** ChatGPT's build has a `drawFloorMotion` (animated floor) I
-  didn't port yet — the player asked "did we ever make the floor move." Adds flash + life.
+- **Player choice at major beats (ChatGPT's top suggestion):** auto-grant is fast but kills the
+  "I chose this build" feeling. Hybrid options: a real draft after bosses, OR — better for flow —
+  an in-world "grab your graft" (drop 2-3 power-up pickups after a boss; you grab one, no menu
+  stop). *Pending the player's call — they were emphatic about no forced choice.*
 - **Push the neon further:** brighter palettes; per-district color/biome variation within one
   sprawl (right now districts share the room's biome colour — could vary them).
 - **Cooler bosses** (lesson from the space game) + more combo/flash juice.
@@ -120,7 +127,9 @@ light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **Neon districts in one sprawl** (this pass) — ported ChatGPT's district slabs (non-colliding
+1. **Moving floor** (this pass) — ported ChatGPT's `drawFloorMotion`: live biome-specific floor
+   currents. Perf-safe (no shadowBlur; mobile-off via lowFx). Verified clean. **UNPLAYED.**
+2. **Neon districts in one sprawl** (`9b1e575`) — ported ChatGPT's district slabs (non-colliding
    city blocks) + flow lanes (neon boost boulevards) + district naming onto our branch; skipped
    its heavy gun-kick + surge/clear-node. Fixed a junction-slowdown bug (ride only the best lane);
    dropped shadowBlur (perf hang). +5 headless checks, Chromium-confirmed visually. **UNPLAYED.**

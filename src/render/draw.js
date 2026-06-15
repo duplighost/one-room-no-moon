@@ -42,6 +42,7 @@ export function drawFrame() {
   // baked background
   if (room.background) ctx.drawImage(room.background, 0, 0);
   else { ctx.fillStyle = pal.floor; ctx.fillRect(0, 0, room.w, room.h); }
+  drawFloorMotion(room, pal);    // the living, moving floor — biome-specific currents
   drawFlowLanes(room, pal, p);   // animated neon boost boulevards over the baked floor
 
   // wall frame
@@ -180,6 +181,70 @@ function drawTiers(room, pal) {
     }
     ctx.restore();
   }
+}
+
+// The living, moving floor: slow biome-specific currents under the fight. Ported from
+// ChatGPT's "neon districts" build. No shadowBlur (perf), gated by reduced()/lowFx.
+function drawFloorMotion(room, pal) {
+  if (reduced() || state.lowFx) return;
+  const t = room.time || performance.now() / 1000;
+  const wall = room.wall + 22;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  // slow water/stained-glass currents (faint — preserve biome identity, not neon soup)
+  const gap = room.bossId ? 82 : 108;
+  const wave = 8 + Math.sin(t * 0.7) * 2;
+  ctx.globalAlpha = room.cleared ? 0.055 : 0.085;
+  ctx.strokeStyle = pal.accent2;
+  ctx.lineWidth = 1.35;
+  for (let y = wall + ((t * 36) % gap); y < room.h - wall; y += gap) {
+    ctx.beginPath();
+    for (let x = wall; x <= room.w - wall; x += 64) {
+      const yy = y + Math.sin(t * 1.45 + x * 0.012 + y * 0.017) * wave;
+      if (x === wall) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+    }
+    ctx.stroke();
+  }
+  // biome-specific motion language (keyed on the biome's hazard tag)
+  const hazard = room.biome.hazard;
+  if (hazard === 'pulse' || hazard === 'ritual') {
+    ctx.globalAlpha = room.cleared ? 0.08 : 0.12; ctx.strokeStyle = pal.accent; ctx.lineWidth = 2.2;
+    const cx = room.w / 2, cy = room.h * 0.46;
+    for (let i = 0; i < 4; i++) {
+      const r = 120 + i * 82 + Math.sin(t * 1.8 + i) * 9;
+      ctx.beginPath(); ctx.ellipse(cx, cy, r, r * 0.58, 0, 0, TAU); ctx.stroke();
+    }
+  } else if (hazard === 'lane' || hazard === 'sightline') {
+    ctx.globalAlpha = room.cleared ? 0.06 : 0.10; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 2;
+    for (let x = wall + 70; x < room.w - wall; x += 180) {
+      const wob = Math.sin(t * 1.2 + x * 0.01) * 16;
+      ctx.beginPath(); ctx.moveTo(x, wall + 60); ctx.lineTo(x + wob, room.h - wall - 60); ctx.stroke();
+    }
+  } else if (hazard === 'thorn' || hazard === 'snare') {
+    ctx.globalAlpha = room.cleared ? 0.055 : 0.09; ctx.strokeStyle = pal.accent; ctx.lineWidth = 2.1;
+    for (let i = 0; i < 7; i++) {
+      const y = wall + 120 + i * ((room.h - wall * 2 - 240) / 6);
+      const side = i % 2 ? room.w - wall : wall, dir = i % 2 ? -1 : 1;
+      ctx.beginPath(); ctx.moveTo(side, y);
+      ctx.bezierCurveTo(side + dir * 160, y + Math.sin(t + i) * 34, room.w / 2 + dir * 80, y + Math.cos(t * 0.8 + i) * 48, room.w / 2, room.h * 0.46);
+      ctx.stroke();
+    }
+  } else if (hazard === 'shard' || hazard === 'volatile') {
+    ctx.globalAlpha = room.cleared ? 0.07 : 0.13; ctx.strokeStyle = pal.accent2; ctx.lineWidth = 2.4;
+    for (let i = 0; i < 18; i++) {
+      const x = wall + ((i * 137 + Math.sin(t + i) * 24) % Math.max(1, room.w - wall * 2));
+      const y = wall + ((i * 211 + Math.cos(t * 0.7 + i) * 28) % Math.max(1, room.h - wall * 2));
+      ctx.beginPath(); ctx.moveTo(x - 18, y + 18); ctx.lineTo(x + 18, y - 18); ctx.stroke();
+    }
+  } else if (hazard === 'fog' || hazard === 'spore') {
+    ctx.globalAlpha = room.cleared ? 0.045 : 0.075; ctx.strokeStyle = pal.accent; ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      const x = wall + ((i * 251 + t * 30) % Math.max(1, room.w - wall * 2));
+      const y = room.h * (0.26 + (i % 5) * 0.12) + Math.sin(t * 0.8 + i) * 22;
+      ctx.beginPath(); ctx.ellipse(x, y, 62 + i * 3, 22 + Math.sin(t + i) * 5, 0, 0, TAU); ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 // Animated neon boost boulevards (the flow lanes). Additive glow + scrolling dashes;
