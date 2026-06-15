@@ -21,7 +21,29 @@ cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions across all 22 biomes (4 live hazard kits — pulse/ritual/lane/
 sightline — the spitter kits are retired) and all 8+ enemy AIs.
 
-## Distinct, well-fleshed neighborhoods (player-directed + ChatGPT Round 2, 2026-06-15 latest)
+## Bosses — a signature gimmick each (player-directed, 2026-06-15 latest)
+
+Player picked "signature gimmick each." The four bosses were all "summon + fire rings"; each now
+has one unforgettable, readable, dash-rewarding mechanic (in `systems/bosses.js` brains + hooks):
+
+- **False Moon** — gravity *false pull*: telegraphed inhale (`armT`) then drags the player in
+  (`p.vx/vy += pull`), then a ring blast on release. Dash (i-frames + speed) beats the gravity.
+- **Graven Warden** — *rotating shield gap*: `e.shield`/`shieldAngle`/`gapHalf` rotate; `combat.js`
+  `damageEnemy` checks the hit direction (kx,ky) vs the gap and drops off-gap damage to 12%
+  (sparks). Shoot it, or **dash through the gap** into the core. Rendered as a gold arc + gap arrow
+  in `sprites.js`.
+- **Spiggot** — *spore spiral*: below half HP, a slow rotating 3-arm `fireEnemyShot` stream — a
+  readable spiral you weave/dash through (plus the existing brood/fog).
+- **Null Archon** (final) — *weaponizes the city*: arms the flow lanes (`laneArmT`, red warning
+  flash) then they go **lethal** (`laneLiveT`) — standing on a boulevard calls `hurtPlayer`.
+  `draw.js` `drawFlowLanes` reads the boss's lane state and lights the lanes red.
+
+New imports: bosses.js now pulls `hurtPlayer` (combat), `distPointSegment` (hazards), `ripple`/
+`addShake`/`addFlash`. No import cycle issue (all called at runtime). Verified: parse, 108 headless
+(boss flow incl. archon), stress (fights False Moon @5 + Warden @10 live, no crash), Chromium —
+shield arc + lethal-red lanes both render clearly, no console errors. UNPLAYED.
+
+## Distinct, well-fleshed neighborhoods (player-directed + ChatGPT Round 2, 2026-06-15)
 
 Player: "really distinct well-fleshed world and neighborhoods first, then amazing bosses." Shared
 ChatGPT's "Giant Round 2" build (v0.5.2, source + patch + playable). Reviewed the patch and took

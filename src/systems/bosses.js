@@ -6,8 +6,10 @@ import { TAU } from '../config.js';
 import { clamp, damp, dist, norm } from '../rng.js';
 import { fireEnemyBurst, fireEnemyRing, fireEnemyShot } from './bullets.js';
 import { spawnTelegraphed, makeEnemy } from './enemies.js';
-import { addFloat, burst } from '../render/particles.js';
-import { addSlowFog } from './hazards.js';
+import { addFloat, burst, ripple } from '../render/particles.js';
+import { addSlowFog, distPointSegment } from './hazards.js';
+import { hurtPlayer } from './combat.js';
+import { addShake, addFlash } from './juice.js';
 import { sfx } from '../audio/sfx.js';
 
 export const BOSSES = {
@@ -50,6 +52,10 @@ export function makeBoss(bossId, room) {
     r: def.r, hp: def.hp * hpScale, maxHp: def.hp * hpScale,
     speed: def.speed * spdScale, color: def.color, score: def.score,
     brain: def.brain, fireCd: 1.2, ringCd: 2.4, dashCd: 3.4, summons: 0, phaseLock: 0,
+    // signature-gimmick state: shield gap (warden), gravity pull (false moon),
+    // spore spiral (spiggot), city-lane weapon (archon).
+    shieldAngle: 0, gapHalf: 0.6, pullCd: 4, pullT: 0, armT: 0,
+    spiralA: 0, spiralCd: 0, laneCd: 6, laneArmT: 0, laneLiveT: 0, laneHitCd: 0,
   });
   return e;
 }
@@ -79,6 +85,13 @@ function wardenBrain(e, room, p, to, d, dt) {
   if (hpFrac < 0.75 && e.summons < 1) { e.summons = 1; e.phaseLock = 0.70; summonFromBoss(e, ['skitter', 'gunner'], room); }
   if (hpFrac < 0.46 && e.summons < 2) { e.summons = 2; e.phaseLock = 0.82; summonFromBoss(e, ['charger', 'brute'], room); }
   const phase3 = hpFrac < 0.46;
+
+  // ★ SIGNATURE: armored, with one rotating GAP in its shield. Only hits/dashes that
+  // come through the gap deal full damage — everything else sparks off (combat.js).
+  e.shield = true;
+  e.shieldAngle = (e.shieldAngle + dt * (phase3 ? 2.1 : 1.4)) % TAU;
+  e.gapHalf = phase3 ? 0.5 : 0.62;
+  e.shieldSpark = Math.max(0, (e.shieldSpark || 0) - dt);
 
   let ax = to.x * e.speed * 0.78, ay = to.y * e.speed * 0.78;
   if (e.phaseLock > 0) { ax *= 0.2; ay *= 0.2; }
@@ -118,6 +131,28 @@ function archonBrain(e, room, p, to, d, dt) {
   }
   e.vx = damp(e.vx, ax, 5, dt); e.vy = damp(e.vy, ay, 5, dt);
 
+  // ★ SIGNATURE: weaponize the city. Arm the flow lanes (telegraph: they flash red),
+  // then they turn LETHAL — standing on a boost boulevard burns you. Get off the neon.
+  // (draw.js reads laneArmT/laneLiveT off this boss to light the lanes.)
+  e.laneCd -= dt;
+  const lanes = room.flowLanes || [];
+  if (e.laneCd <= 0 && lanes.length) {
+    e.laneCd = enraged ? 5.5 : 7.5; e.laneArmT = 1.3;
+    addFloat(room, room.w / 2, room.wall + 90, 'THE CITY TURNS', '#ff6b6b', true, 1.0);
+    sfx('telegraph'); addFlash(0.18);
+  }
+  if (e.laneArmT > 0) { e.laneArmT -= dt; if (e.laneArmT <= 0) e.laneLiveT = enraged ? 2.2 : 1.7; }
+  if (e.laneLiveT > 0) {
+    e.laneLiveT -= dt; e.laneHitCd -= dt;
+    if (p.inv <= 0 && e.laneHitCd <= 0) {
+      for (const l of lanes) {
+        if (distPointSegment(p.x, p.y, l.x1, l.y1, l.x2, l.y2) < (l.width || 78) * 0.5 + p.r) {
+          e.laneHitCd = 0.55; hurtPlayer(1, p.x, p.y, 'archon'); break;
+        }
+      }
+    }
+  }
+
   e.fireCd -= dt; e.ringCd -= dt;
   if (e.phaseLock <= 0) {
     if (e.fireCd <= 0) {
@@ -141,6 +176,26 @@ function falseMoonBrain(e, room, p, to, d, dt) {
   const ax = to.x * e.speed * want + Math.cos(orbit) * e.speed * 0.85;
   const ay = to.y * e.speed * want + Math.sin(orbit) * e.speed * 0.85;
   e.vx = damp(e.vx, ax, 5.5, dt); e.vy = damp(e.vy, ay, 5.5, dt);
+
+  // ★ SIGNATURE: the false moon INHALES (telegraph) then drags you in, then blasts a
+  // ring outward. Dash to break the pull — i-frames + dash speed beat the gravity.
+  e.pullCd -= dt;
+  if (e.pullCd <= 0 && d < 820) {
+    e.pullCd = 5.6; e.armT = 0.7; e.pullT = 0.8;
+    addFloat(room, e.x, e.y - e.r - 28, 'FALSE PULL', '#f0b8ff', true, 0.8);
+    ripple(room, e.x, e.y, '#f0b8ff', 130, 0.7); sfx('telegraph');
+  }
+  if (e.armT > 0) { e.armT -= dt; }                 // wind-up (read the inhale)
+  else if (e.pullT > 0) {
+    e.pullT -= dt;
+    const k = norm(e.x - p.x, e.y - p.y);
+    const force = 560 * (0.5 + 0.5 * clamp(1 - d / 820, 0, 1));
+    p.vx += k.x * force * dt; p.vy += k.y * force * dt;
+    if (e.pullT <= dt) { // release: ring blast outward
+      fireEnemyRing(room, e, 16, 250 + idx * 8, 3.6, '#f0b8ff', e.phase);
+      burst(room, e.x, e.y, '#f0b8ff', 22, 300, 0.5, 3); addShake(0.3);
+    }
+  }
 
   e.fireCd -= dt; e.ringCd -= dt;
   if (e.fireCd <= 0 && d < 820) {
@@ -176,6 +231,18 @@ function spiggotBrain(e, room, p, to, d, dt) {
   if (e.fireCd <= 0 && d < 600) {
     e.fireCd = 1.5;
     fireEnemyBurst(room, e, p.x, p.y, 3, 0.34, 250 + idx * 8, 2.9, '#c596ff');
+  }
+  // ★ SIGNATURE: below half HP, a slow rotating 3-arm spore SPIRAL you weave/dash through.
+  if (hpFrac < 0.5) {
+    e.spiralA += dt * 2.6;
+    e.spiralCd -= dt;
+    if (e.spiralCd <= 0) {
+      e.spiralCd = 0.10;
+      for (let arm = 0; arm < 3; arm++) {
+        const a = e.spiralA + arm * (TAU / 3);
+        fireEnemyShot(room, e, Math.cos(a), Math.sin(a), 200 + idx * 5, 4.6, 3.4, '#9effdc');
+      }
+    }
   }
   // brood at 75/50/25%
   const broodAt = [0.75, 0.5, 0.25];

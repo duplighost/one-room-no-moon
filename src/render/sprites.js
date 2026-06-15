@@ -451,6 +451,23 @@ export function drawEnemy(ctx, e, room) {
   }
   ctx.restore();
 
+  // Warden's rotating shield: an armour arc with one open GAP. Aim/dash through the
+  // gap (the opening) — hits anywhere else spark off (combat.js).
+  if (e.shield) {
+    const sr = e.r + 16, gap = e.gapHalf || 0.6, spark = (e.shieldSpark || 0) > 0;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = spark ? '#ffffff' : hexA('#ffe27d', 0.7);
+    ctx.shadowColor = '#ffe27d'; ctx.shadowBlur = spark ? 16 : 8;
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(e.x, e.y, sr, e.shieldAngle + gap, e.shieldAngle + TAU - gap); ctx.stroke();
+    // little arrow at the gap so the opening reads as "shoot here"
+    ctx.globalAlpha = 0.8; ctx.strokeStyle = hexA('#ffffff', 0.85); ctx.lineWidth = 2.4; ctx.shadowBlur = 0;
+    const ga = e.shieldAngle, gx = e.x + Math.cos(ga) * sr, gy = e.y + Math.sin(ga) * sr;
+    ctx.beginPath(); ctx.arc(gx, gy, 7, 0, TAU); ctx.stroke();
+    ctx.restore();
+  }
+
   // staggered: reeling from a dash blow — woozy stun-stars orbit the head, a clear
   // "off-balance, finish me" read that sets up the satisfying kill.
   if (!e.boss && e.stun > 0.12) {

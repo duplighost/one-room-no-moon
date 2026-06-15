@@ -16,6 +16,15 @@ Living snapshot of where we are. Full history + rationale lives in
 Direction shifted hard toward **"endless neon cyberpunk space districts" — constant flow state,
 light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
+- **Bosses with a signature gimmick each** (player picked "signature gimmick each"). Each boss now
+  has one unforgettable, readable, dash-rewarding mechanic on top of its attacks:
+  **False Moon** → a gravity **"false pull"** (telegraphed inhale drags you in → dash to escape →
+  ring blast); **Graven Warden** → a **rotating shield gap** (armoured except through a spinning
+  gap — shoot it or *dash through* into the core; off-gap hits spark off, combat.js); **Spiggot**
+  → a **spore spiral** (rotating 3-arm stream below half HP you weave/dash through); **Null Archon**
+  (final) → **weaponizes the city** — arms the flow lanes (red warning flash) then they turn
+  **lethal** (standing on a boulevard burns you; get off the neon). Verified live (stress fights
+  False Moon + Warden), Chromium-confirmed both signature visuals (shield arc, lethal red lanes).
 - **Distinct, well-fleshed neighborhoods.** Each district now gets a **distinct neon hue** (spread
   around the colour wheel from a room-random base, drawn additively so it glows) — a single sprawl
   reads as different neighborhoods, not one colour (the *"really distinct"* ask; neither build had
@@ -128,13 +137,17 @@ light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
 - **Push the neon further:** brighter palettes; per-district color/biome variation within one
   sprawl (right now districts share the room's biome colour — could vary them).
-- **Cooler bosses** (lesson from the space game) + more combo/flash juice.
+- **More boss theatre** (the signature gimmicks landed; could add multi-phase transforms +
+  arena-as-weapon to the others) + more combo/flash juice.
 - **"Full but not obstructive" tuning:** keep filling the sprawl with *non-collision* richness
   (decals/ambient/enemies) over hard cover, if playtest says it still gets in the way.
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **Distinct, well-fleshed neighborhoods** (this pass) — per-district neon hues (distinct
+1. **Bosses — signature gimmick each** (this pass) — False Moon gravity pull, Warden rotating
+   shield gap (combat.js damage-through-the-gap), Spiggot spore spiral, Archon city-lethal lanes
+   (draw.js red lanes). Stress fights False Moon + Warden live; Chromium-confirmed visuals. **UNPLAYED.**
+2. **Distinct, well-fleshed neighborhoods** (`c5d1a33`) — per-district neon hues (distinct
    neighborhoods); ported ChatGPT Round-2 city dressing (skyways/signs/traffic, baked) + denser
    district grid; background-scaling + bake own-RNG isolation. 111 headless, Chromium clean, perf
    unchanged. **UNPLAYED.** Dials: district hue alpha in `paintNeonDistricts`; grid size + dressing

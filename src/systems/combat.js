@@ -1,6 +1,6 @@
 // Shared damage/kill/hurt resolution — the one place hp changes hands.
 import { state } from '../state.js';
-import { PLAYER } from '../config.js';
+import { PLAYER, TAU } from '../config.js';
 import { norm } from '../rng.js';
 import { particle, burst, addFloat, ripple } from '../render/particles.js';
 import { addShake, addFlash, hitPause, haptic, slowMo } from './juice.js';
@@ -12,6 +12,13 @@ export function damageEnemy(e, dmg, kx = 0, ky = 0, kind = 'shot') {
   if (e.hp <= 0) return;
   const wasStaggered = (e.stun || 0) > 0.12;   // already reeling before this blow?
   dmg = hooks.reduce('modDamage', dmg, e, kind);
+  // Warden's rotating shield gap: only hits/dashes that come through the GAP land full
+  // damage; everything else sparks off the armour. (kx,ky is the hit direction.)
+  if (e.shield && (kx || ky)) {
+    const hitAng = Math.atan2(-ky, -kx);
+    const diff = Math.abs(((hitAng - (e.shieldAngle || 0) + Math.PI) % TAU + TAU) % TAU - Math.PI);
+    if (diff > (e.gapHalf || 0.6)) { dmg *= 0.12; e.shieldSpark = 0.12; }
+  }
   e.hp -= dmg;
   e.vx += kx; e.vy += ky;
   e.hit = Math.max(e.hit || 0, kind === 'dash' ? 0.18 : 0.11);

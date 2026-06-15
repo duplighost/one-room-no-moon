@@ -253,17 +253,23 @@ function drawFlowLanes(room, pal, player) {
   const lanes = room.flowLanes || [];
   if (!lanes.length || reduced()) return;
   const t = room.time || performance.now() / 1000;
+  // Null Archon signature: the boss can weaponize the lanes — armed (warning flash)
+  // then lethal (burns you). Light them up red so the danger is unmissable.
+  const archon = room.enemies.find(en => en.bossId === 'archon');
+  const arming = archon && (archon.laneArmT || 0) > 0;
+  const lethal = archon && (archon.laneLiveT || 0) > 0;
+  const dangerPulse = lethal ? 0.5 + 0.5 * Math.abs(Math.sin(t * 12)) : arming ? 0.4 * Math.abs(Math.sin(t * 22)) : 0;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.lineCap = 'round';
   for (const l of lanes) {
     const active = player && flowDist(player.x, player.y, l.x1, l.y1, l.x2, l.y2) < (l.width || 78) + player.r + 12;
-    const color = l.color || pal.accent3;
+    const color = (arming || lethal) ? '#ff4d4d' : (l.color || pal.accent3);
     const width = l.width || 78;
     // NOTE: no ctx.shadowBlur here — at city scale (long strokes × ~14 lanes × 3
     // passes/frame) it tanks the frame rate. The 'lighter' blend + the bloom pass
     // give the neon glow for free.
-    ctx.globalAlpha = active ? 0.22 : 0.12;
+    ctx.globalAlpha = (active ? 0.22 : 0.12) + dangerPulse * 0.55;
     ctx.strokeStyle = color; ctx.lineWidth = width;
     ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke();
     ctx.globalAlpha = active ? 0.72 : 0.34;
