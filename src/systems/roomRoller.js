@@ -169,7 +169,9 @@ export function rollRoom(run, round) {
   // More verticality: most non-boss rooms get raised platforms now (sometimes two),
   // and maybeTier also drops launch VENTS that fling you up onto them in a cool spot.
   if (!bossId && !partitioned) {
-    const nTiers = chance(rng, 0.58) ? (room.w * room.h > 9_000_000 && chance(rng, 0.4) ? 2 : 1) : 0;
+    // more upper-layer places to reach: big rooms can stack 2-3 decks, normal rooms 1-2
+    const big = room.w * room.h > 9_000_000;
+    const nTiers = chance(rng, 0.66) ? (big ? (chance(rng, 0.45) ? 3 : 2) : (chance(rng, 0.32) ? 2 : 1)) : 0;
     for (let i = 0; i < nTiers; i++) maybeTier(room, rng, px, py, portalX, portalY);
   }
 
