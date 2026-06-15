@@ -10,6 +10,7 @@ import { hooks } from './items.js';
 
 export function damageEnemy(e, dmg, kx = 0, ky = 0, kind = 'shot') {
   if (e.hp <= 0) return;
+  if (e.invulnT > 0) { e.shieldSpark = 0.1; return; } // mid phase-shift transformation: untouchable
   const wasStaggered = (e.stun || 0) > 0.12;   // already reeling before this blow?
   dmg = hooks.reduce('modDamage', dmg, e, kind);
   // Warden's rotating shield gap: only hits/dashes that come through the GAP land full

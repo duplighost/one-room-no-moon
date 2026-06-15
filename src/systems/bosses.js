@@ -77,6 +77,26 @@ function summonFromBoss(boss, types, room) {
   sfx('telegraph');
 }
 
+// A boss crossing 50% HP TRANSFORMS — a theatrical phase shift: wipe incoming fire
+// (a fair reset, not a free hit), shockwave + flash + shake, the boss grows/recolors
+// and goes ENRAGED, briefly untouchable while it changes. Each brain escalates its
+// signature gimmick off e.enraged afterward.
+function bossPhaseShift(e, room, label, hotColor) {
+  e.phased = true;
+  e.enraged = true;
+  e.invulnT = 0.75;
+  e.phaseLock = Math.max(e.phaseLock || 0, 0.75);
+  e.color = hotColor || e.color;
+  e.r *= 1.08;
+  room.bullets = room.bullets.filter(b => b.owner !== 'enemy'); // dramatic bullet-wipe
+  burst(room, e.x, e.y, hotColor || e.color, 44, 480, 0.85, 5);
+  ripple(room, e.x, e.y, '#ffffff', 340, 1.0);
+  ripple(room, e.x, e.y, hotColor || e.color, 240, 0.85);
+  addFlash(0.5); addShake(0.95);
+  addFloat(room, e.x, e.y - e.r - 38, label, hotColor || '#ffffff', true, 1.5);
+  sfx('pulse'); sfx('clear');
+}
+
 // ── Graven Warden (game_inline.js:9025-9055) ────────────────────────────────
 function wardenBrain(e, room, p, to, d, dt) {
   const idx = room.idx;
@@ -84,13 +104,15 @@ function wardenBrain(e, room, p, to, d, dt) {
   e.phaseLock = Math.max(0, (e.phaseLock || 0) - dt);
   if (hpFrac < 0.75 && e.summons < 1) { e.summons = 1; e.phaseLock = 0.70; summonFromBoss(e, ['skitter', 'gunner'], room); }
   if (hpFrac < 0.46 && e.summons < 2) { e.summons = 2; e.phaseLock = 0.82; summonFromBoss(e, ['charger', 'brute'], room); }
-  const phase3 = hpFrac < 0.46;
+  if (hpFrac < 0.5 && !e.phased) bossPhaseShift(e, room, 'THE WARDEN UNSEALS', '#ffd24d');
+  const phase3 = hpFrac < 0.46 || e.enraged;
 
   // ★ SIGNATURE: armored, with one rotating GAP in its shield. Only hits/dashes that
   // come through the gap deal full damage — everything else sparks off (combat.js).
+  // Enraged: the shield spins faster and the gap narrows — the window gets meaner.
   e.shield = true;
-  e.shieldAngle = (e.shieldAngle + dt * (phase3 ? 2.1 : 1.4)) % TAU;
-  e.gapHalf = phase3 ? 0.5 : 0.62;
+  e.shieldAngle = (e.shieldAngle + dt * (e.enraged ? 2.4 : 1.4)) % TAU;
+  e.gapHalf = e.enraged ? 0.46 : 0.62;
   e.shieldSpark = Math.max(0, (e.shieldSpark || 0) - dt);
 
   let ax = to.x * e.speed * 0.78, ay = to.y * e.speed * 0.78;
@@ -119,7 +141,8 @@ function archonBrain(e, room, p, to, d, dt) {
   if (hpFrac < 0.82 && e.summons < 1) { e.summons = 1; e.phaseLock = 0.7; summonFromBoss(e, ['charger', 'sniper'], room); }
   if (hpFrac < 0.58 && e.summons < 2) { e.summons = 2; e.phaseLock = 0.7; summonFromBoss(e, ['hexer', 'myrmidon'], room); }
   if (hpFrac < 0.34 && e.summons < 3) { e.summons = 3; e.phaseLock = 0.82; summonFromBoss(e, ['brute', 'sniper', 'hexer'], room); }
-  const enraged = hpFrac < 0.34;
+  if (hpFrac < 0.5 && !e.phased) bossPhaseShift(e, room, 'THE NULL UNFOLDS', '#ff9bf5');
+  const enraged = hpFrac < 0.34 || e.enraged;
 
   let ax = to.x * e.speed * 0.88, ay = to.y * e.speed * 0.88;
   if (e.phaseLock > 0) { ax *= 0.2; ay *= 0.2; }
@@ -177,11 +200,14 @@ function falseMoonBrain(e, room, p, to, d, dt) {
   const ay = to.y * e.speed * want + Math.sin(orbit) * e.speed * 0.85;
   e.vx = damp(e.vx, ax, 5.5, dt); e.vy = damp(e.vy, ay, 5.5, dt);
 
+  if (hpFrac < 0.5 && !e.phased) bossPhaseShift(e, room, 'THE MOON SHEDS ITS MASK', '#ff7be0');
+
   // ★ SIGNATURE: the false moon INHALES (telegraph) then drags you in, then blasts a
   // ring outward. Dash to break the pull — i-frames + dash speed beat the gravity.
+  // Enraged: it pulls more often and harder.
   e.pullCd -= dt;
   if (e.pullCd <= 0 && d < 820) {
-    e.pullCd = 5.6; e.armT = 0.7; e.pullT = 0.8;
+    e.pullCd = e.enraged ? 4.0 : 5.6; e.armT = e.enraged ? 0.55 : 0.7; e.pullT = 0.8;
     addFloat(room, e.x, e.y - e.r - 28, 'FALSE PULL', '#f0b8ff', true, 0.8);
     ripple(room, e.x, e.y, '#f0b8ff', 130, 0.7); sfx('telegraph');
   }
@@ -232,14 +258,17 @@ function spiggotBrain(e, room, p, to, d, dt) {
     e.fireCd = 1.5;
     fireEnemyBurst(room, e, p.x, p.y, 3, 0.34, 250 + idx * 8, 2.9, '#c596ff');
   }
-  // ★ SIGNATURE: below half HP, a slow rotating 3-arm spore SPIRAL you weave/dash through.
-  if (hpFrac < 0.5) {
-    e.spiralA += dt * 2.6;
+  if (hpFrac < 0.5 && !e.phased) bossPhaseShift(e, room, 'SPIGGOT BLOOMS OPEN', '#6effc0');
+  // ★ SIGNATURE: once it blooms (≤50% HP), a slow rotating spore SPIRAL you weave/dash
+  // through — a 4th arm and a faster cadence once enraged.
+  if (e.enraged) {
+    const arms = 4;
+    e.spiralA += dt * 2.8;
     e.spiralCd -= dt;
     if (e.spiralCd <= 0) {
-      e.spiralCd = 0.10;
-      for (let arm = 0; arm < 3; arm++) {
-        const a = e.spiralA + arm * (TAU / 3);
+      e.spiralCd = 0.092;
+      for (let arm = 0; arm < arms; arm++) {
+        const a = e.spiralA + arm * (TAU / arms);
         fireEnemyShot(room, e, Math.cos(a), Math.sin(a), 200 + idx * 5, 4.6, 3.4, '#9effdc');
       }
     }

@@ -56,6 +56,7 @@ export function updateEnemies(room, dt) {
     e.cd -= dt;
     e.hit = Math.max(0, e.hit - dt * 5);
     e.stun = Math.max(0, e.stun - dt);
+    e.invulnT = Math.max(0, (e.invulnT || 0) - dt); // boss phase-shift untouchable window
     e.tele = Math.max(0, e.tele - dt);
     e.hopCd = Math.max(0, (e.hopCd || 0) - dt);
     if (e.slowTimer > 0) { e.slowTimer -= dt; if (e.slowTimer <= 0) e.slowMul = 1; }
