@@ -56,6 +56,7 @@ export function drawFrame() {
 
   drawTiers(room, pal);
   drawHazardsUnder(room, pal);
+  drawBossArena(room, pal);      // boss arena hooks: warden grave-slams + spiggot spore blooms
   drawMines(room);
   drawSpawnGlyphs(room);
   if (room.portal) drawPortal(room, pal);
@@ -129,6 +130,7 @@ export function drawFrame() {
     ctx.fillRect(0, 0, view.W, view.H);
   }
 
+  drawEclipse(room); // False Moon's eclipse darkens the field around the moon
   if (p && state.mode === 'play' && state.run?.oath !== 'blind') drawDangerTriangles(room, p);
   if (room.portal) drawPortalArrow(room);
   drawBossBar(room);
@@ -609,6 +611,54 @@ function drawPortalArrow(room) {
   starPath(ctx, -22 * Math.cos(angle), -22 * Math.sin(angle), 7, 3, 6);
   ctx.fill();
   ctx.restore();
+}
+
+// Boss arena hooks (world-space, on the floor): Warden grave-slams + Spiggot blooms.
+function drawBossArena(room, pal) {
+  const t = performance.now() / 1000;
+  for (const e of room.enemies) {
+    if (!e.boss) continue;
+    if (e.slams) for (const s of e.slams) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      if (s.t > 0) {
+        const fill = 1 - s.t / 0.95;
+        ctx.globalAlpha = 0.18 + 0.22 * fill; ctx.strokeStyle = '#ffd24d'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.stroke();
+        ctx.globalAlpha = 0.10 + 0.28 * fill; ctx.fillStyle = '#ffd24d';
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r * fill, 0, TAU); ctx.fill();   // the mark closes
+      } else if (s.flash > 0) {
+        ctx.globalAlpha = (s.flash / 0.3) * 0.6; ctx.fillStyle = '#fff3c4';
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+    if (e.blooms) for (const b of e.blooms) {
+      const fade = clamp(b.life / 1.2, 0, 1);
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(b.x, b.y, b.r * 0.2, b.x, b.y, b.r);
+      g.addColorStop(0, hexA('#9effdc', 0.18 * fade)); g.addColorStop(0.7, hexA('#9effdc', 0.10 * fade)); g.addColorStop(1, hexA('#9effdc', 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill();
+      ctx.globalAlpha = 0.22 * fade; ctx.strokeStyle = '#9effdc'; ctx.lineWidth = 2;
+      ctx.setLineDash([10, 10]); ctx.lineDashOffset = -t * 30;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.86, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      ctx.restore();
+    }
+  }
+}
+
+// False Moon ECLIPSE (screen-space): darkness closes in, clear around the moon.
+function drawEclipse(room) {
+  const moon = room.enemies?.find(e => e.bossId === 'falseMoon' && (e.eclipse || 0) > 0.02);
+  if (!moon || reduced()) return;
+  const k = Math.min(1, moon.eclipse) * 0.6;   // capped so the fight stays readable
+  const mx = (moon.x - cam.x) * view.scale, my = (moon.y - cam.y) * view.scale;
+  const g = ctx.createRadialGradient(mx, my, 70, mx, my, Math.max(view.W, view.H) * 0.85);
+  g.addColorStop(0, 'rgba(0,0,0,0)');
+  g.addColorStop(0.45, `rgba(3,0,10,${(0.55 * k).toFixed(3)})`);
+  g.addColorStop(1, `rgba(3,0,10,${k.toFixed(3)})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, view.W, view.H);
 }
 
 // Cinematic boss entrance: the name slams in huge + fades over the ~1s intro hold.

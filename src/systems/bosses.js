@@ -56,6 +56,7 @@ export function makeBoss(bossId, room) {
     // spore spiral (spiggot), city-lane weapon (archon).
     shieldAngle: 0, gapHalf: 0.6, pullCd: 4, pullT: 0, armT: 0,
     spiralA: 0, spiralCd: 0, laneCd: 6, laneArmT: 0, laneLiveT: 0, laneHitCd: 0,
+    slamCd: 4.6, bloomCd: 4.5, bloomHitCd: 0, eclipse: 0, // arena hooks: warden slams, spiggot blooms, moon eclipse
   });
   return e;
 }
@@ -113,6 +114,63 @@ function bossPhaseShift(e, room, label, hotColor) {
   sfx('pulse'); sfx('clear');
 }
 
+// ◆ Warden GRAVE SLAMS: marks floor zones (telegraph fills) then slams them — area
+// damage. draw.js renders e.slams (s.t = telegraph countdown, s.flash = impact).
+function updateGraveSlams(e, room, p, dt) {
+  e.slamCd -= dt;
+  if (e.slamCd <= 0) {
+    e.slamCd = e.enraged ? 3.2 : 4.8;
+    e.slams = e.slams || [];
+    const n = e.enraged ? 4 : 3;
+    for (let i = 0; i < n; i++) {
+      const sx = room.wall + 220 + Math.random() * Math.max(1, room.w - room.wall * 2 - 440);
+      const sy = room.wall + 220 + Math.random() * Math.max(1, room.h - room.wall * 2 - 440);
+      e.slams.push({ x: sx, y: sy, r: 120 + Math.random() * 70, t: 0.95, flash: 0 });
+    }
+    sfx('telegraph');
+  }
+  if (!e.slams) return;
+  for (const s of e.slams) {
+    if (s.t > 0) {
+      s.t -= dt;
+      if (s.t <= 0) {
+        s.flash = 0.3;
+        burst(room, s.x, s.y, '#ffd24d', 18, 280, 0.4, 4); addShake(0.35);
+        if (dist(p.x, p.y, s.x, s.y) < s.r + p.r) hurtPlayer(1, p.x, p.y, 'warden');
+      }
+    } else if (s.flash > 0) s.flash -= dt;
+  }
+  e.slams = e.slams.filter(s => s.t > 0 || s.flash > 0);
+}
+
+// ◆ Spiggot SPORE BLOOM: grows toxic fields that expand and drag/chip — keep moving.
+// draw.js renders e.blooms (b.r grows to b.maxR, b.life fades them out).
+function updateSporeBloom(e, room, p, dt) {
+  e.bloomCd -= dt;
+  if (e.bloomCd <= 0) {
+    e.bloomCd = e.enraged ? 2.8 : 4.4;
+    e.blooms = e.blooms || [];
+    if (e.blooms.length < 6) {
+      const a = Math.random() * TAU, dd = 60 + Math.random() * 240;
+      e.blooms.push({
+        x: clamp(e.x + Math.cos(a) * dd, room.wall + 60, room.w - room.wall - 60),
+        y: clamp(e.y + Math.sin(a) * dd, room.wall + 60, room.h - room.wall - 60),
+        r: 24, maxR: 150 + Math.random() * 110, life: 6,
+      });
+    }
+    sfx('telegraph');
+  }
+  if (!e.blooms) return;
+  e.bloomHitCd -= dt;
+  let inBloom = false;
+  for (const b of e.blooms) { b.life -= dt; b.r = Math.min(b.maxR, b.r + dt * 70); if (dist(p.x, p.y, b.x, b.y) < b.r * 0.82 + p.r) inBloom = true; }
+  if (inBloom) {
+    p.vx *= Math.pow(0.72, dt * 3); p.vy *= Math.pow(0.72, dt * 3);
+    if (e.bloomHitCd <= 0) { e.bloomHitCd = 0.85; hurtPlayer(1, p.x, p.y, 'spiggot'); }
+  }
+  e.blooms = e.blooms.filter(b => b.life > 0);
+}
+
 // ── Graven Warden (game_inline.js:9025-9055) ────────────────────────────────
 function wardenBrain(e, room, p, to, d, dt) {
   if (bossIntro(e, room, dt)) return;
@@ -131,6 +189,7 @@ function wardenBrain(e, room, p, to, d, dt) {
   e.shieldAngle = (e.shieldAngle + dt * (e.enraged ? 2.4 : 1.4)) % TAU;
   e.gapHalf = e.enraged ? 0.46 : 0.62;
   e.shieldSpark = Math.max(0, (e.shieldSpark || 0) - dt);
+  if (e.phaseLock <= 0) updateGraveSlams(e, room, p, dt); // ◆ ARENA HOOK — grave slams
 
   let ax = to.x * e.speed * 0.78, ay = to.y * e.speed * 0.78;
   if (e.phaseLock > 0) { ax *= 0.2; ay *= 0.2; }
@@ -241,6 +300,10 @@ function falseMoonBrain(e, room, p, to, d, dt) {
       burst(room, e.x, e.y, '#f0b8ff', 22, 300, 0.5, 3); addShake(0.3);
     }
   }
+  // ◆ ARENA HOOK — ECLIPSE: darkness closes in as it inhales, snaps back on the blast.
+  // (draw.js reads e.eclipse to darken the room around the moon.)
+  const eclTarget = e.armT > 0 ? clamp(1 - e.armT / (e.enraged ? 0.55 : 0.7), 0, 1) : (e.pullT > 0 ? 1 : 0);
+  e.eclipse = damp(e.eclipse || 0, eclTarget, 7, dt);
 
   e.fireCd -= dt; e.ringCd -= dt;
   if (e.fireCd <= 0 && d < 820) {
@@ -268,6 +331,7 @@ function spiggotBrain(e, room, p, to, d, dt) {
   const ax = to.x * e.speed * 0.7 + Math.cos(e.phase * 1.4) * 50;
   const ay = to.y * e.speed * 0.7 + Math.sin(e.phase * 1.2) * 50;
   e.vx = damp(e.vx, ax, 5, dt); e.vy = damp(e.vy, ay, 5, dt);
+  updateSporeBloom(e, room, p, dt); // ◆ ARENA HOOK — expanding spore fields
 
   e.ringCd -= dt; e.fireCd -= dt;
   if (e.ringCd <= 0) {
