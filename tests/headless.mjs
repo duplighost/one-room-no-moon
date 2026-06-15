@@ -105,12 +105,15 @@ check('1200 frames without exception', !threw, threw ? `→ ${threw.stack?.split
 check('enemies spawned', state.room.enemies.length + state.room.spawnQueue.length > 0 || state.room.cleared,
   `enemies=${state.room.enemies.length} queued=${state.room.spawnQueue.length}`);
 
-// combat sanity: hit one enemy
-if (state.room.enemies.length) {
-  const e = state.room.enemies[0];
-  const hp0 = e.hp;
-  damageEnemy(e, 1, 0, 0, 'shot');
-  check('damage applies', e.hp < hp0);
+// combat sanity: hit one LIVE enemy (enemies[0] can be a just-killed one awaiting removal
+// next frame — hp<=0 makes damageEnemy a no-op, which falsely failed this check).
+{
+  const e = state.room.enemies.find(en => en.hp > 0);
+  if (e) {
+    const hp0 = e.hp;
+    damageEnemy(e, 1, 1, 0, 'shot');
+    check('damage applies', e.hp < hp0, `hp ${hp0}->${e.hp} type=${e.type}`);
+  }
 }
 
 // clear the room via debug API and reach the portal flow
