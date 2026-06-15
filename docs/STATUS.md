@@ -16,6 +16,16 @@ Living snapshot of where we are. Full history + rationale lives in
 Direction shifted hard toward **"endless neon cyberpunk space districts" — constant flow state,
 light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
+- **Neon districts in one sprawl** (ported from ChatGPT's "neon districts" build, then improved).
+  Each giant room now reads as a city: **non-colliding district slabs** (city blocks baked under
+  the fight — visual fullness with *zero* added collision) + **flow lanes** (animated neon boost
+  boulevards — riding one lifts your speed cap; dashing on one is 1.55×; momentum highways across
+  the sprawl) + **district names** ("Afterlight Array · CONDUCTOR GRID · star-city floor") in the
+  HUD/transition. *Did NOT port ChatGPT's heavy gun-`kick` recoil (player dislikes it) or its
+  surge/clear-node mechanics (we have auto-grant).* **Fixed a real bug in the port:** overlapping
+  crossing lanes fought each other (net slowdown at junctions) — now you ride only the single
+  best-aligned lane. Perf: dropped per-stroke `shadowBlur` (it hung rendering at city scale —
+  bloom gives the glow free) + trimmed the lane grid.
 - **City-scale rooms + constant flow.** Rooms are now ~2× area (≈2800×2150, 6+ Mpx, "almost a
   city"); cover/ambient/enemy budget all scale with area so the sprawl stays *full of action*,
   not empty. **Always-fire + auto-aim** (the gun never stops — locks the nearest enemy when you
@@ -95,20 +105,26 @@ light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 - Bullets too small at zoom → camera `0.82` → ~`0.86` in `render/camera.js` (kept `SHOT_R` 4.2 for readability).
 - Bosses melt / too easy → `DASH_HIT_MULT`, `DASH_KILL_REFUND` (config), boss HP in `systems/bosses.js`.
 - Character / FX size → `PLAYER.DRAW_SCALE` in `config.js` (one knob: sprite + gun + emitter + rings).
+- **Flow lanes too strong / weak or too dense** → `boost` values + `hBands`/`vBands` in
+  `seedFlowLanes`; the flowing speed-cap mult (`1.5`/`1.22`) in `player.js`; lane render in `drawFlowLanes`.
 
 ## Next up (the "neon cyberpunk space districts" vision — not started)
 
-- **Neon district art re-theme:** push palettes brighter/neon; make a single sprawl read as
-  diverse *districts* (zones with their own look within one space, not one biome per room).
-- **Moving floor / living sprawl:** animate the floor (drifting light, scrolling grid, pulsing
-  emblem) — the player asked "did we ever make the floor move." Adds flash + life.
+- **Moving floor / living sprawl:** ChatGPT's build has a `drawFloorMotion` (animated floor) I
+  didn't port yet — the player asked "did we ever make the floor move." Adds flash + life.
+- **Push the neon further:** brighter palettes; per-district color/biome variation within one
+  sprawl (right now districts share the room's biome colour — could vary them).
 - **Cooler bosses** (lesson from the space game) + more combo/flash juice.
 - **"Full but not obstructive" tuning:** keep filling the sprawl with *non-collision* richness
   (decals/ambient/enemies) over hard cover, if playtest says it still gets in the way.
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **City-scale rooms + constant flow** (this pass) — ~2× rooms (6+ Mpx) with area-scaled
+1. **Neon districts in one sprawl** (this pass) — ported ChatGPT's district slabs (non-colliding
+   city blocks) + flow lanes (neon boost boulevards) + district naming onto our branch; skipped
+   its heavy gun-kick + surge/clear-node. Fixed a junction-slowdown bug (ride only the best lane);
+   dropped shadowBlur (perf hang). +5 headless checks, Chromium-confirmed visually. **UNPLAYED.**
+2. **City-scale rooms + constant flow** (`2f08cfb`) — ~2× rooms (6+ Mpx) with area-scaled
    cover/ambient/enemy budget; always-fire + auto-aim; auto-granted power-ups (no draft stop);
    fast transitions (0.62s); caps 35→52. 104 headless + stress + Chromium clean, frameP95 16.8ms.
    **UNPLAYED.**

@@ -188,7 +188,7 @@ export function updateHud() {
     ui.pulseFill.style.width = '0%';
   } else {
     const p = run.player;
-    ui.zone.textContent = room.biome.name;
+    ui.zone.textContent = room.districtName || room.biome.name;
     ui.roomNo.textContent = `round ${run.round}${run.overdrive ? ' ∞' : ''}`;
     const hearts = '♥'.repeat(Math.max(0, Math.ceil(p.hp))) + '♡'.repeat(Math.max(0, p.maxHp - Math.ceil(p.hp)));
     ui.hp.innerHTML = (p.hp <= 2 ? `<span class="hurt">${hearts}</span>` : hearts) + (p.shield ? ` +${p.shield}` : '');

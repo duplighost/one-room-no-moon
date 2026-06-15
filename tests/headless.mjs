@@ -659,5 +659,33 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   check('a dash-kill triggers slow-mo', state.fx.slowMo > 0, `slowMo=${state.fx.slowMo}`);
 }
 
+// ── neon districts: flow lanes generate + boost movement ─────────────────────
+{
+  const playerMod = await import('../src/systems/player.js');
+  const { updatePlayer } = playerMod;
+  startRun('flowlanes');
+  const room = state.room, pl = state.run.player;
+  check('flow lanes are generated', room.flowLanes.length > 0, 'lanes=' + room.flowLanes.length);
+  check('district slabs are generated', room.districts.length > 0, 'districts=' + room.districts.length);
+  check('district is named', !!room.districtName && !!room.districtSubtitle, `${room.districtName} / ${room.districtSubtitle}`);
+  // place the player on an artery and push along it — flowT should set + speed lift
+  const lane = room.flowLanes.find(l => l.kind === 'artery') || room.flowLanes[0];
+  pl.x = (lane.x1 + lane.x2) / 2; pl.y = (lane.y1 + lane.y2) / 2;
+  pl.vx = pl.vy = 0; pl.dashT = 0; pl.dashCd = 0; pl.level = 0;
+  const ln = Math.hypot(lane.x2 - lane.x1, lane.y2 - lane.y1) || 1;
+  const mv = { active: true, x: (lane.x2 - lane.x1) / ln, y: (lane.y2 - lane.y1) / ln, l: 1 };
+  const aimR = { active: false, x: 1, y: 0 };
+  for (let i = 0; i < 18; i++) updatePlayer(pl, mv, aimR, room, 1 / 60);
+  check('riding a flow lane sets flowT (boost active)', pl.flowT > 0, 'flowT=' + pl.flowT);
+  const spLane = Math.hypot(pl.vx, pl.vy);
+  // A/B: same push with the lanes removed — the lane should make you measurably faster
+  const savedLanes = room.flowLanes; room.flowLanes = [];
+  pl.x = (lane.x1 + lane.x2) / 2; pl.y = (lane.y1 + lane.y2) / 2; pl.vx = pl.vy = 0; pl.flowT = 0;
+  for (let i = 0; i < 18; i++) updatePlayer(pl, mv, aimR, room, 1 / 60);
+  const spNo = Math.hypot(pl.vx, pl.vy);
+  room.flowLanes = savedLanes;
+  check('flow lane boosts speed vs no lane', spLane > spNo + 4, `lane=${spLane.toFixed(0)} noLane=${spNo.toFixed(0)}`);
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

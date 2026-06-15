@@ -21,7 +21,41 @@ cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions across all 22 biomes (4 live hazard kits — pulse/ritual/lane/
 sightline — the spitter kits are retired) and all 8+ enemy AIs.
 
-## City-scale rooms + constant flow state (player-directed, 2026-06-15 latest)
+## Neon districts in one sprawl (player-directed, ported from ChatGPT, 2026-06-15 latest)
+
+Player picked "districts in one sprawl," then shared ChatGPT's parallel "neon districts flow
+state" build. Reviewed it (passes its own headless, clean) and **ported the gold onto our branch**
+rather than adopting it wholesale (theirs lacks our chambers / biome emblems / auto-grant / de-fang
+cover). Ported pieces, all verified:
+
+- **District slabs** (`seedDistricts` + `paintNeonDistricts` in roomRoller): a grid of NON-COLLIDING
+  rounded-rect city blocks baked under the fight + window/street grid + spawn/exit/plaza anchors.
+  Pure visual fullness — the sprawl reads as a place without adding collision (the "full but not
+  obstructive" ask, exactly).
+- **Flow lanes** (`seedFlowLanes` + `applyFlowLanes` in player + `drawFlowLanes` in draw): wide neon
+  boost boulevards (arteries spawn→portal + a 3×3 grid + diagonals). Riding one boosts you along it
+  and lifts your speed cap (×1.5 walking, dash on a lane ×1.22 of dash speed). Animated scrolling
+  dashes, brighter on the lane you're riding. Obstacles keep clear of the arteries (`nearProtected
+  FlowLane` in `fits`; arteries-only so cover density still holds >2.0/Mpx).
+- **District naming**: `rollDistrictName`/`Subtitle` → HUD zone + transition card ("Afterlight Array
+  · CONDUCTOR GRID · star-city floor").
+
+**Deliberately NOT ported:** ChatGPT's gun-`kick` recoil (player dislikes heavy knockback) and its
+surge/clear-node mechanics (we have auto-grant + fast transitions).
+
+**Two real bugs found + fixed during the port (the value of checking):**
+1. *Perf hang* — `drawFlowLanes` used `ctx.shadowBlur` on long strokes × ~14 lanes × 3 passes/frame;
+   at 6 Mpx it hung rendering (screenshot timed out). Dropped shadowBlur (bloom gives the glow free),
+   trimmed the lane grid 5+5→3+3 bands, made the bright speed-line active-lane-only.
+2. *Junction slowdown* — applying every overlapping lane's boost+steer made crossing lanes fight
+   each other (A/B test: lane 242 vs no-lane 330 — the lane slowed you!). Now you ride only the
+   single best-aligned lane. (ChatGPT's version has this latent.)
+
+Verified: 107 headless checks (incl. 5 new: lanes generate, named, flowT sets, lane boosts speed
+vs no-lane), stress, Chromium — desktop frameP95 33ms (software render; ~60fps real GPU), mobile
+~50ms, no console errors. UNPLAYED.
+
+## City-scale rooms + constant flow state (player-directed, 2026-06-15)
 
 Player went big: "endless neon cyberpunk space districts," "almost a city," "constant flow
 state," always shooting, never wait/choose/crash. This pass builds the *mechanical foundation*

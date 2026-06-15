@@ -65,6 +65,7 @@ export function rollRoom(run, round) {
     round, idx: depthIdx(round), stage: dangerStage(round, run.overdrive),
     biome, layoutId, recipeId, mutatorId: mutator?.id || null, mutator, eventId: null, bossId,
     floorplanId: 'none', openings: [], sanctum: null, tiers: [],
+    districts: [], flowLanes: [], districtName: '', districtSubtitle: '',
     // city-scale sprawl — give the player a LOT of ground to dash across. Density
     // (cover, ambient, enemy budget) scales with area below so the space stays full.
     w: Math.round((portrait ? rand(rng, 1860, 2200) : rand(rng, bossId ? 2650 : 2520, bossId ? 3120 : 2960)) * sizeScale),
@@ -78,6 +79,13 @@ export function rollRoom(run, round) {
   };
   const px = room.w / 2, py = room.h * 0.66; // player spawn
   const portalX = room.w / 2, portalY = room.h * 0.20;
+
+  // ── neon districts + flow lanes (the sprawl reads as a city) — seeded BEFORE the
+  // cover scatter so obstacles can keep clear of the boost boulevards. ──
+  room.districtName = rollDistrictName(room, rng);
+  room.districtSubtitle = rollDistrictSubtitle(room, rng);
+  seedDistricts(room, rng, px, py, portalX, portalY);
+  seedFlowLanes(room, rng, px, py, portalX, portalY);
 
   // ── floorplan (Phase 8a): partition walls before the cover scatter ──
   if (!bags.floorplan) bags.floorplan = new Bag(FLOORPLAN_IDS, 2);
@@ -421,6 +429,7 @@ function aabb(o) {
 function fits(room, o, margin = 20) {
   const w = room.wall, b = aabb(o);
   if (b.x < w + 10 || b.y < w + 10 || b.x + b.w > room.w - w - 10 || b.y + b.h > room.h - w - 10) return false;
+  if (!o.allowLane && nearProtectedFlowLane(room, o, margin)) return false; // keep boost boulevards clear
   for (const other of room.obstacles) {
     const a = aabb(other);
     if (b.x < a.x + a.w + margin && b.x + b.w + margin > a.x &&
@@ -667,6 +676,159 @@ function buildAnnex(room, rng) {
   });
 }
 
+// ── Neon districts + flow lanes (ported from ChatGPT's "neon districts" build) ──
+// Districts are big NON-COLLIDING city slabs baked under the fight (the sprawl reads
+// as a place, not added collision). Flow lanes are wide boost boulevards that speed
+// you along them (player.js applyFlowLanes) — momentum highways across the sprawl.
+const DISTRICT_PREFIX = ['Neon', 'Orbital', 'Nullstar', 'Chrome', 'Afterlight', 'Prism', 'Ghost', 'Blackglass', 'Void', 'Signal'];
+const DISTRICT_CORE = ['Arcology', 'Market', 'Harbor', 'Rail', 'Stack', 'Canal', 'Sprawl', 'Exchange', 'Array', 'Boulevard'];
+const DISTRICT_KIND = ['market', 'rail', 'dock', 'arcology', 'reactor', 'garden', 'data', 'shrine'];
+
+function rollDistrictName(room, rng) {
+  if (room.bossId) return `${pick(rng, DISTRICT_PREFIX)} ${pick(rng, ['Citadel', 'Apex', 'Kill-Stack', 'Throne'])}`;
+  return `${pick(rng, DISTRICT_PREFIX)} ${pick(rng, DISTRICT_CORE)}`;
+}
+function rollDistrictSubtitle(room, rng) {
+  const suffix = pick(rng, ['endless district', 'cyberpunk drift', 'orbital block', 'star-city floor', 'light-speed lane']);
+  return `${room.biome.mech} · ${suffix}`;
+}
+
+function seedDistricts(room, rng, px, py, portalX, portalY) {
+  const pal = room.biome.pal;
+  const cols = room.w > 5600 ? 4 : 3;
+  const rows = room.h > 4300 ? 4 : 3;
+  const wall = room.wall + 120;
+  let id = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (chance(rng, 0.16)) continue;
+      const cw = (room.w - wall * 2) / cols;
+      const ch = (room.h - wall * 2) / rows;
+      const x = wall + c * cw + rand(rng, 24, 76);
+      const y = wall + r * ch + rand(rng, 24, 76);
+      const w = cw * rand(rng, 0.58, 0.86);
+      const h = ch * rand(rng, 0.54, 0.82);
+      const cx = x + w / 2, cy = y + h / 2;
+      if (dist(cx, cy, px, py) < 360 || dist(cx, cy, portalX, portalY) < 260) continue;
+      room.districts.push({
+        id: id++, x, y, w, h, cx, cy,
+        kind: pick(rng, DISTRICT_KIND),
+        color: chance(rng, 0.5) ? pal.accent : chance(rng, 0.5) ? pal.accent2 : pal.accent3,
+        phase: rng() * TAU,
+      });
+    }
+  }
+  // guaranteed readable anchors: home block, exit block, and a middle plaza.
+  room.districts.push(
+    { id: id++, x: px - 360, y: py - 240, w: 720, h: 480, cx: px, cy: py, kind: 'spawn', color: pal.accent3, phase: rng() * TAU },
+    { id: id++, x: portalX - 340, y: portalY - 220, w: 680, h: 440, cx: portalX, cy: portalY, kind: 'exit', color: pal.accent2, phase: rng() * TAU },
+    { id: id++, x: room.w * 0.5 - 420, y: room.h * 0.47 - 300, w: 840, h: 600, cx: room.w * 0.5, cy: room.h * 0.47, kind: 'plaza', color: pal.accent, phase: rng() * TAU },
+  );
+}
+
+function seedFlowLanes(room, rng, px, py, portalX, portalY) {
+  const pal = room.biome.pal;
+  const wall = room.wall + 92;
+  const clampX = (x) => clamp(x, wall, room.w - wall);
+  const clampY = (y) => clamp(y, wall, room.h - wall);
+  const add = (x1, y1, x2, y2, width, boost, color, kind = 'boulevard') => room.flowLanes.push({
+    x1: clampX(x1), y1: clampY(y1), x2: clampX(x2), y2: clampY(y2),
+    width, boost, color, phase: rng() * TAU, kind,
+  });
+  const mid = {
+    x: clampX(room.w / 2 + rand(rng, -room.w * 0.12, room.w * 0.12)),
+    y: clampY(room.h * rand(rng, 0.43, 0.51)),
+  };
+  const arteryW = room.bossId ? 148 : 136;
+  add(px, py, mid.x, mid.y, arteryW, 365, pal.accent3, 'artery');
+  add(mid.x, mid.y, portalX, portalY + 24, arteryW, 365, pal.accent2, 'artery');
+  // Giant-room city grid: wide non-blocking boost boulevards — readable routes, not collision.
+  const hBands = room.bossId ? [0.34, 0.58] : [0.30, 0.50, 0.70];
+  for (const f of hBands) {
+    const y = clampY(room.h * f + rand(rng, -70, 70));
+    add(wall + rand(rng, 0, 90), y, room.w - wall - rand(rng, 0, 90), y + rand(rng, -85, 85), rand(rng, 92, 130), rand(rng, 280, 345), chance(rng, 0.5) ? pal.accent : pal.accent3);
+  }
+  const vBands = room.bossId ? [0.38, 0.62] : [0.28, 0.50, 0.72];
+  for (const f of vBands) {
+    const x = clampX(room.w * f + rand(rng, -80, 80));
+    add(x, wall + rand(rng, 0, 90), x + rand(rng, -90, 90), room.h - wall - rand(rng, 0, 90), rand(rng, 82, 118), rand(rng, 250, 320), chance(rng, 0.5) ? pal.accent2 : pal.accent3);
+  }
+  const diagonals = room.bossId ? 1 : 2;
+  for (let i = 0; i < diagonals; i++) {
+    const leftStart = chance(rng, 0.5);
+    add(leftStart ? wall : room.w - wall, rand(rng, room.h * 0.25, room.h * 0.42),
+      leftStart ? room.w - wall : wall, rand(rng, room.h * 0.58, room.h * 0.78),
+      rand(rng, 70, 96), rand(rng, 225, 290), chance(rng, 0.5) ? pal.accent : pal.accent2, 'side');
+  }
+}
+
+// obstacles keep clear of the main arteries/boulevards so the boost routes stay open.
+function nearProtectedFlowLane(room, o, margin = 0) {
+  if (!room.flowLanes?.length) return false;
+  const b = aabb(o);
+  const pts = [
+    [b.x + b.w / 2, b.y + b.h / 2], [b.x, b.y], [b.x + b.w, b.y],
+    [b.x, b.y + b.h], [b.x + b.w, b.y + b.h],
+  ];
+  const radius = o.type === 'circle' ? o.rad : Math.min(140, Math.hypot(b.w, b.h) * 0.36);
+  for (const l of room.flowLanes) {
+    if (l.kind !== 'artery') continue; // keep only the main spawn→portal arteries clear
+    const protect = (l.width || 90) * 0.5 + radius + margin;
+    if (pts.some(([x, y]) => distPointSegment(x, y, l.x1, l.y1, l.x2, l.y2) < protect)) return true;
+  }
+  return false;
+}
+
+function distPointSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy || 1;
+  const t = clamp(((px - x1) * dx + (py - y1) * dy) / len2, 0, 1);
+  return dist(px, py, x1 + dx * t, y1 + dy * t);
+}
+
+function paintNeonDistricts(ctx, room, rng, pal) {
+  ctx.save();
+  // District slabs: big NON-COLLIDING city blocks under the fight.
+  for (const d of room.districts || []) {
+    ctx.save();
+    ctx.translate(d.cx, d.cy);
+    ctx.rotate(Math.sin(d.phase) * 0.035);
+    const x = -d.w / 2, y = -d.h / 2;
+    ctx.globalAlpha = d.kind === 'spawn' || d.kind === 'exit' ? 0.10 : 0.065;
+    ctx.fillStyle = d.color || pal.accent3;
+    roundRect(ctx, x, y, d.w, d.h, 22); ctx.fill();
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = d.color || pal.accent3;
+    ctx.lineWidth = d.kind === 'plaza' ? 4 : 2.2;
+    roundRect(ctx, x, y, d.w, d.h, 22); ctx.stroke();
+    const cols = clamp(Math.floor(d.w / 150), 3, 9);
+    const rows = clamp(Math.floor(d.h / 120), 2, 7);
+    ctx.globalAlpha = 0.14;
+    ctx.strokeStyle = d.kind === 'rail' ? pal.accent2 : d.color || pal.accent;
+    ctx.lineWidth = 1.4;
+    for (let c = 1; c < cols; c++) { const xx = x + (d.w * c) / cols; ctx.beginPath(); ctx.moveTo(xx, y + 18); ctx.lineTo(xx, y + d.h - 18); ctx.stroke(); }
+    for (let r = 1; r < rows; r++) { const yy = y + (d.h * r) / rows; ctx.beginPath(); ctx.moveTo(x + 18, yy); ctx.lineTo(x + d.w - 18, yy); ctx.stroke(); }
+    if (d.kind === 'reactor' || d.kind === 'plaza' || d.kind === 'exit') {
+      ctx.globalAlpha = 0.20; ctx.strokeStyle = pal.accent2; ctx.lineWidth = 3;
+      const rr = Math.min(d.w, d.h) * 0.26;
+      ctx.beginPath(); ctx.arc(0, 0, rr, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, rr * 0.58, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // Baked road shadows under the live flow lanes (drawn animated in draw.js).
+  ctx.globalCompositeOperation = 'lighter';
+  for (const l of room.flowLanes || []) {
+    ctx.globalAlpha = l.kind === 'artery' ? 0.12 : 0.07;
+    ctx.strokeStyle = l.color || pal.accent3;
+    ctx.lineWidth = (l.width || 90) * (l.kind === 'artery' ? 1.22 : 1.05);
+    ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke();
+    ctx.globalAlpha *= 0.5; ctx.strokeStyle = pal.bg; ctx.lineWidth *= 0.42;
+    ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke();
+  }
+  ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+}
+
 function paintFloorIdentity(ctx, room, rng, pal) {
   const { w, h } = room, wall = room.wall;
   ctx.save();
@@ -762,6 +924,7 @@ function bakeBackground(room, rng) {
   picks.push(pick(rng, room.biome.extras));
   for (const name of picks) paintPattern(name, ctx, room.w, room.h, rng, pal);
   paintFloorIdentity(ctx, room, rng, pal);
+  paintNeonDistricts(ctx, room, rng, pal);
   paintArchitecturalDecals(room, ctx, rng, pal);
 
   // annex floor tint

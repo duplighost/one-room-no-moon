@@ -132,9 +132,9 @@ export function startTransition() {
   const next = rollRoom(run, run.round + 1);
   state.transition = {
     timer: 0, duration: next.bossId ? 1.2 : 0.62, swapped: false, next,
-    title: next.bossId ? (next.enemies.find(e => e.boss)?.display || next.biome.name) : next.biome.name,
+    title: next.bossId ? (next.enemies.find(e => e.boss)?.display || next.biome.name) : (next.districtName || next.biome.name),
     sub: 'round ' + (run.round + 1) + (run.overdrive ? ' ∞' : ''),
-    tag: next.bossId ? next.biome.name : next.biome.mech,
+    tag: next.bossId ? next.biome.name : (next.districtSubtitle || next.biome.mech),
     mut: next.mutator?.name || null,
     bossId: next.bossId,
   };

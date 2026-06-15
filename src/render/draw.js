@@ -42,6 +42,7 @@ export function drawFrame() {
   // baked background
   if (room.background) ctx.drawImage(room.background, 0, 0);
   else { ctx.fillStyle = pal.floor; ctx.fillRect(0, 0, room.w, room.h); }
+  drawFlowLanes(room, pal, p);   // animated neon boost boulevards over the baked floor
 
   // wall frame
   ctx.strokeStyle = pal.accent3; ctx.globalAlpha = 0.85; ctx.lineWidth = 5;
@@ -179,6 +180,50 @@ function drawTiers(room, pal) {
     }
     ctx.restore();
   }
+}
+
+// Animated neon boost boulevards (the flow lanes). Additive glow + scrolling dashes;
+// brighter when the player is riding one. (Ported from ChatGPT's "neon districts".)
+function drawFlowLanes(room, pal, player) {
+  const lanes = room.flowLanes || [];
+  if (!lanes.length || reduced()) return;
+  const t = room.time || performance.now() / 1000;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  for (const l of lanes) {
+    const active = player && flowDist(player.x, player.y, l.x1, l.y1, l.x2, l.y2) < (l.width || 78) + player.r + 12;
+    const color = l.color || pal.accent3;
+    const width = l.width || 78;
+    // NOTE: no ctx.shadowBlur here — at city scale (long strokes × ~14 lanes × 3
+    // passes/frame) it tanks the frame rate. The 'lighter' blend + the bloom pass
+    // give the neon glow for free.
+    ctx.globalAlpha = active ? 0.22 : 0.12;
+    ctx.strokeStyle = color; ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke();
+    ctx.globalAlpha = active ? 0.72 : 0.34;
+    ctx.lineWidth = active ? 5.8 : 3.4;
+    ctx.setLineDash([30, 22]);
+    ctx.lineDashOffset = -(t * (active ? 250 : 130) + (l.phase || 0) * 30);
+    ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke();
+    if (active) { // bright white speed-line only on the lane you're riding (perf)
+      ctx.globalAlpha = 0.85;
+      ctx.lineWidth = 1.6;
+      ctx.setLineDash([8, 34]);
+      ctx.lineDashOffset = -(t * 360 + (l.phase || 0) * 40);
+      ctx.strokeStyle = '#ffffff';
+      ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+function flowDist(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy || 1;
+  const tt = clamp(((px - x1) * dx + (py - y1) * dy) / len2, 0, 1);
+  return Math.hypot(px - (x1 + dx * tt), py - (y1 + dy * tt));
 }
 
 function drawHazardsUnder(room, pal) {

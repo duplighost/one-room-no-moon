@@ -26,7 +26,7 @@ export function makePlayer() {
     perks: { damage: 0, fire: 0, speed: 0, maxHp: 0 },
     modules: {},
     boon: { charges: 0, progress: 0, need: 2 },
-    shots: 0, dashes: 0, stillT: 0, wasMoving: false, brakeT: 0,
+    shots: 0, dashes: 0, stillT: 0, wasMoving: false, brakeT: 0, flowT: 0,
   };
 }
 
@@ -49,6 +49,7 @@ export function updatePlayer(p, move, aim, room, dt) {
     burst(room, p.x, p.y, room.biome.pal.accent3, 10, 150, 0.3, 2.6);
   }
   p.brakeT = Math.max(0, p.brakeT - dt);
+  p.flowT = Math.max(0, (p.flowT || 0) - dt);
   if (p.shieldMax > 0 && p.shield < p.shieldMax) {
     p.shieldTimer += dt;
     if (p.shieldTimer >= 10) { p.shield++; p.shieldTimer = 0; }
@@ -104,7 +105,12 @@ export function updatePlayer(p, move, aim, room, dt) {
     if (Math.hypot(p.vx, p.vy) < 7) { p.vx = 0; p.vy = 0; }
     if (room.enemies.length > 0) p.stillT += dt;
   }
-  const maxV = p.speed * (p.dashT > 0 ? PLAYER.DASH_SPEED_MULT : PLAYER.MAX_SPEED_MULT);
+  // flow lanes: neon boost boulevards push you along them — momentum highways across
+  // the sprawl. Riding one lifts the speed cap so the lane actually feels light-speed.
+  applyFlowLanes(p, room, move, dt);
+  const flowing = (p.flowT || 0) > 0;
+  const maxV = p.speed * (p.dashT > 0 ? PLAYER.DASH_SPEED_MULT * (flowing ? 1.22 : 1)
+    : flowing ? PLAYER.MAX_SPEED_MULT * 1.5 : PLAYER.MAX_SPEED_MULT);
   let sp = Math.hypot(p.vx, p.vy);
   if (sp > maxV) { p.vx = p.vx / sp * maxV; p.vy = p.vy / sp * maxV; sp = maxV; }
   p.x += p.vx * dt; p.y += p.vy * dt;
@@ -152,6 +158,57 @@ export function resolveCircleObstacle(ent, o) {
     ent.x += n.x * push; ent.y += n.y * push;
     ent.vx += n.x * push * 5; ent.vy += n.y * push * 5;
   }
+}
+
+// Flow lanes: while you're within a lane, get pushed along it (sign follows your
+// intent), with a soft lateral pull toward the lane so you carve rather than snap.
+// Ported from ChatGPT's "neon districts" build. (No gun-kick recoil ported.)
+function applyFlowLanes(p, room, move, dt) {
+  const lanes = room.flowLanes || [];
+  if (!lanes.length) return false;
+  // Ride only the single best-aligned lane. Applying every overlapping lane's boost
+  // + lateral steer makes crossing lanes fight each other → a net slowdown at junctions.
+  const dirX = move.active ? move.x : p.vx, dirY = move.active ? move.y : p.vy;
+  const dirLen = Math.hypot(dirX, dirY) || 1;
+  let best = null, bestS = null, bestScore = -Infinity;
+  for (const l of lanes) {
+    const s = pointSegmentInfo(p.x, p.y, l.x1, l.y1, l.x2, l.y2);
+    const width = (l.width || 78) + p.r;
+    if (s.d > width) continue;
+    const falloff = clamp(1 - s.d / width, 0, 1);
+    const align = Math.abs((dirX / dirLen) * s.lx + (dirY / dirLen) * s.ly); // parallel-ness
+    const score = falloff * (0.45 + align);
+    if (score > bestScore) { bestScore = score; best = l; bestS = s; }
+  }
+  if (!best) return false;
+  const l = best, s = bestS;
+  const falloff = clamp(1 - s.d / ((l.width || 78) + p.r), 0, 1);
+  const intent = move.active ? (move.x * s.lx + move.y * s.ly) : (p.vx * s.lx + p.vy * s.ly);
+  const sign = intent < -8 ? -1 : 1;
+  const boost = (l.boost || 210) * (0.48 + falloff * 0.72) * (p.dashT > 0 ? 1.55 : 1);
+  p.vx += s.lx * sign * boost * dt;
+  p.vy += s.ly * sign * boost * dt;
+  // soft lateral pull toward the lane so you carve along it without snapping
+  const lateral = p.vx * s.nx + p.vy * s.ny;
+  const steer = (0.05 + falloff * 0.10) * (p.dashT > 0 ? 0.55 : 1);
+  p.vx -= s.nx * lateral * steer;
+  p.vy -= s.ny * lateral * steer;
+  p.flowT = 0.16;
+  if (Math.random() < (p.dashT > 0 ? 0.42 : 0.18)) {
+    particle(room, p.x - s.lx * sign * 18, p.y - s.ly * sign * 18, l.color || room.biome.pal.accent3,
+      -s.lx * sign * 80 + (Math.random() * 80 - 40), -s.ly * sign * 80 + (Math.random() * 80 - 40), 0.18, 2.5 + falloff * 2.5);
+  }
+  return true;
+}
+
+function pointSegmentInfo(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy || 1;
+  const t = clamp(((px - x1) * dx + (py - y1) * dy) / len2, 0, 1);
+  const cx = x1 + dx * t, cy = y1 + dy * t;
+  const len = Math.sqrt(len2) || 1;
+  const lx = dx / len, ly = dy / len;
+  return { d: dist(px, py, cx, cy), lx, ly, nx: -ly, ny: lx, t };
 }
 
 // nearest live enemy on the player's level — the auto-aim target when not aiming manually.
