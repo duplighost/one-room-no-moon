@@ -64,6 +64,23 @@ function releaseRail(p, room, move) {
   sfx('dash'); haptic(12); addShake(0.18);
 }
 
+// Dashing through a breakable WALL/door smashes it along the swept path (adopted from
+// ChatGPT's verticality build): no more silently tunnelling over a thin sealed door at
+// dash speed. Walls/doors only — regular cover still needs a real (shot) hit.
+function dashSmashWalls(p, room, x0, y0) {
+  const dx = p.x - x0, dy = p.y - y0;
+  const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 10));
+  const pad = p.r + 6;
+  for (const o of room.obstacles) {
+    if (o.gone || !o.breakable || (o.species !== 'wallSegment' && o.species !== 'annexDoor')) continue;
+    for (let i = 0; i <= steps; i++) {
+      const sx = x0 + dx * (i / steps), sy = y0 + dy * (i / steps);
+      const cx = clamp(sx, o.x, o.x + o.w), cy = clamp(sy, o.y, o.y + o.h);
+      if (Math.hypot(sx - cx, sy - cy) < pad) { damageObstacle(room, o, 999); break; }
+    }
+  }
+}
+
 export function makePlayer() {
   return {
     x: 750, y: 700, vx: 0, vy: 0, r: PLAYER.R, aimX: 1, aimY: 0, face: 0, level: 0,
@@ -201,7 +218,9 @@ export function updatePlayer(p, move, aim, room, dt) {
     : flowing ? PLAYER.MAX_SPEED_MULT * 1.5 : PLAYER.MAX_SPEED_MULT);
   let sp = Math.hypot(p.vx, p.vy);
   if (sp > maxV) { p.vx = p.vx / sp * maxV; p.vy = p.vy / sp * maxV; sp = maxV; }
+  const dashOldX = p.x, dashOldY = p.y;
   p.x += p.vx * dt; p.y += p.vy * dt;
+  if (p.dashT > 0) dashSmashWalls(p, room, dashOldX, dashOldY); // dash through breakable WALLS smashes them (no silent tunnel-over)
   const w = room.wall - 18;
   p.x = clamp(p.x, w + p.r, room.w - w - p.r);
   p.y = clamp(p.y, w + p.r, room.h - w - p.r);
