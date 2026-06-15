@@ -15,6 +15,55 @@ import { levelAt } from './levels.js';
 
 const VENT_DUR = 0.32; // vent launch arc duration
 
+// ── Perimeter grind rail (Sonic-style): the map edge is a rail loop. Dash into the edge
+// to latch on and grind around the corners; dash again to leap off. ──
+const RAIL_INSET = 26;     // the rail hugs the edge, this far inside the wall frame
+export const RAIL_SPEED = 1520; // grind speed along the rail (light-speed boulevard feel)
+
+export function railGeom(room) {
+  const L = room.wall + RAIL_INSET, T = room.wall + RAIL_INSET;
+  const R = room.w - room.wall - RAIL_INSET, B = room.h - room.wall - RAIL_INSET;
+  const W = R - L, H = B - T;
+  return { L, T, R, B, W, H, perim: 2 * (W + H) };
+}
+// point + unit tangent on the loop at arc-position pos (clockwise from the top-left corner)
+export function railPoint(g, pos) {
+  pos = ((pos % g.perim) + g.perim) % g.perim;
+  if (pos < g.W) return { x: g.L + pos, y: g.T, tx: 1, ty: 0 };
+  pos -= g.W;
+  if (pos < g.H) return { x: g.R, y: g.T + pos, tx: 0, ty: 1 };
+  pos -= g.H;
+  if (pos < g.W) return { x: g.R - pos, y: g.B, tx: -1, ty: 0 };
+  pos -= g.W;
+  return { x: g.L, y: g.B - pos, tx: 0, ty: -1 };
+}
+// arc-position of the nearest loop point to (x,y)
+function nearestRailPos(g, x, y) {
+  const cands = [
+    { px: clamp(x, g.L, g.R), py: g.T, pos: clamp(x, g.L, g.R) - g.L },
+    { px: g.R, py: clamp(y, g.T, g.B), pos: g.W + (clamp(y, g.T, g.B) - g.T) },
+    { px: clamp(x, g.L, g.R), py: g.B, pos: g.W + g.H + (g.R - clamp(x, g.L, g.R)) },
+    { px: g.L, py: clamp(y, g.T, g.B), pos: 2 * g.W + g.H + (g.B - clamp(y, g.T, g.B)) },
+  ];
+  let best = cands[0], bd = Infinity;
+  for (const c of cands) { const d = Math.hypot(x - c.px, y - c.py); if (d < bd) { bd = d; best = c; } }
+  return best.pos;
+}
+
+function releaseRail(p, room, move) {
+  p.railing = false; p.railCd = 0.28;
+  // leap off, steered by your move/aim, forced inward so you don't immediately re-grab the wall
+  let dx = move && move.active ? move.x : p.aimX, dy = move && move.active ? move.y : p.aimY;
+  const inward = norm(room.w / 2 - p.x, room.h / 2 - p.y);
+  if ((dx * inward.x + dy * inward.y) < 0.15) { dx = inward.x; dy = inward.y; }
+  const n = norm(dx, dy);
+  p.vx = n.x * PLAYER.DASH_IMPULSE; p.vy = n.y * PLAYER.DASH_IMPULSE;
+  p.dashT = p.dashDur; p.inv = Math.max(p.inv, PLAYER.DASH_IFRAMES);
+  p.lastDashAngle = Math.atan2(n.y, n.x); p.dashSpinDir = 1;
+  p._dashHitIds = new Set(); p._dashCutPrimed = false;
+  sfx('dash'); haptic(12); addShake(0.18);
+}
+
 export function makePlayer() {
   return {
     x: 750, y: 700, vx: 0, vy: 0, r: PLAYER.R, aimX: 1, aimY: 0, face: 0, level: 0,
@@ -26,6 +75,7 @@ export function makePlayer() {
     dashCdBase: PLAYER.DASH_CD, dashCd: 0, dashT: 0, dashDur: PLAYER.DASH_DUR,
     dashSpinDir: 1, lastDashAngle: null, after: [], faceDir: 1, walkPhase: 0,
     launchT: 0, launchHop: 0, launchFrom: null, launchTo: null, // vent launch arc
+    railing: false, railPos: 0, railDir: 1, railCd: 0, // perimeter grind rail
     pickup: PLAYER.PICKUP_RANGE,
     perks: { damage: 0, fire: 0, speed: 0, maxHp: 0 },
     modules: {},
@@ -56,6 +106,24 @@ export function updatePlayer(p, move, aim, room, dt) {
     p.level = levelAt(room, p.x, p.y);
     p.face = Math.atan2(p.aimY, p.aimX);
     if (p.launchT <= 0) { p.launchHop = 0; burst(room, p.x, p.y, room.biome.pal.accent3, 16, 220, 0.4, 3); addShake(0.3); sfx('care'); }
+    return;
+  }
+  // GRIND RAIL: ride the perimeter loop. Auto-follows corners; auto-fires + cuts enemies
+  // you grind past; dash (tryDash) leaps you off. Overrides normal movement entirely.
+  if (p.railing) {
+    p.dashT = Math.max(0, p.dashT - dt);
+    p.railCd = Math.max(0, p.railCd - dt);
+    const g = railGeom(room);
+    p.railPos += RAIL_SPEED * p.railDir * dt;
+    const pt = railPoint(g, p.railPos);
+    p.x = pt.x; p.y = pt.y;
+    p.vx = pt.tx * RAIL_SPEED * p.railDir; p.vy = pt.ty * RAIL_SPEED * p.railDir;
+    p.level = 0; p.walkPhase += RAIL_SPEED * dt * 0.05;
+    const tgt = nearestEnemy(room, p);                          // keep shooting while grinding
+    if (tgt) { const nn = norm(tgt.x - p.x, tgt.y - p.y); p.aimX = nn.x; p.aimY = nn.y; p.face = Math.atan2(nn.y, nn.x); if (p.fireCd <= 0) firePlayer(p, room); }
+    if (Math.abs(p.vx) > Math.abs(p.vy)) p.faceDir = p.vx < 0 ? -1 : 1;
+    performDashCut(p, room, (PLAYER.DASH_SWEEP_RANGE || PLAYER.DASH_HIT_RANGE) + 18); // side-slice nearby enemies
+    if (!reduced() && Math.random() < 0.7) particle(room, p.x, p.y, room.biome.pal.accent3, -p.vx * 0.04, -p.vy * 0.04, 0.2, 3);
     return;
   }
   const wasDashing = p.dashT > 0;
@@ -146,8 +214,26 @@ export function updatePlayer(p, move, aim, room, dt) {
     if (door) damageObstacle(room, door, door.hp + 999);
   }
   p.level = levelAt(room, p.x, p.y); // ground=0, raised platform=1 (set by ramps)
+  // LATCH onto the perimeter grind rail: dash INTO the edge (jam a wall while dashing) and
+  // you grab the rail and start grinding along it. Snaps to the rail, keeps your direction.
+  if (!p.railing && p.dashT > 0 && p.railCd <= 0 && p.level === 0) {
+    const dL = p.x - room.wall, dR = room.w - room.wall - p.x, dT = p.y - room.wall, dB = room.h - room.wall - p.y;
+    // only grab the rail when you dash INTO the edge (jammed a wall, moving into it) — not
+    // just whenever a dash ends near a wall.
+    if ((dL < 42 && p.vx < -40) || (dR < 42 && p.vx > 40) || (dT < 42 && p.vy < -40) || (dB < 42 && p.vy > 40)) {
+      const g = railGeom(room);
+      const pos = nearestRailPos(g, p.x, p.y);
+      const pt = railPoint(g, pos);
+      const along = p.vx * pt.tx + p.vy * pt.ty;
+      const aimAlong = p.aimX * pt.tx + p.aimY * pt.ty;
+      p.railing = true; p.railPos = pos;
+      p.railDir = (Math.abs(along) > 1 ? along : aimAlong) >= 0 ? 1 : -1;
+      p.railCd = 0.2; p._dashHitIds = new Set();
+      sfx('dash'); addShake(0.22); ripple(room, pt.x, pt.y, room.biome.pal.accent3, 84, 0.45);
+    }
+  }
   // step/dash onto a launch vent (from the ground) → fling up onto its platform deck
-  if (p.level === 0) {
+  if (!p.railing && p.level === 0) {
     for (const v of room.vents || []) {
       if (dist(p.x, p.y, v.x, v.y) < v.r + p.r) {
         p.launchT = VENT_DUR; p.launchFrom = { x: p.x, y: p.y }; p.launchTo = { x: v.tx, y: v.ty };
@@ -332,6 +418,7 @@ function performDashCut(p, room, range) {
 export function tryDash(dx = null, dy = null, move = null) {
   if (state.mode !== 'play' || !state.run) return;
   const p = state.run.player, room = state.room;
+  if (p.railing) { releaseRail(p, room, move); return; } // dash while grinding = leap off the rail
   if (p.dashCd > 0 || p.dashT > 0) return; // can't restart a dash mid-dash (refunds could otherwise chain it)
   if (dx == null) {
     if (move && move.active) { dx = move.x; dy = move.y; }

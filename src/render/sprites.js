@@ -122,6 +122,21 @@ export function drawPlayer(ctx, p, room) {
         faceX: p.faceDir || 1,
       };
   drawPlayerBody(ctx, p.x, p.y, p.face, pal, 1, false, spin, anim);
+  if (p.railing) {
+    // grind side-slice: bright blades sweeping off both sides — the dash effect that cuts
+    // whatever you grind past (the kills resolve in player.js performDashCut).
+    const ang = Math.atan2(p.vy, p.vx), cphi = Math.cos(ang), sphi = Math.sin(ang), nx = -sphi, ny = cphi;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.shadowColor = pal.accent3; ctx.shadowBlur = 14;
+    for (const s of [-1, 1]) {
+      ctx.globalAlpha = 0.5 + 0.35 * Math.random(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+      const bx = p.x + nx * s * 9, by = p.y - 8 + ny * s * 9;
+      ctx.beginPath();
+      ctx.moveTo(bx - cphi * 32, by - sphi * 32);
+      ctx.quadraticCurveTo(bx + nx * s * 22, by + ny * s * 22, bx + cphi * 32, by + sphi * 32);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   if (p.hurt > 0) {
     ctx.strokeStyle = pal.bad + 'cc'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.arc(p.x, p.y, (42 + (1 - p.hurt / 0.42) * 28) * PLAYER_EFFECT_SCALE, 0, TAU); ctx.stroke();

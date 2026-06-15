@@ -495,6 +495,24 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   }
 }
 
+// ── grind rail: dash into the edge → latch + grind; dash again → leap off ──
+{
+  const { tryDash } = await import('../src/systems/player.js');
+  startRun('rail'); state.mode = 'play';
+  const p = state.run.player, room = state.room;
+  p.x = room.wall + 28; p.y = room.h / 2; p.aimX = -1; p.aimY = 0;
+  p.vx = -1500; p.vy = 0; p.dashT = 0.3; p.dashCd = 0; p.railing = false; p.railCd = 0;
+  for (let i = 0; i < 4; i++) tick(1 / 60);
+  check('dashing into the edge latches the grind rail', p.railing === true, 'railing=' + p.railing);
+  if (p.railing) {
+    const pos0 = p.railPos;
+    for (let i = 0; i < 8; i++) tick(1 / 60);
+    check('grinding advances along the rail loop', Math.abs(p.railPos - pos0) > 1, `Δ=${(p.railPos - pos0).toFixed(1)}`);
+    tryDash(null, null, { active: true, x: 1, y: 0 }); // dash inward → leap off
+    check('dashing while grinding leaps you off the rail', p.railing === false && p.dashT > 0, `railing=${p.railing}`);
+  }
+}
+
 // ── Phase 8a: floorplans + connectivity invariant ──────────────────────────
 {
   startRun('floorplan-audit');

@@ -10,6 +10,7 @@ import { drawPlayer, drawEnemy, drawObstacle, drawCare, roundRectPath, starPath,
 const TIER_LIFT = 34; // px a platform (level 1) rises; entities on it lift to match
 import { drawParticles, drawFloats } from './particles.js';
 import { ENEMY_TYPES } from '../data/enemies.js';
+import { railGeom } from '../systems/player.js';
 import { reduced } from '../systems/juice.js';
 import { moveTouch, aimTouch } from '../ui/input.js';
 
@@ -54,6 +55,7 @@ export function drawFrame() {
   ctx.stroke();
   ctx.globalAlpha = 1;
 
+  drawRailLoop(room, pal);       // the perimeter grind rail — dash into the edge to ride it
   drawTiers(room, pal);
   drawHazardsUnder(room, pal);
   drawBossArena(room, pal);      // boss arena hooks: warden grave-slams + spiggot spore blooms
@@ -633,6 +635,25 @@ function drawAnnexCover(room, pal) {
   ctx.globalAlpha = 0.55 + 0.35 * Math.sin(t * 2.6); ctx.fillStyle = pal.accent3;
   ctx.font = '900 38px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('?', ax.cx, ax.cy);
+  ctx.restore();
+}
+
+// Perimeter grind rail: a neon rail loop hugging the map edge. Always visible so the edge
+// reads as "you can't go over — you can RIDE it". Dash into the edge to latch on.
+function drawRailLoop(room, pal) {
+  const g = railGeom(room), t = performance.now() / 1000;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = pal.accent3; ctx.globalAlpha = 0.34; ctx.lineWidth = 3.5;
+  roundRectPath(ctx, g.L, g.T, g.W, g.H, 20); ctx.stroke();
+  ctx.globalAlpha = 0.16; ctx.strokeStyle = pal.accent; ctx.lineWidth = 1.5;
+  roundRectPath(ctx, g.L - 7, g.T - 7, g.W + 14, g.H + 14, 24); ctx.stroke();
+  if (!reduced()) { // energy flowing around the loop
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.setLineDash([26, 22]); ctx.lineDashOffset = -t * 130;
+    roundRectPath(ctx, g.L, g.T, g.W, g.H, 20); ctx.stroke();
+    ctx.setLineDash([]);
+  }
   ctx.restore();
 }
 
