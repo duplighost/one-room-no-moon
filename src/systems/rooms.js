@@ -14,7 +14,7 @@ import { sfx } from '../audio/sfx.js';
 import { suppressInput } from '../ui/input.js';
 import { showDeath, showOverlay, hideOverlays, updateHud, whisper } from '../ui/overlays.js';
 import { hooks } from './items.js';
-import { openDraft, chooseCards, grantItem } from './draft.js';
+import { autoGrant, chooseCards, grantItem } from './draft.js';
 import { dropPickup } from './pickups.js';
 import { applyShrine, applyOath, bankDaily } from './meta.js';
 import { notice } from './notices.js';
@@ -123,14 +123,15 @@ export function updateRound(dt) {
 
 function enterPortal() {
   sfx('portal');
-  openDraft(() => startTransition());
+  autoGrant();         // grant a power-up inline + flash it — no choosing, no menu
+  startTransition();   // straight into the quick transition; the action never stops
 }
 
 export function startTransition() {
   const run = state.run;
   const next = rollRoom(run, run.round + 1);
   state.transition = {
-    timer: 0, duration: next.bossId ? 2.0 : 1.4, swapped: false, next,
+    timer: 0, duration: next.bossId ? 1.2 : 0.62, swapped: false, next,
     title: next.bossId ? (next.enemies.find(e => e.boss)?.display || next.biome.name) : next.biome.name,
     sub: 'round ' + (run.round + 1) + (run.overdrive ? ' ∞' : ''),
     tag: next.bossId ? next.biome.name : next.biome.mech,

@@ -35,6 +35,19 @@ export function chooseCards(n = 3) {
   return picks;
 }
 
+// Auto-grant a power-up at the portal instead of stopping for a choice: deal the
+// usual 3 cards, take one, grant it (grantItem flashes the name + chimes since the
+// source isn't 'draft'), plus a "POWER UP" lead-in. No menu, no pause — pure flow.
+export function autoGrant() {
+  if (!state.run) return null;
+  const choices = chooseCards(3);
+  if (!choices.length) return null;
+  const item = choices[Math.floor(state.run.rng() * choices.length)];
+  grantItem(item.id, 'auto');
+  if (state.room) addFloat(state.room, state.run.player.x, state.run.player.y - 80, '⚡ POWER UP', '#bdfcff', true, 0.85);
+  return item;
+}
+
 export function openDraft(onDone) {
   current = { choices: chooseCards(3), onDone };
   state.oldMode = state.mode;

@@ -42,11 +42,13 @@ export const SCORE = {
 };
 
 export const CAPS = {
-  // Modest lift for the ~1.9x arena so bigger rooms carry enough life without becoming soup.
-  ENEMIES: { mobile: 25, desktop: 35 },
-  ENEMY_BULLETS: { mobile: 110, desktop: 170 },
-  PLAYER_BULLETS: { mobile: 90, desktop: 160 },
-  PARTICLES: { mobile: 150, desktop: 260 },
+  // City-scale arenas: lift the ceilings so the sprawl stays full of action + flash.
+  // Director budget scales with room area (see buildWaves); these are the hard caps.
+  // TOP PLAYTEST DIAL: drop back if combat reads as soup or perf dips.
+  ENEMIES: { mobile: 34, desktop: 52 },
+  ENEMY_BULLETS: { mobile: 130, desktop: 220 },
+  PLAYER_BULLETS: { mobile: 110, desktop: 210 },
+  PARTICLES: { mobile: 180, desktop: 340 },
 };
 
 export const DIRECTOR = {

@@ -54,9 +54,17 @@ export function updatePlayer(p, move, aim, room, dt) {
     if (p.shieldTimer >= 10) { p.shield++; p.shieldTimer = 0; }
   }
 
-  p.aimX = aim.x; p.aimY = aim.y;
+  // aim + auto-fire: the gun never stops. Manual aim wins; with no manual aim, lock
+  // onto the nearest enemy so you keep shooting without aiming (constant flow state).
+  let firing = false;
+  if (aim.active) {
+    p.aimX = aim.x; p.aimY = aim.y; firing = true;
+  } else if (!room.cleared) {
+    const tgt = nearestEnemy(room, p);
+    if (tgt) { const n = norm(tgt.x - p.x, tgt.y - p.y); p.aimX = n.x; p.aimY = n.y; firing = true; }
+  }
   p.face = Math.atan2(p.aimY, p.aimX);
-  if (aim.active && p.fireCd <= 0) firePlayer(p, room);
+  if (firing && p.fireCd <= 0) firePlayer(p, room);
 
   // Boon Moots movement model (index.html:612-643)
   const beforeSpeed = Math.hypot(p.vx, p.vy);
@@ -144,6 +152,18 @@ export function resolveCircleObstacle(ent, o) {
     ent.x += n.x * push; ent.y += n.y * push;
     ent.vx += n.x * push * 5; ent.vy += n.y * push * 5;
   }
+}
+
+// nearest live enemy on the player's level — the auto-aim target when not aiming manually.
+function nearestEnemy(room, p) {
+  let best = null, bd = Infinity;
+  const lv = p.level || 0;
+  for (const e of room.enemies) {
+    if (e.hp <= 0 || (e.level || 0) !== lv) continue;
+    const dx = e.x - p.x, dy = e.y - p.y, d = dx * dx + dy * dy;
+    if (d < bd) { bd = d; best = e; }
+  }
+  return best;
 }
 
 export function firePlayer(p, room) {

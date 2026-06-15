@@ -129,6 +129,8 @@ function spawnPoints(room, rng, n) {
 
 export function buildWaves(room, rng) {
   const round = room.round;
+  // scale the enemy budget with the (now city-scale) room so the sprawl stays full of action
+  const areaMult = clamp(Math.sqrt((room.w * room.h) / (1500 * 1020)), 1, 2.1);
 
   if (room.bossId) {
     // boss arena: the boss is present as the room reveals; two escort waves follow
@@ -138,7 +140,7 @@ export function buildWaves(room, rng) {
     room.pendingWaves = [];
     for (const at of [5, 8.5]) {
       const clusters = spawnPoints(room, rng, 2);
-      const n = 2 + Math.floor(room.stage * 0.5);
+      const n = Math.round((2 + room.stage * 0.5) * areaMult);
       room.pendingWaves.push({
         at, fired: false,
         spawns: Array.from({ length: n }, (_, i) => {
@@ -155,11 +157,11 @@ export function buildWaves(room, rng) {
   if (room.mutator?.doubleRecipe) {
     // the room deals the hand twice: two compositions at reduced budget each
     comp = [
-      ...rollComposition(rng, round, room.recipeId, state.run.overdrive, 0.62),
-      ...rollComposition(rng, round, room.recipeId, state.run.overdrive, 0.62),
+      ...rollComposition(rng, round, room.recipeId, state.run.overdrive, 0.62 * areaMult),
+      ...rollComposition(rng, round, room.recipeId, state.run.overdrive, 0.62 * areaMult),
     ];
   } else {
-    comp = rollComposition(rng, round, room.recipeId, state.run.overdrive);
+    comp = rollComposition(rng, round, room.recipeId, state.run.overdrive, areaMult);
   }
   if (room.mutator?.extraSniper) {
     comp.push(ENEMY_TYPES.sniper.from <= round ? 'sniper' : 'gunner');

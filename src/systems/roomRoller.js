@@ -65,8 +65,10 @@ export function rollRoom(run, round) {
     round, idx: depthIdx(round), stage: dangerStage(round, run.overdrive),
     biome, layoutId, recipeId, mutatorId: mutator?.id || null, mutator, eventId: null, bossId,
     floorplanId: 'none', openings: [], sanctum: null, tiers: [],
-    w: Math.round(rand(rng, bossId ? 1980 : 1900, bossId ? 2260 : 2160) * sizeScale),
-    h: Math.round((portrait ? rand(rng, 1760, 1900) : rand(rng, bossId ? 1440 : 1360, bossId ? 1600 : 1540)) * sizeScale),
+    // city-scale sprawl — give the player a LOT of ground to dash across. Density
+    // (cover, ambient, enemy budget) scales with area below so the space stays full.
+    w: Math.round((portrait ? rand(rng, 1860, 2200) : rand(rng, bossId ? 2650 : 2520, bossId ? 3120 : 2960)) * sizeScale),
+    h: Math.round((portrait ? rand(rng, 2300, 2680) : rand(rng, bossId ? 1940 : 1840, bossId ? 2300 : 2160)) * sizeScale),
     wall: ROOM.WALL,
     obstacles: [], landmarks: [], annex: null, hazards: [], lanes: [],
     enemies: [], bullets: [], pickups: [], particles: [], floats: [],
@@ -107,9 +109,11 @@ export function rollRoom(run, round) {
   // Big rooms need a visual/combat anchor before scatter, so cover arranges around
   // a designed thing instead of confetti. Validated later with the same reachability audit.
   const landmark = !bossId && chance(rng, partitioned ? 0.30 : 0.84) && placeLandmark(room, rng, px, py, portalX, portalY);
-  const areaBonus = Math.max(1, Math.round((Math.sqrt(roomAreaScale(room)) - 1) * 5));
+  // cover scales ~linearly with area so density holds across the much bigger floor
+  // (kept moderate — the sprawl reads full from ambient/decals/enemies, not a cover maze).
+  const areaBonus = Math.max(2, Math.round((roomAreaScale(room) - 1) * 4));
   const count = clamp(6 + density + areaBonus + Math.floor(room.stage * 0.45) + randi(rng, 0, 2)
-    - (partitioned ? 2 : 0) - (landmark ? 2 : 0), partitioned ? 3 : 5, partitioned ? 14 : 16);
+    - (partitioned ? 2 : 0) - (landmark ? 2 : 0), partitioned ? 4 : 6, partitioned ? 22 : 28);
   const spots = LAYOUTS[layoutId](room, rng, count);
   for (const s of spots) {
     if (dist(s.x, s.y, px, py) < ROOM.SPAWN_CLEAR) continue;
@@ -215,7 +219,8 @@ export function rollRoom(run, round) {
   }
 
   // ── ambient particles ──
-  const ambN = Math.round((view.mobile ? 24 : 40) * Math.min(1.55, Math.sqrt(roomAreaScale(room))));
+  // ambient drift fills the sprawl with life (the cheap, non-obstructive kind of "full")
+  const ambN = Math.round((view.mobile ? 30 : 52) * Math.min(2.6, Math.sqrt(roomAreaScale(room))));
   for (let i = 0; i < ambN; i++) {
     room.ambient.push({
       type: pick(rng, biome.ambient), x: rng() * room.w, y: rng() * room.h,

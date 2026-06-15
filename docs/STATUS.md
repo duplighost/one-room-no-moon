@@ -11,10 +11,20 @@ Living snapshot of where we are. Full history + rationale lives in
   Visual: serve on :8400, then `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node tests/visual.mjs`.
 - **Player is mildly colourblind** — important signals must read by SHAPE, not colour.
 
-## State (updated 2026-06-14)
+## State (updated 2026-06-15)
 
-Feature-complete; in iterative feel/polish driven by playtests. Recently shipped, newest first:
+Direction shifted hard toward **"endless neon cyberpunk space districts" — constant flow state,
+light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
+- **City-scale rooms + constant flow.** Rooms are now ~2× area (≈2800×2150, 6+ Mpx, "almost a
+  city"); cover/ambient/enemy budget all scale with area so the sprawl stays *full of action*,
+  not empty. **Always-fire + auto-aim** (the gun never stops — locks the nearest enemy when you
+  aren't aiming). **Auto-granted power-ups** at the portal (`autoGrant` — no draft menu, no
+  choosing, just a "⚡ POWER UP" flash). **Fast transitions** (1.4→0.62s; boss 2.0→1.2s — barely
+  a stop). Enemy caps up (35→52 desktop). Verified: 104 headless + stress + Chromium, desktop
+  frameP95 16.8ms (no perf hit at city scale), no console errors.
+  *Confirmed clean in this branch (the bugs the player saw are in other builds): no fire-recoil,
+  rotate-hint auto-dismisses, no mystery "interlacing" word.*
 - **Per-biome visual identity.** Each biome now has a **signature floor emblem** baked into the
   centre — 9 family archetypes (bloom/tide/fracture/thorn/forge/spore/conduit/astral/rite) keyed
   by biome, drawn in its own palette so two same-colour biomes still read distinct (e.g. the gold
@@ -69,6 +79,10 @@ Feature-complete; in iterative feel/polish driven by playtests. Recently shipped
 
 ## Top open tuning dials (only touch if a playtest flags them)
 
+- **Rooms too big / small** → the `w`/`h` `rand(...)` ranges in `roomRoller.js` `rollRoom`.
+  **Combat too soup / sparse** → `CAPS.ENEMIES` (config) + `areaMult` cap in director `buildWaves`.
+  **Transitions too fast / slow** → `duration` in `rooms.js` `startTransition`. **Power-up
+  pick** logic → `autoGrant` in `draft.js` (currently random-of-3; swap for a "smart" pick).
 - **Biome emblems too faint / too busy** → `EMBLEMS` alphas + `SIGNATURE_OF` mapping in
   `data/patterns.js`; biome glow strength in `bakeBackground` (`roomRoller.js`).
 - **Too many / too few chamber rooms** → `openChance` in `roomRoller.js` (0.38; up = fewer).
@@ -82,18 +96,23 @@ Feature-complete; in iterative feel/polish driven by playtests. Recently shipped
 - Bosses melt / too easy → `DASH_HIT_MULT`, `DASH_KILL_REFUND` (config), boss HP in `systems/bosses.js`.
 - Character / FX size → `PLAYER.DRAW_SCALE` in `config.js` (one knob: sprite + gun + emitter + rings).
 
-## Next up (player requested — not started)
+## Next up (the "neon cyberpunk space districts" vision — not started)
 
-- **Deeper biome identity (optional polish):** per-biome obstacle detailing (12 styles → ~8
-  groups currently share shapes); biome-specific ambient/weather. The signature emblems +
-  palettes + glow are in; this is the next layer if biomes still feel close in motion.
-- **Deeper stagger patterns:** the dash-stagger groundwork is in; could add enemy-specific
-  reactions (e.g. a charger you stagger mid-windup, a poise/break meter on tanks).
-- **More enemies / faster, aggressive pacing** (later — touches `CAPS`/director budget).
+- **Neon district art re-theme:** push palettes brighter/neon; make a single sprawl read as
+  diverse *districts* (zones with their own look within one space, not one biome per room).
+- **Moving floor / living sprawl:** animate the floor (drifting light, scrolling grid, pulsing
+  emblem) — the player asked "did we ever make the floor move." Adds flash + life.
+- **Cooler bosses** (lesson from the space game) + more combo/flash juice.
+- **"Full but not obstructive" tuning:** keep filling the sprawl with *non-collision* richness
+  (decals/ambient/enemies) over hard cover, if playtest says it still gets in the way.
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **Per-biome visual identity** (this pass) — signature floor emblems (9 family archetypes,
+1. **City-scale rooms + constant flow** (this pass) — ~2× rooms (6+ Mpx) with area-scaled
+   cover/ambient/enemy budget; always-fire + auto-aim; auto-granted power-ups (no draft stop);
+   fast transitions (0.62s); caps 35→52. 104 headless + stress + Chromium clean, frameP95 16.8ms.
+   **UNPLAYED.**
+2. **Per-biome visual identity** (`1a52e42`) — signature floor emblems (9 family archetypes,
    biome-keyed, palette-coloured) replace the generic floor motif; biome lighting glow. Surveyed
    all 22 in Chromium, distinct, no console errors. **UNPLAYED.**
 2. **Organized-chamber floorplans** (`ade6285`) — 4 new chamber layouts (gallery/warren/

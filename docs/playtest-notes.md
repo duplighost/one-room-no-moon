@@ -21,7 +21,36 @@ cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions across all 22 biomes (4 live hazard kits — pulse/ritual/lane/
 sightline — the spitter kits are retired) and all 8+ enemy AIs.
 
-## Feel + biome-identity passes (player-directed, 2026-06-14 latest)
+## City-scale rooms + constant flow state (player-directed, 2026-06-15 latest)
+
+Player went big: "endless neon cyberpunk space districts," "almost a city," "constant flow
+state," always shooting, never wait/choose/crash. This pass builds the *mechanical foundation*
+of that (the art re-theme is the next layer). All verified, UNPLAYED:
+
+- **City-scale rooms.** `rollRoom` dims ~2× area (landscape ≈2520-2960 × 1840-2160; measured a
+  live room at 2824×2155 = 6.09 Mpx vs the old ~2.9). Density scales with area so the sprawl is
+  full: cover `areaBonus` is now ~linear in area (clamp 16→28), ambient drift up (40→52 base,
+  cap 1.55→2.6), and the **enemy budget scales with area** (`areaMult` in director `buildWaves`,
+  passed as `budgetMult`). `CAPS.ENEMIES` 35→52 desktop / 25→34 mobile.
+- **Always-fire + auto-aim** (`player.js`): the gun fires whenever there's a target; with no
+  manual aim it locks the nearest same-level enemy. Manual aim still wins. Verified visually —
+  player stands still and streams bullets at the nearest foe.
+- **Auto-granted power-ups** (`autoGrant` in `draft.js`): the portal deals the usual 3 cards,
+  takes one at random, grants it (the existing name-flash + chime fire since source≠'draft'),
+  plus a "⚡ POWER UP" lead-in. No menu, no pause. Item *rate* is unchanged (every room, as the
+  draft was) — only the choice/stop is gone. `openDraft`/`pickCard` kept but unused by gameplay.
+- **Fast transitions** (`rooms.js`): 1.4→0.62s (boss 2.0→1.2). Barely a beat.
+- Tests updated: the three draft-flow checks now assert the auto-grant contract (portal →
+  power-up granted → straight to 'transition', round advances) instead of the old portalDraft→pick.
+
+Verified: 104 headless checks, stress (all biomes/enemies, auto-fire on), Chromium visual —
+desktop frameP95 16.8ms (no perf hit at 6 Mpx), mobile ~50ms (unchanged from before), NO console
+errors. Confirmed the player's reported bugs are NOT in this branch: no fire-recoil in
+`firePlayer`, rotate hint auto-dismisses (camera.js, 6s timer + re-arm), no "interlacing" word
+(sound buttons read "sfx on"/"bgm on"). zC ("the best game") is the *space game* (a different
+`js/` codebase), shared for lessons, not merged.
+
+## Feel + biome-identity passes (player-directed, 2026-06-14)
 
 Three quick passes after the de-fang, each committed + pushed to the branch, each verified
 (headless + stress + Chromium, no console errors), all UNPLAYED:
