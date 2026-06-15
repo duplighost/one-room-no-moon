@@ -11,7 +11,7 @@ import { wavesDone } from './director.js';
 import { addFloat, burst } from '../render/particles.js';
 import { snapCamera } from '../render/camera.js';
 import { sfx } from '../audio/sfx.js';
-import { suppressInput } from '../ui/input.js';
+import { suppressInput, keys } from '../ui/input.js';
 import { showDeath, showOverlay, hideOverlays, updateHud, whisper } from '../ui/overlays.js';
 import { hooks } from './items.js';
 import { openDraft, chooseCards, grantItem } from './draft.js';
@@ -101,12 +101,40 @@ export function clearRoom(room) {
   hooks.run('onRoomClear', room);
 }
 
+// In-level shop: buy a random item with the score you've earned (otherwise unused).
+// Trigger = dash into it (universal) OR press E/F when near (PC). One purchase, then spent.
+function updateVendor(room, p) {
+  const v = room.vendor;
+  const d = dist(p.x, p.y, v.x, v.y);
+  v.inRange = !v.bought && d < v.r + p.r + 50;
+  const contact = !v.bought && ((p.dashT > 0 && d < v.r + p.r + 6) || (v.inRange && (keys.e || keys.f)));
+  if (contact && !v.latch) {
+    v.latch = true;
+    if (state.run.score >= v.cost) {
+      v.bought = true;
+      state.run.score -= v.cost;
+      const choices = chooseCards(3);
+      const item = choices.length ? choices[Math.floor(state.run.rng() * choices.length)] : null;
+      if (item) { grantItem(item.id, 'shop'); addFloat(room, v.x, v.y - 66, `GOT: ${item.name}`, item.color || '#ffd36e', true, 1.4); }
+      else addFloat(room, v.x, v.y - 66, 'STOCK OUT', '#ffd36e', true, 1.0);
+      burst(room, v.x, v.y, '#ffd36e', 28, 340, 0.6, 4);
+      sfx('pickup');
+    } else {
+      addFloat(room, v.x, v.y - 66, `NEED ${v.cost}`, '#ff8a8a', true, 0.9);
+      sfx('break');
+    }
+  }
+  if (d > v.r + p.r + 90) v.latch = false; // re-arm once you step away
+}
+
 export function updateRound(dt) {
   const room = state.room, run = state.run, p = run.player;
   if (!room) return;
   room.time += dt;
 
   if (p.dead) { die(); return; }
+
+  if (room.vendor) updateVendor(room, p);
 
   if (!room.cleared && room.enemies.length === 0 && room.spawnQueue.length === 0 && wavesDone(room) && room.time > 0.8) {
     clearRoom(room);

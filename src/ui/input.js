@@ -7,7 +7,7 @@ import { screenToWorld } from '../render/camera.js';
 import { tryDash } from '../systems/player.js';
 import { pickCard, boonReroll } from '../systems/draft.js';
 
-const keys = Object.create(null);
+export const keys = Object.create(null);
 const mouse = { x: 0, y: 0, down: false, seen: false };
 let actions = null;
 let suppressUntil = 0;

@@ -61,6 +61,7 @@ export function drawFrame() {
   drawSpawnGlyphs(room);
   if (room.portal) drawPortal(room, pal);
   if (room.care) for (const c of room.care) drawCare(ctx, c, pal);
+  if (room.vendor) drawVendor(room, pal);
   drawPickups(room, pal);
 
   // y-sorted entities; raised (level>0) things sort above ground and lift visually
@@ -611,6 +612,37 @@ function drawPortalArrow(room) {
   ctx.rotate(-angle);
   starPath(ctx, -22 * Math.cos(angle), -22 * Math.sin(angle), 7, 3, 6);
   ctx.fill();
+  ctx.restore();
+}
+
+// In-level shop vendor: a neon totem you dash into (or press E near) to buy a random item.
+function drawVendor(room, pal) {
+  const v = room.vendor; if (!v) return;
+  const t = performance.now() / 1000;
+  ctx.save();
+  if (v.bought) {
+    ctx.globalAlpha = 0.32; ctx.strokeStyle = '#9aa'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(v.x, v.y, v.r * 0.62, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = 0.5; ctx.fillStyle = '#9aa'; ctx.textAlign = 'center'; ctx.font = '700 12px Inter, system-ui, sans-serif';
+    ctx.fillText('SOLD', v.x, v.y + 4);
+    ctx.restore(); return;
+  }
+  const pulse = 0.7 + 0.3 * Math.sin(t * 3 + v.phase);
+  const col = v.inRange ? '#fff2b0' : '#ffd36e';
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(v.x, v.y, 0, v.x, v.y, v.r * 1.7);
+  g.addColorStop(0, hexA(col, 0.24 * pulse)); g.addColorStop(1, hexA(col, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(v.x, v.y, v.r * 1.7, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 0.92; ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.shadowColor = col; ctx.shadowBlur = 12;
+  ctx.beginPath(); ctx.arc(v.x, v.y, v.r * (v.inRange ? 1.04 : 1), 0, TAU); ctx.stroke();
+  ctx.save(); ctx.translate(v.x, v.y); ctx.rotate(t * 0.7);
+  ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(12, 0); ctx.lineTo(0, 15); ctx.lineTo(-12, 0); ctx.closePath(); ctx.stroke();
+  ctx.restore();
+  ctx.shadowBlur = 0; ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1; ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff'; ctx.font = '900 15px Inter, system-ui, sans-serif';
+  ctx.fillText(`BUY · ${v.cost}`, v.x, v.y - v.r - 12);
+  if (v.inRange) { ctx.fillStyle = col; ctx.font = '700 12px Inter, system-ui, sans-serif'; ctx.fillText('DASH IN  /  E', v.x, v.y + v.r + 20); }
   ctx.restore();
 }
 

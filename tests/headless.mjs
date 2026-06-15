@@ -448,6 +448,25 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   }
 }
 
+// ── in-level shop: vendor spawns + dash-buy spends score and grants an item ──
+{
+  startRun('vendor');
+  state.mode = 'play';
+  let v = state.room.vendor, guard = 0;
+  while (!v && guard++ < 10) { window.oneRoomDebug.skipRound(); state.mode = 'play'; v = state.room.vendor; }
+  check('an in-level vendor spawns', !!v, 'no vendor after ' + guard + ' rooms');
+  if (v) {
+    const p = state.run.player;
+    state.run.score = v.cost + 1500;
+    const scoreBefore = state.run.score;
+    p.x = v.x; p.y = v.y; p.dashT = 0.3; p.dashDur = 0.3; // dash onto it
+    for (let i = 0; i < 4; i++) tick(1 / 60);
+    check('dashing into the vendor buys: score spent + item granted',
+      v.bought && state.run.score === scoreBefore - v.cost && Object.keys(p.modules).length >= 1,
+      `bought=${v.bought} score ${scoreBefore}->${state.run.score} mods=${Object.keys(p.modules).length}`);
+  }
+}
+
 // ── Phase 8a: floorplans + connectivity invariant ──────────────────────────
 {
   startRun('floorplan-audit');

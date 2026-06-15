@@ -78,6 +78,7 @@ export function rollRoom(run, round) {
     enemies: [], bullets: [], pickups: [], particles: [], floats: [],
     ambient: [], spawnQueue: [], pendingWaves: null, spawnAnchors: [],
     cleared: false, clearT: 0, portal: null, time: 0,
+    vendor: null,
     background: null,
   };
   const px = room.w / 2, py = room.h * 0.66; // player spawn
@@ -248,10 +249,28 @@ export function rollRoom(run, round) {
   // ── axis 5: room event (the spice slot) ──
   rollEvent(room, rng);
   sanitizePendingSpawns(room, rng, px, py, portalX, portalY);
+  seedVendor(room, rng, px, py, portalX, portalY); // in-level shop (spend earned points)
 
   // ── bake the background once ──
   room.background = bakeBackground(room, rng);
   return room;
+}
+
+// In-level vendor: most non-boss rooms get one. Spend the score you earn (otherwise
+// unused) on a random item — bought by dashing into it, or E when near (PC). Placed on a
+// reachable, unblocked cell away from spawn + portal so you naturally pass it.
+function seedVendor(room, rng, px, py, portalX, portalY) {
+  if (room.bossId || !chance(rng, 0.82)) return;
+  const reach = reachableFrom(room, px, py);
+  const cells = Array.from(reach.cells || []);
+  const cs = reach.cell || CELL;
+  for (let tries = 0; tries < 160 && cells.length; tries++) {
+    const [c, r] = String(cells[Math.floor(rng() * cells.length)]).split(',').map(Number);
+    const x = c * cs + cs / 2, y = r * cs + cs / 2;
+    if (dist(x, y, px, py) < 520 || dist(x, y, portalX, portalY) < 420 || pointBlockedForSpawn(room, x, y, 56)) continue;
+    room.vendor = { x, y, r: 44, cost: 420 + room.round * 110, bought: false, latch: false, inRange: false, phase: rng() * TAU };
+    return;
+  }
 }
 
 const OLD_ROOM_AREA = 1500 * 1020;
