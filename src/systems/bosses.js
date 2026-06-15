@@ -105,7 +105,7 @@ function bossPhaseShift(e, room, label, hotColor) {
   e.phaseLock = Math.max(e.phaseLock || 0, 0.75);
   e.color = hotColor || e.color;
   e.r *= 1.08;
-  room.bullets = room.bullets.filter(b => b.owner !== 'enemy'); // dramatic bullet-wipe
+  for (const b of room.bullets) if (b.owner === 'enemy') b.life = 0; // dramatic bullet-wipe (mark, never reassign mid-loop)
   burst(room, e.x, e.y, hotColor || e.color, 44, 480, 0.85, 5);
   ripple(room, e.x, e.y, '#ffffff', 340, 1.0);
   ripple(room, e.x, e.y, hotColor || e.color, 240, 0.85);

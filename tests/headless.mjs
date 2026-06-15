@@ -420,6 +420,29 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   check('deliberate slam from rest DOES dash', dp.dashT > 0, 'dashT=' + dp.dashT);
 }
 
+// ── regression: a boss killed amid enemy fire must NOT crash the bullet loop ──
+// bossDeathFX/bossPhaseShift used to reassign room.bullets while updateBullets was
+// iterating it (the boss is killed FROM INSIDE that loop), so the loop then read an
+// undefined index and threw → the rAF chain died → the game froze on every boss kill.
+{
+  const { updateBullets } = await import('../src/systems/bullets.js');
+  startRun('boss-freeze');
+  while (state.run.round < 5) window.oneRoomDebug.skipRound();
+  const room = state.room, boss = room.enemies.find(e => e.boss);
+  if (!boss) {
+    check('boss-freeze: boss present at round 5', false, 'no boss in room.enemies');
+  } else {
+    boss.introT = -1; boss.invulnT = 0; boss.phased = true; boss.hp = 1; boss.phaseLock = 0;
+    for (let i = 0; i < 90; i++) room.bullets.push({ owner: 'enemy', x: 200 + i, y: 200, vx: 0, vy: 0, r: 4, damage: 1, life: 6, color: '#fff', level: 0 });
+    room.bullets.push({ owner: 'player', x: boss.x, y: boss.y, vx: 50, vy: 0, r: 10, damage: 9999, life: 6, color: '#fff', level: 99, pierce: 0 });
+    let bossThrew = null;
+    try { updateBullets(room, 1 / 60); updateBullets(room, 1 / 60); } catch (e) { bossThrew = e; }
+    check('boss kill amid enemy fire does not crash the bullet loop (freeze regression)',
+      !bossThrew && boss.hp <= 0 && room.bullets.every(b => b.owner !== 'enemy' || b.life <= 0),
+      bossThrew ? bossThrew.message : `hp=${boss.hp} liveEnemyBullets=${room.bullets.filter(b => b.owner === 'enemy' && b.life > 0).length}`);
+  }
+}
+
 // ── Phase 8a: floorplans + connectivity invariant ──────────────────────────
 {
   startRun('floorplan-audit');

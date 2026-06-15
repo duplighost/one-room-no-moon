@@ -110,6 +110,7 @@ export function updateBullets(room, dt) {
   const p = state.run.player;
   for (let i = room.bullets.length - 1; i >= 0; i--) {
     const b = room.bullets[i];
+    if (!b) continue; // defensive: never crash the rAF loop if the array shrank mid-iteration
     b.life -= dt;
     // homing (hunterMycelia hook sets b.turn)
     if (b.owner === 'player' && b.turn) {

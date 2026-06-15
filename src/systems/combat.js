@@ -91,7 +91,11 @@ function bossDeathFX(room, e) {
   burst(room, e.x, e.y, '#ffffff', 30, 320, 0.7, 4);
   ripple(room, e.x, e.y, '#ffffff', 430, 1.2);
   ripple(room, e.x, e.y, e.color, 300, 1.0);
-  room.bullets = room.bullets.filter(b => b.owner !== 'enemy'); // wipe the screen — you won
+  // wipe incoming enemy fire — you won the exchange. MARK them dead (the bullet loop
+  // culls life<=0) rather than reassigning room.bullets: this runs from inside the
+  // bullet loop (boss killed by a shot), and swapping the array out mid-iteration
+  // crashes it (undefined index) → froze the game on boss kills.
+  for (const b of room.bullets) if (b.owner === 'enemy') b.life = 0;
   addFloat(room, e.x, e.y - (e.r || 40) - 30, 'DOWN', '#ffffff', true, 1.7);
   sfx('kill'); sfx('clear'); sfx('break');
 }
