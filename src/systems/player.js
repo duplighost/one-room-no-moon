@@ -17,8 +17,8 @@ const VENT_DUR = 0.32; // vent launch arc duration
 
 // ── Perimeter grind rail (Sonic-style): the map edge is a rail loop. Dash into the edge
 // to latch on and grind around the corners; dash again to leap off. ──
-const RAIL_INSET = 26;     // the rail hugs the edge, this far inside the wall frame
-export const RAIL_SPEED = 1520; // grind speed along the rail (light-speed boulevard feel)
+const RAIL_INSET = 2;      // rail sits at the wall-clamp line, so jamming a wall lands you ON it
+export const RAIL_SPEED = 1120; // grind speed (controllable, not so fast you can't read corners)
 
 export function railGeom(room) {
   const L = room.wall + RAIL_INSET, T = room.wall + RAIL_INSET;
@@ -91,7 +91,7 @@ export function makePlayer() {
     fireDelay: PLAYER.FIRE_DELAY, fireCd: 0, damage: PLAYER.DAMAGE, crit: PLAYER.CRIT,
     dashCdBase: PLAYER.DASH_CD, dashCd: 0, dashT: 0, dashDur: PLAYER.DASH_DUR,
     dashSpinDir: 1, lastDashAngle: null, after: [], faceDir: 1, walkPhase: 0,
-    launchT: 0, launchHop: 0, launchFrom: null, launchTo: null, // vent launch arc
+    launchT: 0, launchHop: 0, launchFrom: null, launchTo: null, ventCd: 0, // vent launch arc + re-trigger lockout
     railing: false, railPos: 0, railDir: 1, railCd: 0, // perimeter grind rail
     pickup: PLAYER.PICKUP_RANGE,
     perks: { damage: 0, fire: 0, speed: 0, maxHp: 0 },
@@ -111,6 +111,7 @@ export function updatePlayer(p, move, aim, room, dt) {
   p.hurt = Math.max(0, p.hurt - dt);
   p.fireCd = Math.max(0, p.fireCd - dt);
   p.dashCd = Math.max(0, p.dashCd - dt);
+  p.ventCd = Math.max(0, (p.ventCd || 0) - dt);
   // VENT LAUNCH: arc up onto a platform, flying over the ledge walls. Overrides normal
   // movement/collision while airborne (p.launchHop lifts the body), then lands on the deck.
   if (p.launchT > 0) {
@@ -122,7 +123,7 @@ export function updatePlayer(p, move, aim, room, dt) {
     p.vx = p.vy = 0; p.inv = Math.max(p.inv, 0.12);
     p.level = levelAt(room, p.x, p.y);
     p.face = Math.atan2(p.aimY, p.aimX);
-    if (p.launchT <= 0) { p.launchHop = 0; burst(room, p.x, p.y, room.biome.pal.accent3, 16, 220, 0.4, 3); addShake(0.3); sfx('care'); }
+    if (p.launchT <= 0) { p.launchHop = 0; p.ventCd = 0.55; burst(room, p.x, p.y, room.biome.pal.accent3, 16, 220, 0.4, 3); addShake(0.3); sfx('care'); }
     return;
   }
   // GRIND RAIL: ride the perimeter loop. Auto-follows corners; auto-fires + cuts enemies
@@ -131,6 +132,12 @@ export function updatePlayer(p, move, aim, room, dt) {
     p.dashT = Math.max(0, p.dashT - dt);
     p.railCd = Math.max(0, p.railCd - dt);
     const g = railGeom(room);
+    // steer with the move stick: push along the rail to flip which way you grind
+    if (move && move.active) {
+      const pt0 = railPoint(g, p.railPos);
+      const along = move.x * pt0.tx + move.y * pt0.ty;
+      if (Math.abs(along) > 0.4) p.railDir = along > 0 ? 1 : -1;
+    }
     p.railPos += RAIL_SPEED * p.railDir * dt;
     const pt = railPoint(g, p.railPos);
     p.x = pt.x; p.y = pt.y;
@@ -236,11 +243,12 @@ export function updatePlayer(p, move, aim, room, dt) {
   // LATCH onto the perimeter grind rail: dash INTO the edge (jam a wall while dashing) and
   // you grab the rail and start grinding along it. Snaps to the rail, keeps your direction.
   if (!p.railing && p.dashT > 0 && p.railCd <= 0 && p.level === 0) {
-    const dL = p.x - room.wall, dR = room.w - room.wall - p.x, dT = p.y - room.wall, dB = room.h - room.wall - p.y;
-    // only grab the rail when you dash INTO the edge (jammed a wall, moving into it) — not
-    // just whenever a dash ends near a wall.
-    if ((dL < 42 && p.vx < -40) || (dR < 42 && p.vx > 40) || (dT < 42 && p.vy < -40) || (dB < 42 && p.vy > 40)) {
-      const g = railGeom(room);
+    // PROXIMITY latch (reliable): the rail sits at the wall-clamp line, so a dash that jams
+    // any wall lands you within a few px of it — grab it then, regardless of how much dash
+    // velocity is left (the old velocity gate failed when a long dash had glided slow).
+    const g = railGeom(room);
+    const near = Math.min(Math.abs(p.x - g.L), Math.abs(p.x - g.R), Math.abs(p.y - g.T), Math.abs(p.y - g.B));
+    if (near < 13) {
       const pos = nearestRailPos(g, p.x, p.y);
       const pt = railPoint(g, pos);
       const along = p.vx * pt.tx + p.vy * pt.ty;
@@ -248,11 +256,14 @@ export function updatePlayer(p, move, aim, room, dt) {
       p.railing = true; p.railPos = pos;
       p.railDir = (Math.abs(along) > 1 ? along : aimAlong) >= 0 ? 1 : -1;
       p.railCd = 0.2; p._dashHitIds = new Set();
+      p.x = pt.x; p.y = pt.y; // snap onto the rail
       sfx('dash'); addShake(0.22); ripple(room, pt.x, pt.y, room.biome.pal.accent3, 84, 0.45);
     }
   }
-  // step/dash onto a launch vent (from the ground) → fling up onto its platform deck
-  if (!p.railing && p.level === 0) {
+  // step/dash onto a launch vent (from the ground) → fling up onto its platform deck.
+  // ventCd lockout after landing stops the "land → slide back onto the vent → re-launch"
+  // loop the player hit (e.g. when the ledge nudges you off the deck back onto the pad).
+  if (!p.railing && p.level === 0 && p.ventCd <= 0) {
     for (const v of room.vents || []) {
       if (dist(p.x, p.y, v.x, v.y) < v.r + p.r) {
         p.launchT = VENT_DUR; p.launchFrom = { x: p.x, y: p.y }; p.launchTo = { x: v.tx, y: v.ty };

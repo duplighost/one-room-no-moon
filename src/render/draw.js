@@ -55,7 +55,7 @@ export function drawFrame() {
   ctx.stroke();
   ctx.globalAlpha = 1;
 
-  drawRailLoop(room, pal);       // the perimeter grind rail — dash into the edge to ride it
+  drawRailLoop(room, pal, p);    // the perimeter grind rail — dash into the edge to ride it
   drawTiers(room, pal);
   drawHazardsUnder(room, pal);
   drawBossArena(room, pal);      // boss arena hooks: warden grave-slams + spiggot spore blooms
@@ -640,17 +640,18 @@ function drawAnnexCover(room, pal) {
 
 // Perimeter grind rail: a neon rail loop hugging the map edge. Always visible so the edge
 // reads as "you can't go over — you can RIDE it". Dash into the edge to latch on.
-function drawRailLoop(room, pal) {
+function drawRailLoop(room, pal, p) {
   const g = railGeom(room), t = performance.now() / 1000;
+  const active = !!p?.railing;                  // brighter + faster energy while you're grinding it
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  ctx.strokeStyle = pal.accent3; ctx.globalAlpha = 0.34; ctx.lineWidth = 3.5;
+  ctx.strokeStyle = active ? '#ffffff' : pal.accent3; ctx.globalAlpha = active ? 0.4 : 0.3; ctx.lineWidth = active ? 7 : 3.5;
   roundRectPath(ctx, g.L, g.T, g.W, g.H, 20); ctx.stroke();
-  ctx.globalAlpha = 0.16; ctx.strokeStyle = pal.accent; ctx.lineWidth = 1.5;
+  ctx.globalAlpha = active ? 0.22 : 0.14; ctx.strokeStyle = pal.accent; ctx.lineWidth = 1.5;
   roundRectPath(ctx, g.L - 7, g.T - 7, g.W + 14, g.H + 14, 24); ctx.stroke();
   if (!reduced()) { // energy flowing around the loop
-    ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
-    ctx.setLineDash([26, 22]); ctx.lineDashOffset = -t * 130;
+    ctx.globalAlpha = active ? 0.85 : 0.45; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = active ? 3.4 : 2;
+    ctx.setLineDash([26, 22]); ctx.lineDashOffset = -t * (active ? 340 : 130);
     roundRectPath(ctx, g.L, g.T, g.W, g.H, 20); ctx.stroke();
     ctx.setLineDash([]);
   }

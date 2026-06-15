@@ -514,6 +514,16 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
     tryDash(null, null, { active: true, x: 1, y: 0 }); // dash inward → leap off
     check('dashing while grinding leaps you off the rail', p.railing === false && p.dashT > 0, `railing=${p.railing}`);
   }
+  // reliability: latch even when the dash has glided SLOW by the time it reaches the wall
+  // (the old velocity gate required |v|>40 and failed for long dashes — the user's "not the
+  // first time in a room" bug). Proximity latch must grab it regardless of remaining speed.
+  const { railGeom } = await import('../src/systems/player.js');
+  const g = railGeom(room);
+  const q = state.run.player;
+  q.railing = false; q.railCd = 0; q.dashCd = 0; q.level = 0;
+  q.x = g.L + 1; q.y = room.h / 2; q.vx = -14; q.vy = 0; q.dashT = 0.2; // basically on the rail, crawling
+  for (let i = 0; i < 3; i++) tick(1 / 60);
+  check('rail latches on proximity even with low dash velocity', q.railing === true, 'railing=' + q.railing);
 }
 
 // ── Phase 8a: floorplans + connectivity invariant ──────────────────────────
