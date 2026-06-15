@@ -481,6 +481,20 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   }
 }
 
+// ── launch vent: stepping on a vent flings you up onto the platform (level 1) ──
+{
+  startRun('vent'); state.mode = 'play';
+  let v = null, g = 0;
+  while (!v && g++ < 30) { window.oneRoomDebug.skipRound(); state.mode = 'play'; v = (state.room.vents || [])[0]; }
+  check('a launch vent spawns', !!v, 'none in ' + g + ' rooms');
+  if (v) {
+    const p = state.run.player;
+    p.x = v.x; p.y = v.y; p.level = 0; p.vx = p.vy = 0; // step onto the vent
+    for (let i = 0; i < 30; i++) tick(1 / 60);          // arc (~0.32s) + settle
+    check('vent flings you up onto the platform (level 1)', p.level === 1, `level=${p.level}`);
+  }
+}
+
 // ── Phase 8a: floorplans + connectivity invariant ──────────────────────────
 {
   startRun('floorplan-audit');

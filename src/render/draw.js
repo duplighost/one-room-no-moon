@@ -63,6 +63,7 @@ export function drawFrame() {
   if (room.portal) drawPortal(room, pal);
   if (room.care) for (const c of room.care) drawCare(ctx, c, pal);
   if (room.vendor) drawVendor(room, pal);
+  if (room.vents) for (const v of room.vents) drawVent(v, pal);
   drawPickups(room, pal);
 
   // y-sorted entities; raised (level>0) things sort above ground and lift visually
@@ -632,6 +633,26 @@ function drawAnnexCover(room, pal) {
   ctx.globalAlpha = 0.55 + 0.35 * Math.sin(t * 2.6); ctx.fillStyle = pal.accent3;
   ctx.font = '900 38px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('?', ax.cx, ax.cy);
+  ctx.restore();
+}
+
+// Launch vent: an updraft pad — step/dash onto it to get flung up onto a platform.
+function drawVent(v, pal) {
+  const t = performance.now() / 1000, col = pal.accent3;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const pulse = 0.6 + 0.4 * Math.abs(Math.sin(t * 4 + v.phase));
+  const g = ctx.createRadialGradient(v.x, v.y, 0, v.x, v.y, v.r * 1.9);
+  g.addColorStop(0, hexA(col, 0.30 * pulse)); g.addColorStop(1, hexA(col, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(v.x, v.y, v.r * 1.9, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 0.85; ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.shadowColor = col; ctx.shadowBlur = 10;
+  ctx.beginPath(); ctx.arc(v.x, v.y, v.r, 0, TAU); ctx.stroke();
+  ctx.shadowBlur = 0; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {                       // rising chevrons = updraft / "launch up"
+    const yo = ((t * 46 + i * 17) % 50) - 26;
+    ctx.globalAlpha = 0.75 * (1 - Math.abs(yo) / 26);
+    ctx.beginPath(); ctx.moveTo(v.x - 11, v.y + yo + 7); ctx.lineTo(v.x, v.y + yo - 5); ctx.lineTo(v.x + 11, v.y + yo + 7); ctx.stroke();
+  }
   ctx.restore();
 }
 

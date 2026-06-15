@@ -13,6 +13,8 @@ import { hooks } from './items.js';
 import { view } from '../render/camera.js';
 import { levelAt } from './levels.js';
 
+const VENT_DUR = 0.32; // vent launch arc duration
+
 export function makePlayer() {
   return {
     x: 750, y: 700, vx: 0, vy: 0, r: PLAYER.R, aimX: 1, aimY: 0, face: 0, level: 0,
@@ -23,6 +25,7 @@ export function makePlayer() {
     fireDelay: PLAYER.FIRE_DELAY, fireCd: 0, damage: PLAYER.DAMAGE, crit: PLAYER.CRIT,
     dashCdBase: PLAYER.DASH_CD, dashCd: 0, dashT: 0, dashDur: PLAYER.DASH_DUR,
     dashSpinDir: 1, lastDashAngle: null, after: [], faceDir: 1, walkPhase: 0,
+    launchT: 0, launchHop: 0, launchFrom: null, launchTo: null, // vent launch arc
     pickup: PLAYER.PICKUP_RANGE,
     perks: { damage: 0, fire: 0, speed: 0, maxHp: 0 },
     modules: {},
@@ -41,6 +44,20 @@ export function updatePlayer(p, move, aim, room, dt) {
   p.hurt = Math.max(0, p.hurt - dt);
   p.fireCd = Math.max(0, p.fireCd - dt);
   p.dashCd = Math.max(0, p.dashCd - dt);
+  // VENT LAUNCH: arc up onto a platform, flying over the ledge walls. Overrides normal
+  // movement/collision while airborne (p.launchHop lifts the body), then lands on the deck.
+  if (p.launchT > 0) {
+    p.launchT -= dt;
+    const k = clamp(1 - p.launchT / VENT_DUR, 0, 1);
+    p.x = p.launchFrom.x + (p.launchTo.x - p.launchFrom.x) * k;
+    p.y = p.launchFrom.y + (p.launchTo.y - p.launchFrom.y) * k;
+    p.launchHop = Math.sin(k * Math.PI) * 80;
+    p.vx = p.vy = 0; p.inv = Math.max(p.inv, 0.12);
+    p.level = levelAt(room, p.x, p.y);
+    p.face = Math.atan2(p.aimY, p.aimX);
+    if (p.launchT <= 0) { p.launchHop = 0; burst(room, p.x, p.y, room.biome.pal.accent3, 16, 220, 0.4, 3); addShake(0.3); sfx('care'); }
+    return;
+  }
   const wasDashing = p.dashT > 0;
   p.dashT = Math.max(0, p.dashT - dt);
   if (wasDashing && p.dashT <= 0) { // landing punctuation — reads as the dash "slam" stop
@@ -129,6 +146,16 @@ export function updatePlayer(p, move, aim, room, dt) {
     if (door) damageObstacle(room, door, door.hp + 999);
   }
   p.level = levelAt(room, p.x, p.y); // ground=0, raised platform=1 (set by ramps)
+  // step/dash onto a launch vent (from the ground) → fling up onto its platform deck
+  if (p.level === 0) {
+    for (const v of room.vents || []) {
+      if (dist(p.x, p.y, v.x, v.y) < v.r + p.r) {
+        p.launchT = VENT_DUR; p.launchFrom = { x: p.x, y: p.y }; p.launchTo = { x: v.tx, y: v.ty };
+        sfx('dash'); ripple(room, v.x, v.y, room.biome.pal.accent3, 90, 0.5); addShake(0.22);
+        break;
+      }
+    }
+  }
   if (p.dashT > 0) performDashCut(p, room, PLAYER.DASH_SWEEP_RANGE || PLAYER.DASH_HIT_RANGE); // cut enemies along the travel, not just at launch
 
   // trail + afterimages — small motes spawned BEHIND the body (particles draw on

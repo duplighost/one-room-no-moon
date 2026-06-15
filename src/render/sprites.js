@@ -110,15 +110,17 @@ export function drawPlayer(ctx, p, room) {
   // a stride-bob when moving (breathing when idle), a lean into motion, a persistent
   // left/right facing, and a subtle squash-stretch.
   const psp = Math.hypot(p.vx, p.vy), pmoving = psp > 50, ptt = performance.now() / 1000;
-  const anim = {
-    bob: pmoving ? Math.abs(Math.sin(p.walkPhase)) * (4.5 + Math.min(6, psp / 180))
-                 : (0.5 + 0.5 * Math.sin(ptt * 2.2)) * 2.2,
-    // squash-stretch aligned to the bob: taller at the top of the bounce, squashed at the bottom
-    stretch: pmoving ? 1 + (Math.abs(Math.sin(p.walkPhase)) - 0.4) * 0.13
-                     : 1 + Math.sin(ptt * 2.2) * 0.03,
-    lean: clamp(p.vx / 1000 + (p.aimX || 0) * 0.04, -0.19, 0.19),
-    faceX: p.faceDir || 1,
-  };
+  const anim = (p.launchT || 0) > 0
+    ? { bob: p.launchHop || 0, stretch: 1.12, lean: 0, faceX: p.faceDir || 1 } // airborne off a vent
+    : {
+        bob: pmoving ? Math.abs(Math.sin(p.walkPhase)) * (4.5 + Math.min(6, psp / 180))
+                     : (0.5 + 0.5 * Math.sin(ptt * 2.2)) * 2.2,
+        // squash-stretch aligned to the bob: taller at the top of the bounce, squashed at the bottom
+        stretch: pmoving ? 1 + (Math.abs(Math.sin(p.walkPhase)) - 0.4) * 0.13
+                         : 1 + Math.sin(ptt * 2.2) * 0.03,
+        lean: clamp(p.vx / 1000 + (p.aimX || 0) * 0.04, -0.19, 0.19),
+        faceX: p.faceDir || 1,
+      };
   drawPlayerBody(ctx, p.x, p.y, p.face, pal, 1, false, spin, anim);
   if (p.hurt > 0) {
     ctx.strokeStyle = pal.bad + 'cc'; ctx.lineWidth = 4;
@@ -142,7 +144,7 @@ export function drawPlayerBody(ctx, x, y, face, pal, alpha = 1, ghost = false, s
   const a = (anim && !spinning) ? anim : null;
   const bob = a ? a.bob : 0;
   // the shadow stays grounded + shrinks a touch as he lifts — sells the bob as real height
-  shadow(ctx, x, y + 18 * PLAYER_DRAW_SCALE, (20 - bob * 0.35) * PLAYER_DRAW_SCALE, 7 * PLAYER_DRAW_SCALE, ghost ? 0.1 : 0.30);
+  shadow(ctx, x, y + 18 * PLAYER_DRAW_SCALE, Math.max(3, 20 - bob * 0.35) * PLAYER_DRAW_SCALE, 7 * PLAYER_DRAW_SCALE, ghost ? 0.1 : 0.30); // clamp ≥3 so a big vent-hop can't make a negative-radius ellipse
   ctx.translate(x, y - bob);
   ctx.scale(PLAYER_DRAW_SCALE, PLAYER_DRAW_SCALE); // visual scale lives in config; collision stays separate
   if (moots.ready && !ghost) {

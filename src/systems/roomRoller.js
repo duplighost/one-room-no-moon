@@ -78,7 +78,7 @@ export function rollRoom(run, round) {
     enemies: [], bullets: [], pickups: [], particles: [], floats: [],
     ambient: [], spawnQueue: [], pendingWaves: null, spawnAnchors: [],
     cleared: false, clearT: 0, portal: null, time: 0,
-    vendor: null,
+    vendor: null, vents: [],
     background: null,
   };
   const px = room.w / 2, py = room.h * 0.66; // player spawn
@@ -121,7 +121,9 @@ export function rollRoom(run, round) {
   const density = (RECIPES[recipeId]?.density || 0);
   // Big rooms need a visual/combat anchor before scatter, so cover arranges around
   // a designed thing instead of confetti. Validated later with the same reachability audit.
-  const landmark = !bossId && chance(rng, partitioned ? 0.30 : 0.84) && placeLandmark(room, rng, px, py, portalX, portalY);
+  const landmark = !bossId && chance(rng, partitioned ? 0.42 : 0.92) && placeLandmark(room, rng, px, py, portalX, portalY);
+  // a SECOND landmark set-piece in the bigger sprawls — more striking structures to fight around
+  if (landmark && !bossId && !partitioned && room.w * room.h > 9_000_000 && chance(rng, 0.5)) placeLandmark(room, rng, px, py, portalX, portalY);
   // cover scales ~linearly with area so density holds across the much bigger floor
   // (kept moderate — the sprawl reads full from ambient/decals/enemies, not a cover maze).
   const areaBonus = Math.max(2, Math.round((roomAreaScale(room) - 1) * 6));
@@ -164,7 +166,12 @@ export function rollRoom(run, round) {
   // Skip when partitioned or a boss arena (keep those legible). The platform is
   // high ground: snipers/turrets seeded on it (director, 8d) can only be engaged
   // by climbing the ramp.
-  if (!bossId && !partitioned && chance(rng, 0.34)) maybeTier(room, rng, px, py, portalX, portalY);
+  // More verticality: most non-boss rooms get raised platforms now (sometimes two),
+  // and maybeTier also drops launch VENTS that fling you up onto them in a cool spot.
+  if (!bossId && !partitioned) {
+    const nTiers = chance(rng, 0.58) ? (room.w * room.h > 9_000_000 && chance(rng, 0.4) ? 2 : 1) : 0;
+    for (let i = 0; i < nTiers; i++) maybeTier(room, rng, px, py, portalX, portalY);
+  }
 
   // ── glass biomes furnish breakable chain-glass (the shard/volatile projectile
   // hazard is retired; this cover IS their identity now — shoot or dash one and the
@@ -511,6 +518,7 @@ function maybeTier(room, rng, px, py, portalX, portalY) {
     const pad = 90;
     const hit = (qx, qy) => qx > tx - pad && qx < tx + tw + pad && qy > ty - pad && qy < ty + th + pad;
     if (hit(px, py) || hit(portalX, portalY)) continue;
+    if ((room.tiers || []).some(t => tx < t.x + t.w + 70 && tx + tw > t.x - 70 && ty < t.y + t.h + 70 && ty + th > t.y - 70)) continue; // don't stack platforms
     // ramp on the bottom edge (faces the player below); gap centred-ish
     const gap = rand(rng, 150, 200);
     const rgx = tx + tw * rand(rng, 0.4, 0.6);
@@ -531,6 +539,13 @@ function maybeTier(room, rng, px, py, portalX, portalY) {
       continue;
     }
     room.tiers.push({ x: tx, y: ty, w: tw, h: th, height: 1, ramp: { x: rgx, y: ty + th, w: gap } });
+    // a launch VENT below the deck (offset from the ramp): step/dash onto it and it
+    // flings you up onto a cool spot on the platform — a fast alternative to the ramp.
+    const vf = chance(rng, 0.5) ? rand(rng, 0.16, 0.32) : rand(rng, 0.68, 0.84);
+    const vx = tx + tw * vf, vy = ty + th + rand(rng, 60, 95);
+    if (vy < room.h - room.wall - 40 && dist(vx, vy, px, py) > 200 && !pointBlockedForSpawn(room, vx, vy, 44)) {
+      room.vents.push({ x: vx, y: vy, r: 30, tx: tx + tw * vf, ty: ty + th * rand(rng, 0.32, 0.5), phase: rng() * TAU });
+    }
     return;
   }
 }
