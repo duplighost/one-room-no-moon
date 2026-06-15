@@ -131,6 +131,7 @@ export function drawFrame() {
   }
 
   drawEclipse(room); // False Moon's eclipse darkens the field around the moon
+  if (state.mode === 'play') drawSpeedStreaks(p); // anime speed-lines at dash/flow velocity
   if (p && state.mode === 'play' && state.run?.oath !== 'blind') drawDangerTriangles(room, p);
   if (room.portal) drawPortalArrow(room);
   drawBossBar(room);
@@ -659,6 +660,31 @@ function drawEclipse(room) {
   g.addColorStop(0.45, `rgba(3,0,10,${(0.55 * k).toFixed(3)})`);
   g.addColorStop(1, `rgba(3,0,10,${k.toFixed(3)})`);
   ctx.fillStyle = g; ctx.fillRect(0, 0, view.W, view.H);
+}
+
+// Anime speed-streaks at high velocity (dash / flow-lane boost) — the "I'm FAST" rush.
+// Screen-space lines trailing behind the travel direction; flicker reads as energy.
+function drawSpeedStreaks(p) {
+  if (!p || reduced()) return;
+  const sp = Math.hypot(p.vx, p.vy);
+  if (sp < 500) return;
+  const k = clamp((sp - 500) / 850, 0, 1);
+  const px = (p.x - cam.x) * view.scale, py = (p.y - cam.y) * view.scale;
+  const ang = Math.atan2(p.vy, p.vx) + Math.PI;     // behind the direction of travel
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = p.dashT > 0 ? '#ffffff' : '#bfeaff';
+  for (let i = 0; i < 20; i++) {
+    const a = ang + (Math.random() - 0.5) * 1.85;
+    const r0 = 190 + Math.random() * 210, r1 = r0 + 80 + k * 220;
+    ctx.globalAlpha = (0.09 + k * 0.26) * (0.45 + 0.55 * Math.random());
+    ctx.lineWidth = 1.2 + Math.random() * 2.6;
+    ctx.beginPath();
+    ctx.moveTo(px + Math.cos(a) * r0, py + Math.sin(a) * r0);
+    ctx.lineTo(px + Math.cos(a) * r1, py + Math.sin(a) * r1);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 // Cinematic boss entrance: the name slams in huge + fades over the ~1s intro hold.

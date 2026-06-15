@@ -74,7 +74,9 @@ export function drawPlayer(ctx, p, room) {
   }
   for (let i = p.after.length - 1; i >= 0; i--) {
     const a = p.after[i];
-    drawPlayerBody(ctx, a.x, a.y, a.face, pal, clamp(a.life / 0.16, 0, 1) * 0.18, true, a.spin || 0);
+    // dash afterimages burn brighter than the idle motion ghost — a vivid streak of you
+    const aAlpha = clamp(a.life / (a.dash ? 0.22 : 0.16), 0, 1) * (a.dash ? 0.44 : 0.16);
+    drawPlayerBody(ctx, a.x, a.y, a.face, pal, aAlpha, true, a.spin || 0);
   }
   if (p.dashT > 0) {
     const k = clamp(p.dashT / (p.dashDur || 0.001), 0, 1), ring = 1 - k;
