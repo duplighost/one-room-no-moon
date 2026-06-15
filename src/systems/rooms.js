@@ -14,7 +14,7 @@ import { sfx } from '../audio/sfx.js';
 import { suppressInput } from '../ui/input.js';
 import { showDeath, showOverlay, hideOverlays, updateHud, whisper } from '../ui/overlays.js';
 import { hooks } from './items.js';
-import { autoGrant, chooseCards, grantItem } from './draft.js';
+import { autoGrant, openDraft, chooseCards, grantItem } from './draft.js';
 import { dropPickup } from './pickups.js';
 import { applyShrine, applyOath, bankDaily } from './meta.js';
 import { notice } from './notices.js';
@@ -123,8 +123,15 @@ export function updateRound(dt) {
 
 function enterPortal() {
   sfx('portal');
-  autoGrant();         // grant a power-up inline + flash it — no choosing, no menu
-  startTransition();   // straight into the quick transition; the action never stops
+  // Most rooms: instant power-up, no stop (constant flow). After a BOSS — an earned
+  // beat — a real draft choice, restoring the "I chose this build" feeling without
+  // breaking the flow everywhere else. (ChatGPT's hybrid; player picked it.)
+  if (state.room.bossId) {
+    openDraft(() => startTransition());
+  } else {
+    autoGrant();
+    startTransition();
+  }
 }
 
 export function startTransition() {

@@ -291,6 +291,9 @@ for (let i = 0; i < 60 && state.mode === 'play'; i++) {
   tick(1 / 60);
   if (state.room.portal) { p5.x = state.room.portal.x; p5.y = state.room.portal.y; }
 }
+// round 20 is the Archon boss → the hybrid opens a REAL draft choice (not auto-grant)
+check('boss portal opens a real draft choice (hybrid)', state.mode === 'portalDraft', 'mode=' + state.mode);
+window.oneRoomDebug.pick(0);
 for (let i = 0; i < 160; i++) tick(1 / 60);
 check('overdrive round 21 live', state.run.round === 21 && state.mode === 'play', `round=${state.run.round} mode=${state.mode}`);
 check('overdrive draws from the whole biome deck', !!state.room.biome);

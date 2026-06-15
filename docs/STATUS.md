@@ -115,10 +115,6 @@ light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
 ## Next up (the "neon cyberpunk space districts" vision — not started)
 
-- **Player choice at major beats (ChatGPT's top suggestion):** auto-grant is fast but kills the
-  "I chose this build" feeling. Hybrid options: a real draft after bosses, OR — better for flow —
-  an in-world "grab your graft" (drop 2-3 power-up pickups after a boss; you grab one, no menu
-  stop). *Pending the player's call — they were emphatic about no forced choice.*
 - **Push the neon further:** brighter palettes; per-district color/biome variation within one
   sprawl (right now districts share the room's biome colour — could vary them).
 - **Cooler bosses** (lesson from the space game) + more combo/flash juice.
@@ -127,8 +123,11 @@ light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **Moving floor** (this pass) — ported ChatGPT's `drawFloorMotion`: live biome-specific floor
-   currents. Perf-safe (no shadowBlur; mobile-off via lowFx). Verified clean. **UNPLAYED.**
+1. **Moving floor + boss-draft hybrid** (this pass) — ported ChatGPT's `drawFloorMotion` (live
+   biome-specific floor currents; perf-safe, mobile-off via lowFx). And the draft hybrid (player
+   chose "quick menu after bosses"): non-boss rooms auto-grant (no stop), **boss rooms open a real
+   draft choice** — restores agency at the earned beat without breaking flow. +1 headless check
+   (boss portal opens a draft). Verified clean. **UNPLAYED.**
 2. **Neon districts in one sprawl** (`9b1e575`) — ported ChatGPT's district slabs (non-colliding
    city blocks) + flow lanes (neon boost boulevards) + district naming onto our branch; skipped
    its heavy gun-kick + surge/clear-node. Fixed a junction-slowdown bug (ride only the best lane);
