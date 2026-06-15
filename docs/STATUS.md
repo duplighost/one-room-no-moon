@@ -16,6 +16,17 @@ Living snapshot of where we are. Full history + rationale lives in
 Direction shifted hard toward **"endless neon cyberpunk space districts" — constant flow state,
 light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
+- **Distinct, well-fleshed neighborhoods.** Each district now gets a **distinct neon hue** (spread
+  around the colour wheel from a room-random base, drawn additively so it glows) — a single sprawl
+  reads as different neighborhoods, not one colour (the *"really distinct"* ask; neither build had
+  it). Ported ChatGPT's Round-2 **city dressing** — skyways (aerial transit rails), neon **signs**
+  (NULL/MOON/GRAFT…), traffic flecks — all NON-COLLIDING and **baked** (zero per-frame cost), plus
+  a denser district grid (4–5×4–5, ~16/room). Adopted ChatGPT's **background-scaling** (`choose
+  BackgroundScale` caps the baked canvas) + **own-RNG isolation** for baking (defensive: visual
+  bake can't advance gameplay RNG). *Note: my headless already baked (stubs `document`), so unlike
+  ChatGPT's setup I didn't actually have its canvas/no-canvas divergence — but the isolation is
+  good practice + needed for bigger rooms.* Verified: 111 headless, stress, Chromium — desktop
+  perf unchanged (33ms; dressing is baked), no console errors.
 - **Neon districts in one sprawl** (ported from ChatGPT's "neon districts" build, then improved).
   Each giant room now reads as a city: **non-colliding district slabs** (city blocks baked under
   the fight — visual fullness with *zero* added collision) + **flow lanes** (animated neon boost
@@ -123,7 +134,12 @@ light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **Moving floor + boss-draft hybrid** (this pass) — ported ChatGPT's `drawFloorMotion` (live
+1. **Distinct, well-fleshed neighborhoods** (this pass) — per-district neon hues (distinct
+   neighborhoods); ported ChatGPT Round-2 city dressing (skyways/signs/traffic, baked) + denser
+   district grid; background-scaling + bake own-RNG isolation. 111 headless, Chromium clean, perf
+   unchanged. **UNPLAYED.** Dials: district hue alpha in `paintNeonDistricts`; grid size + dressing
+   counts in `seedDistricts`/`seedCityDressing`.
+2. **Moving floor + boss-draft hybrid** (`224ca6a`) — ported ChatGPT's `drawFloorMotion` (live
    biome-specific floor currents; perf-safe, mobile-off via lowFx). And the draft hybrid (player
    chose "quick menu after bosses"): non-boss rooms auto-grant (no stop), **boss rooms open a real
    draft choice** — restores agency at the earned beat without breaking flow. +1 headless check

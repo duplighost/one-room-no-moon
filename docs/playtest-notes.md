@@ -21,7 +21,34 @@ cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions across all 22 biomes (4 live hazard kits — pulse/ritual/lane/
 sightline — the spitter kits are retired) and all 8+ enemy AIs.
 
-## Neon districts in one sprawl (player-directed, ported from ChatGPT, 2026-06-15 latest)
+## Distinct, well-fleshed neighborhoods (player-directed + ChatGPT Round 2, 2026-06-15 latest)
+
+Player: "really distinct well-fleshed world and neighborhoods first, then amazing bosses." Shared
+ChatGPT's "Giant Round 2" build (v0.5.2, source + patch + playable). Reviewed the patch and took
+the gold; built the distinct part myself (neither build had it). All verified, UNPLAYED:
+
+- **Distinct neighborhood hues** (my work): `seedDistricts` gives each grid district its own neon
+  hue — `hsl((baseHue + id*64) % 360, 80%, 62%)`, baseHue room-random — drawn additively
+  (`paintNeonDistricts` in 'lighter'). A single sprawl now reads as different-coloured neighborhoods.
+  Denser grid (4–5 × 4–5, ~16 districts/room), skip 0.16→0.12.
+- **City dressing** (ported from ChatGPT Round 2): `seedCityDressing` + `paintCityDressing` —
+  skyways (aerial transit rails between districts), neon signs (NULL/MOON/GRAFT… district-tinted),
+  traffic flecks along boost roads. All NON-COLLIDING and BAKED → world flesh at **zero per-frame
+  cost** (desktop frameP95 stayed 33ms).
+- **Background scaling** (`chooseBackgroundScale`, from ChatGPT): caps the baked canvas at 9MP
+  desktop / 5.6MP mobile (draw in room-space, output scaled-down, drawImage scales back up). Lets
+  giant rooms bake cheap. draw.js now draws the bg at full `room.w×room.h`.
+- **Bake own-RNG isolation** (from ChatGPT): `bakeBackground` reseeds its own `mulberry32(hash…)`
+  so visual baking never advances gameplay RNG. *Honest caveat:* ChatGPT's headless skipped baking
+  (no `document`) so its browser/headless rooms diverged; MINE stubs `document` and bakes in
+  headless too, so I didn't actually have that bug — but I adopted the isolation anyway (defensive,
+  and needed once baking is scaled). +3 headless checks (dressing generated, distinct hues, scale).
+
+Did NOT chase ChatGPT's 33 MP rooms — it admits it couldn't browser-perf-test them, and its own
+earlier note called 33 MP an "Android-killing shopping cart." I kept the proven ~6 MP size (perf
+gated); going bigger needs viewport-culling of the moving floor + lanes first (a clean follow-up).
+
+## Neon districts in one sprawl (player-directed, ported from ChatGPT, 2026-06-15)
 
 Player picked "districts in one sprawl," then shared ChatGPT's parallel "neon districts flow
 state" build. Reviewed it (passes its own headless, clean) and **ported the gold onto our branch**

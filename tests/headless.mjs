@@ -690,5 +690,17 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   check('flow lane boosts speed vs no lane', spLane > spNo + 4, `lane=${spLane.toFixed(0)} noLane=${spNo.toFixed(0)}`);
 }
 
+// ── distinct, well-fleshed neighborhoods ─────────────────────────────────────
+{
+  startRun('citydressing');
+  const cr = state.room;
+  check('city dressing generated (districts + skyways + signs + traffic)',
+    cr.districts.length > 0 && cr.skyways.length > 0 && cr.signs.length > 0 && cr.traffic.length > 0,
+    `d=${cr.districts.length} sky=${cr.skyways.length} sign=${cr.signs.length} traf=${cr.traffic.length}`);
+  const hues = new Set(cr.districts.filter(d => /^hsl/.test(String(d.color))).map(d => d.color));
+  check('neighborhoods have distinct neon hues', hues.size >= 4, 'distinct-hue districts=' + hues.size);
+  check('background is baked at a perf-safe scale', cr.backgroundScale > 0 && cr.backgroundScale <= 1, 'scale=' + cr.backgroundScale);
+}
+
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

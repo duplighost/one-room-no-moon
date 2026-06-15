@@ -2,7 +2,7 @@
 // axes, builds the room object, and bakes its background once. Consumes only
 // data/ + rng (architecture.md §4 rule 2).
 import { ROOM, TAU } from '../config.js';
-import { Bag, clamp, dist, rand, randi, chance, pick } from '../rng.js';
+import { Bag, clamp, dist, rand, randi, chance, pick, mulberry32, hashString } from '../rng.js';
 import { BIOMES, BIOMES_BY_TIER, tierForRound } from '../data/biomes.js';
 import { LAYOUTS, LAYOUT_IDS } from '../data/layouts.js';
 import { paintPattern, paintSignature } from '../data/patterns.js';
@@ -65,7 +65,7 @@ export function rollRoom(run, round) {
     round, idx: depthIdx(round), stage: dangerStage(round, run.overdrive),
     biome, layoutId, recipeId, mutatorId: mutator?.id || null, mutator, eventId: null, bossId,
     floorplanId: 'none', openings: [], sanctum: null, tiers: [],
-    districts: [], flowLanes: [], districtName: '', districtSubtitle: '',
+    districts: [], flowLanes: [], skyways: [], signs: [], traffic: [], districtName: '', districtSubtitle: '', backgroundScale: 1,
     // city-scale sprawl — give the player a LOT of ground to dash across. Density
     // (cover, ambient, enemy budget) scales with area below so the space stays full.
     w: Math.round((portrait ? rand(rng, 1860, 2200) : rand(rng, bossId ? 2650 : 2520, bossId ? 3120 : 2960)) * sizeScale),
@@ -86,6 +86,7 @@ export function rollRoom(run, round) {
   room.districtSubtitle = rollDistrictSubtitle(room, rng);
   seedDistricts(room, rng, px, py, portalX, portalY);
   seedFlowLanes(room, rng, px, py, portalX, portalY);
+  seedCityDressing(room, rng, px, py, portalX, portalY);
 
   // ── floorplan (Phase 8a): partition walls before the cover scatter ──
   if (!bags.floorplan) bags.floorplan = new Bag(FLOORPLAN_IDS, 2);
@@ -695,13 +696,16 @@ function rollDistrictSubtitle(room, rng) {
 
 function seedDistricts(room, rng, px, py, portalX, portalY) {
   const pal = room.biome.pal;
-  const cols = room.w > 5600 ? 4 : 3;
-  const rows = room.h > 4300 ? 4 : 3;
+  const cols = room.w > 4200 ? 5 : 4;
+  const rows = room.h > 3200 ? 5 : 4;
   const wall = room.wall + 120;
+  // Each neighborhood gets a DISTINCT neon hue, spread around the colour wheel from a
+  // room-random base, so a single sprawl reads as different districts — not one colour.
+  const baseHue = Math.floor(rng() * 360);
   let id = 0;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (chance(rng, 0.16)) continue;
+      if (chance(rng, 0.12)) continue;
       const cw = (room.w - wall * 2) / cols;
       const ch = (room.h - wall * 2) / rows;
       const x = wall + c * cw + rand(rng, 24, 76);
@@ -710,15 +714,16 @@ function seedDistricts(room, rng, px, py, portalX, portalY) {
       const h = ch * rand(rng, 0.54, 0.82);
       const cx = x + w / 2, cy = y + h / 2;
       if (dist(cx, cy, px, py) < 360 || dist(cx, cy, portalX, portalY) < 260) continue;
+      const hue = (baseHue + id * 64) % 360;
       room.districts.push({
         id: id++, x, y, w, h, cx, cy,
         kind: pick(rng, DISTRICT_KIND),
-        color: chance(rng, 0.5) ? pal.accent : chance(rng, 0.5) ? pal.accent2 : pal.accent3,
+        color: `hsl(${hue}, 80%, 62%)`,
         phase: rng() * TAU,
       });
     }
   }
-  // guaranteed readable anchors: home block, exit block, and a middle plaza.
+  // functional anchors stay in the biome's own accents (home / exit / plaza = places, not blocks)
   room.districts.push(
     { id: id++, x: px - 360, y: py - 240, w: 720, h: 480, cx: px, cy: py, kind: 'spawn', color: pal.accent3, phase: rng() * TAU },
     { id: id++, x: portalX - 340, y: portalY - 220, w: 680, h: 440, cx: portalX, cy: portalY, kind: 'exit', color: pal.accent2, phase: rng() * TAU },
@@ -762,6 +767,61 @@ function seedFlowLanes(room, rng, px, py, portalX, portalY) {
   }
 }
 
+// ── City dressing (ported from ChatGPT's Round 2): skyways, neon signs, traffic
+// flecks. All NON-COLLIDING and BAKED into the background — the "well-fleshed world"
+// without any per-frame cost or new collision. ──
+const SIGN_WORDS = ['NULL', 'MOON', 'EXIT', 'EAT', 'LIVE', 'HUSH', 'GOD', 'WIRE', 'GRAFT', 'BLOOM', 'NOIR', 'OPEN', 'KILL', 'SAINT'];
+
+function seedCityDressing(room, rng, px, py, portalX, portalY) {
+  const pal = room.biome.pal;
+  const districts = room.districts || [];
+  const lanes = room.flowLanes || [];
+  const byDist = (a, b) => dist(a.cx, a.cy, b.cx, b.cy);
+
+  // Elevated transit rails between neighborhoods — depth without stealing pathing.
+  const skyCount = room.bossId ? randi(rng, 3, 5) : randi(rng, view.mobile ? 5 : 7, view.mobile ? 8 : 11);
+  for (let i = 0; i < skyCount && districts.length > 1; i++) {
+    const a = pick(rng, districts);
+    const options = districts.filter(d => d !== a).sort((u, v) => byDist(a, u) - byDist(a, v));
+    const b = options[Math.min(options.length - 1, randi(rng, 1, Math.min(5, Math.max(1, options.length - 1))))] || pick(rng, districts);
+    if (!b || dist(a.cx, a.cy, b.cx, b.cy) < 520) continue;
+    room.skyways.push({
+      x1: a.cx + rand(rng, -a.w * 0.18, a.w * 0.18), y1: a.cy + rand(rng, -a.h * 0.18, a.h * 0.18),
+      x2: b.cx + rand(rng, -b.w * 0.18, b.w * 0.18), y2: b.cy + rand(rng, -b.h * 0.18, b.h * 0.18),
+      color: chance(rng, 0.5) ? a.color : pal.accent3, width: rand(rng, 18, 34), phase: rng() * TAU,
+    });
+  }
+
+  // Tiny neon signage gives each slab a "place" without becoming cover (district-tinted).
+  const signCount = room.bossId ? randi(rng, 5, 9) : randi(rng, view.mobile ? 16 : 24, view.mobile ? 28 : 42);
+  for (let i = 0; i < signCount && districts.length; i++) {
+    const d = pick(rng, districts);
+    const edge = randi(rng, 0, 3), pad = 36;
+    const x = edge === 0 ? d.x + rand(rng, pad, d.w - pad) : edge === 1 ? d.x + d.w - rand(rng, 8, 26) : edge === 2 ? d.x + rand(rng, pad, d.w - pad) : d.x + rand(rng, 8, 26);
+    const y = edge === 0 ? d.y + rand(rng, 8, 26) : edge === 1 ? d.y + rand(rng, pad, d.h - pad) : edge === 2 ? d.y + d.h - rand(rng, 8, 26) : d.y + rand(rng, pad, d.h - pad);
+    if (dist(x, y, px, py) < 250 || dist(x, y, portalX, portalY) < 190) continue;
+    room.signs.push({
+      x, y, w: rand(rng, 56, 132), h: rand(rng, 18, 34),
+      rot: edge === 1 || edge === 3 ? Math.PI / 2 + rand(rng, -0.08, 0.08) : rand(rng, -0.08, 0.08),
+      color: chance(rng, 0.55) ? d.color : chance(rng, 0.5) ? pal.accent : pal.accent2,
+      text: pick(rng, SIGN_WORDS),
+    });
+  }
+
+  // Baked traffic flecks along the boost roads — the metropolis feels inhabited.
+  const trafficCount = room.bossId ? randi(rng, 28, 44) : randi(rng, view.mobile ? 70 : 105, view.mobile ? 105 : 150);
+  for (let i = 0; i < trafficCount && lanes.length; i++) {
+    const l = pick(rng, lanes);
+    const at = rand(rng, 0.04, 0.96), dx = l.x2 - l.x1, dy = l.y2 - l.y1;
+    const len = Math.hypot(dx, dy) || 1, lx = dx / len, ly = dy / len, nx = -ly, ny = lx;
+    const off = rand(rng, -(l.width || 80) * 0.42, (l.width || 80) * 0.42);
+    room.traffic.push({
+      x: l.x1 + dx * at + nx * off, y: l.y1 + dy * at + ny * off,
+      lx, ly, len: rand(rng, 18, 64), color: chance(rng, 0.58) ? l.color : '#ffffff', alpha: rand(rng, 0.08, 0.24),
+    });
+  }
+}
+
 // obstacles keep clear of the main arteries/boulevards so the boost routes stay open.
 function nearProtectedFlowLane(room, o, margin = 0) {
   if (!room.flowLanes?.length) return false;
@@ -788,16 +848,17 @@ function distPointSegment(px, py, x1, y1, x2, y2) {
 
 function paintNeonDistricts(ctx, room, rng, pal) {
   ctx.save();
-  // District slabs: big NON-COLLIDING city blocks under the fight.
+  ctx.globalCompositeOperation = 'lighter'; // additive: each neighborhood's distinct neon hue glows
+  // District slabs: big NON-COLLIDING city blocks under the fight, each its own neon colour.
   for (const d of room.districts || []) {
     ctx.save();
     ctx.translate(d.cx, d.cy);
     ctx.rotate(Math.sin(d.phase) * 0.035);
     const x = -d.w / 2, y = -d.h / 2;
-    ctx.globalAlpha = d.kind === 'spawn' || d.kind === 'exit' ? 0.10 : 0.065;
+    ctx.globalAlpha = d.kind === 'spawn' || d.kind === 'exit' ? 0.12 : 0.105;
     ctx.fillStyle = d.color || pal.accent3;
     roundRect(ctx, x, y, d.w, d.h, 22); ctx.fill();
-    ctx.globalAlpha = 0.18;
+    ctx.globalAlpha = 0.24;
     ctx.strokeStyle = d.color || pal.accent3;
     ctx.lineWidth = d.kind === 'plaza' ? 4 : 2.2;
     roundRect(ctx, x, y, d.w, d.h, 22); ctx.stroke();
@@ -827,6 +888,39 @@ function paintNeonDistricts(ctx, room, rng, pal) {
     ctx.beginPath(); ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2); ctx.stroke();
   }
   ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+}
+
+// Baked city dressing: skyways (aerial rails), traffic flecks, and neon signage.
+function paintCityDressing(ctx, room, rng, pal) {
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.globalCompositeOperation = 'lighter';
+  for (const sw of room.skyways || []) {
+    ctx.globalAlpha = 0.05; ctx.strokeStyle = sw.color || pal.accent2; ctx.lineWidth = (sw.width || 24) * 1.9;
+    ctx.beginPath(); ctx.moveTo(sw.x1, sw.y1); ctx.lineTo(sw.x2, sw.y2); ctx.stroke();
+    ctx.globalAlpha = 0.20; ctx.lineWidth = 1.7; ctx.setLineDash([22, 18]); ctx.lineDashOffset = (sw.phase || 0) * 18;
+    ctx.beginPath(); ctx.moveTo(sw.x1, sw.y1); ctx.lineTo(sw.x2, sw.y2); ctx.stroke(); ctx.setLineDash([]);
+  }
+  for (const tr of room.traffic || []) {
+    ctx.globalAlpha = tr.alpha || 0.12; ctx.strokeStyle = tr.color || pal.accent3; ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(tr.x - tr.lx * tr.len * 0.5, tr.y - tr.ly * tr.len * 0.5);
+    ctx.lineTo(tr.x + tr.lx * tr.len * 0.5, tr.y + tr.ly * tr.len * 0.5);
+    ctx.stroke();
+  }
+  for (const sg of room.signs || []) {
+    ctx.save();
+    ctx.translate(sg.x, sg.y); ctx.rotate(sg.rot || 0);
+    ctx.globalAlpha = 0.15; ctx.fillStyle = sg.color || pal.accent;
+    roundRect(ctx, -sg.w / 2, -sg.h / 2, sg.w, sg.h, 6); ctx.fill();
+    ctx.globalAlpha = 0.40; ctx.strokeStyle = sg.color || pal.accent; ctx.lineWidth = 1.5;
+    roundRect(ctx, -sg.w / 2, -sg.h / 2, sg.w, sg.h, 6); ctx.stroke();
+    ctx.globalAlpha = 0.5; ctx.fillStyle = '#ffffff';
+    ctx.font = '900 13px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(sg.text || 'VOID', 0, 0);
+    ctx.restore();
+  }
+  ctx.restore(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
 }
 
 function paintFloorIdentity(ctx, room, rng, pal) {
@@ -905,11 +999,29 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+function chooseBackgroundScale(room) {
+  // Cap the baked canvas so giant rooms don't allocate a 100MB+ bitmap. We draw in
+  // room-space and output at this fraction, then scale the image back up at draw time.
+  const maxPixels = view.mobile ? 5_600_000 : 9_000_000;
+  const maxDim = view.mobile ? 3072 : 4096;
+  const byPixels = Math.sqrt(maxPixels / Math.max(1, room.w * room.h));
+  const byDim = maxDim / Math.max(room.w, room.h);
+  return clamp(Math.min(1, byPixels, byDim), 0.34, 1);
+}
+
 function bakeBackground(room, rng) {
   if (typeof document === 'undefined') return null; // headless tests
+  // Visual baking gets its OWN deterministic stream so it never advances the gameplay
+  // RNG. Headless skips baking but the browser doesn't — without this they diverge, so
+  // tests would validate a room sequence the player never sees. [bug ChatGPT flagged]
+  rng = mulberry32(hashString(`${room.round}|${room.biome.id}|${room.layoutId}|${room.recipeId}|${room.districtName}|bg`));
   const c = document.createElement('canvas');
-  c.width = room.w; c.height = room.h;
+  const scale = chooseBackgroundScale(room);
+  room.backgroundScale = scale;
+  c.width = Math.max(1, Math.round(room.w * scale));
+  c.height = Math.max(1, Math.round(room.h * scale));
   const ctx = c.getContext('2d');
+  ctx.scale(scale, scale); // draw in room-space; the canvas is scaled-down (cheap for huge rooms)
   const pal = room.biome.pal;
   const g = ctx.createLinearGradient(0, 0, 0, room.h);
   g.addColorStop(0, pal.bg);
@@ -925,6 +1037,7 @@ function bakeBackground(room, rng) {
   for (const name of picks) paintPattern(name, ctx, room.w, room.h, rng, pal);
   paintFloorIdentity(ctx, room, rng, pal);
   paintNeonDistricts(ctx, room, rng, pal);
+  paintCityDressing(ctx, room, rng, pal);
   paintArchitecturalDecals(room, ctx, rng, pal);
 
   // annex floor tint

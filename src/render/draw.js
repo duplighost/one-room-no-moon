@@ -40,7 +40,7 @@ export function drawFrame() {
   applyWorldTransform(ctx);
 
   // baked background
-  if (room.background) ctx.drawImage(room.background, 0, 0);
+  if (room.background) ctx.drawImage(room.background, 0, 0, room.w, room.h); // baked at backgroundScale, drawn full-size
   else { ctx.fillStyle = pal.floor; ctx.fillRect(0, 0, room.w, room.h); }
   drawFloorMotion(room, pal);    // the living, moving floor — biome-specific currents
   drawFlowLanes(room, pal, p);   // animated neon boost boulevards over the baked floor
