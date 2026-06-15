@@ -21,7 +21,30 @@ cards, crosses the round-5 and round-10 boss fights) runs ~8,000 frames with
 zero exceptions across all 22 biomes (4 live hazard kits — pulse/ritual/lane/
 sightline — the spitter kits are retired) and all 8+ enemy AIs.
 
-## Bosses — a signature gimmick each (player-directed, 2026-06-15 latest)
+## Power & spectacle push ("go as far as you can", 2026-06-15 latest)
+
+A big batch on the "make it amazing" mandate. All verified (108 headless + stress + Chromium), all
+UNPLAYED. Four features, each its own commit:
+
+- **Cinematic boss intros** (`bossIntro` in bosses.js, `drawBossIntro` in draw.js): on the boss's
+  first live tick — `slowMo(0.45)`, flash, shake; the name slams in huge center-screen and fades
+  over a ~1.05s hold; boss is `invulnT`/held so it can't be cheesed. No new mode (brain
+  short-circuits while `introT>0`). *Dial:* intro length = `introT` init.
+- **Multi-phase boss transforms** (`bossPhaseShift`): at 50% HP — wipe enemy bullets (fair reset),
+  shockwave + flash + shake, boss grows + recolors hot, `invulnT` window, then `e.enraged`. Each
+  gimmick escalates off `enraged` (Warden gap narrows/spins faster, Moon pulls harder, Spiggot 4th
+  spiral arm, Archon lanes arm more often). `invulnT` decays in updateEnemies; checked in combat.js.
+- **Giant rooms + viewport culling**: desktop ~6→~12–14 Mpx (deviceScale pulls phones back).
+  `visibleRect(margin)` in draw.js culls drawFloorMotion currents, drawFlowLanes, and obstacle
+  rendering to the camera → per-frame cost no longer scales with room size. Enemy budget already
+  sqrt-capped at 2.1× (spreads, doesn't multiply); `coverCap` + `areaBonus*6` hold cover density
+  (>2.0/Mpx). *Dials:* room dims in roomRoller (line ~71); cull margins in `visibleRect` calls.
+- **Combo power-fantasy juice** (score.js + draw.js + sprites.js): `comboMilestone` fires on each
+  integer multiplier cross (flash/shake/named float/burst/chime, intensity ramps); on-fire
+  screen-edge glow in the frame overlay (amber→pink→white by tier); player charged aura ring in
+  drawPlayer. All cosmetic, `reduced()`-gated. *Dial:* COMBO.PER_KILL/CAP in config.js.
+
+## Bosses — a signature gimmick each (player-directed, 2026-06-15)
 
 Player picked "signature gimmick each." The four bosses were all "summon + fire rings"; each now
 has one unforgettable, readable, dash-rewarding mechanic (in `systems/bosses.js` brains + hooks):
