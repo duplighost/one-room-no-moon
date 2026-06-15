@@ -120,8 +120,11 @@ const effects = {
     annex.opened = true;
     if (annex.kind === 'ambush') {
       addFloat(room, x, y - 24, 'AMBUSH', room.biome.pal.bad, true);
+      // burst out AT the door (not deep inside) with a short telegraph, so they emerge
+      // immediately and never get stuck behind the wall / let the player camp inside.
+      const dr = annex.door || { x: annex.cx, y: annex.cy };
       for (let i = 0; i < annex.ambushCount; i++) {
-        spawnTelegraphed(room, annex.ambushType, annex.cx + (Math.random() * 60 - 30), annex.cy + (Math.random() * 40 - 20), 0.5);
+        spawnTelegraphed(room, annex.ambushType, dr.x + (Math.random() * 46 - 23), dr.y + (Math.random() * 40 - 20), 0.3);
       }
     } else {
       addFloat(room, x, y - 24, 'CACHE', '#ffd36e', true);

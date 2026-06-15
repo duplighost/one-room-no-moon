@@ -57,6 +57,7 @@ export function drawFrame() {
   drawTiers(room, pal);
   drawHazardsUnder(room, pal);
   drawBossArena(room, pal);      // boss arena hooks: warden grave-slams + spiggot spore blooms
+  if (room.annex && !room.annex.opened) drawAnnexCover(room, pal); // sealed vault — opaque until you break in
   drawMines(room);
   drawSpawnGlyphs(room);
   if (room.portal) drawPortal(room, pal);
@@ -612,6 +613,25 @@ function drawPortalArrow(room) {
   ctx.rotate(-angle);
   starPath(ctx, -22 * Math.cos(angle), -22 * Math.sin(angle), 7, 3, 6);
   ctx.fill();
+  ctx.restore();
+}
+
+// Sealed vault cover: an opaque hatch over the annex interior so you can't see what's
+// inside (reward vs ambush) until you break the door — a real mystery box.
+function drawAnnexCover(room, pal) {
+  const ax = room.annex, r = ax.rect, t = performance.now() / 1000;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
+  ctx.fillStyle = '#07050e'; ctx.fillRect(r.x, r.y, r.w, r.h);     // opaque base — interior hidden
+  ctx.globalAlpha = 0.45; ctx.fillStyle = pal.bg; ctx.fillRect(r.x, r.y, r.w, r.h);
+  ctx.globalAlpha = 0.14; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 9;
+  for (let i = -r.h; i < r.w; i += 36) { ctx.beginPath(); ctx.moveTo(r.x + i, r.y); ctx.lineTo(r.x + i + r.h, r.y + r.h); ctx.stroke(); }
+  ctx.globalAlpha = 0.95; ctx.strokeStyle = pal.accent3; ctx.lineWidth = 3; ctx.shadowColor = pal.accent3; ctx.shadowBlur = 10;
+  ctx.strokeRect(r.x + 5, r.y + 5, r.w - 10, r.h - 10);
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 0.55 + 0.35 * Math.sin(t * 2.6); ctx.fillStyle = pal.accent3;
+  ctx.font = '900 38px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('?', ax.cx, ax.cy);
   ctx.restore();
 }
 

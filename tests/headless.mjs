@@ -467,6 +467,20 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   }
 }
 
+// ── sealed annex: entering an unopened vault opens it (no silent dash-tunnel) ──
+{
+  startRun('annex'); state.mode = 'play';
+  let a = state.room.annex, g = 0;
+  while (!a && g++ < 40) { window.oneRoomDebug.skipRound(); state.mode = 'play'; a = state.room.annex; }
+  check('a sealed annex/vault spawns', !!a, 'none in ' + g + ' rooms');
+  if (a) {
+    const p = state.run.player;
+    p.x = a.cx; p.y = a.cy; // step inside the (unopened) vault
+    for (let i = 0; i < 3; i++) tick(1 / 60);
+    check('entering an unopened vault opens it (no silent tunnel-through)', a.opened === true, 'opened=' + a.opened);
+  }
+}
+
 // ── Phase 8a: floorplans + connectivity invariant ──────────────────────────
 {
   startRun('floorplan-audit');

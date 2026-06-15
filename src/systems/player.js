@@ -8,6 +8,7 @@ import { addShake, addFlash, slowMo, hitPause, haptic, reduced } from './juice.j
 import { sfx } from '../audio/sfx.js';
 import { spawnBullet } from './bullets.js';
 import { damageEnemy } from './combat.js';
+import { damageObstacle } from './breakables.js';
 import { hooks } from './items.js';
 import { view } from '../render/camera.js';
 import { levelAt } from './levels.js';
@@ -120,6 +121,13 @@ export function updatePlayer(p, move, aim, room, dt) {
   p.x = clamp(p.x, w + p.r, room.w - w - p.r);
   p.y = clamp(p.y, w + p.r, room.h - w - p.r);
   for (const o of room.obstacles) if (!o.gone) resolveCircleObstacle(p, o);
+  // Entering an unopened vault smashes its door open — so a fast dash can never silently
+  // tunnel past the thin sealed door; getting inside ALWAYS releases the contents.
+  const ax = room.annex;
+  if (ax && !ax.opened && p.x > ax.rect.x && p.x < ax.rect.x + ax.rect.w && p.y > ax.rect.y && p.y < ax.rect.y + ax.rect.h) {
+    const door = room.obstacles.find(o => o.species === 'annexDoor' && !o.gone);
+    if (door) damageObstacle(room, door, door.hp + 999);
+  }
   p.level = levelAt(room, p.x, p.y); // ground=0, raised platform=1 (set by ramps)
   if (p.dashT > 0) performDashCut(p, room, PLAYER.DASH_SWEEP_RANGE || PLAYER.DASH_HIT_RANGE); // cut enemies along the travel, not just at launch
 

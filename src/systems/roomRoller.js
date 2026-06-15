@@ -666,6 +666,7 @@ function buildAnnex(room, rng) {
   const ambush = chance(rng, ANNEX.AMBUSH);
   room.annex = {
     side, rect, opened: false, cx, cy,
+    door: { x: doorRect.x + doorRect.w / 2, y: doorRect.y + doorRect.h / 2 }, // burst-out point
     kind: ambush ? 'ambush' : 'secret',
     ambushType: pick(rng, ['skitter', 'skitter', 'gunner']),
     ambushCount: randi(rng, 2, 3),
