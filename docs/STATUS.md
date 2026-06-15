@@ -16,11 +16,16 @@ Living snapshot of where we are. Full history + rationale lives in
 Direction shifted hard toward **"endless neon cyberpunk space districts" — constant flow state,
 light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
-- **Power & spectacle push** ("go as far as you can"):
+- **Power & spectacle push** ("go as far as you can" — `v0.3.0-spectacle`):
   - **Cinematic boss intros** — all four bosses slam their name in huge with bullet-time + a hold
     (`bossIntro`/`drawBossIntro`); boss untouchable during the ~1s entrance.
   - **Multi-phase boss transforms** — each boss TRANSFORMS at 50% HP (bullet-wipe, shockwave,
     flash/shake, grows + recolors, brief untouchable, then ENRAGED with an escalated gimmick).
+  - **Per-boss arena hooks** (each bends the city, like the Archon's lethal lanes): False Moon
+    **ECLIPSE** (darkness closes in on the pull), Warden **GRAVE SLAMS** (floor zones telegraph then
+    slam), Spiggot **SPORE BLOOM** (expanding toxic fields). `drawBossArena` + `drawEclipse`.
+  - **Climactic boss death** (`bossDeathFX`) — slow-mo, staged shatter, twin shockwaves, screen
+    bullet-wipe, "DOWN" callout. The run's biggest moment now lands.
   - **Giant rooms (~2×, ~12–14 Mpx) + viewport culling** — `visibleRect` culls the moving floor,
     flow lanes, and obstacle rendering to the camera, so room size costs nothing per-frame. Enemy
     budget already capped (spreads, doesn't multiply); cover cap scales with area. The "as big as
@@ -28,6 +33,8 @@ light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
   - **Combo power-fantasy juice** — multiplier-tier milestones (escalating flash/shake/float/chime,
     "RAMPAGE RECEIPT"→"PERFECT STORM"), an on-fire screen-edge glow, and a charged aura on the
     player — all ramping + recoloring with the combo. Cosmetic, reduced-motion gated.
+  - **Dash/flow speed juice** — anime **speed-streaks** at high velocity (`drawSpeedStreaks`) +
+    brighter dash afterimages. The core dash/flow loop now *feels* fast.
 - **Bosses with a signature gimmick each** (player picked "signature gimmick each"). Each boss now
   has one unforgettable, readable, dash-rewarding mechanic on top of its attacks:
   **False Moon** → a gravity **"false pull"** (telegraphed inhale drags you in → dash to escape →
@@ -156,11 +163,12 @@ light-speed combat, never stop/wait/choose.** Recently shipped, newest first:
 
 ## Recent passes (newest first; detail in `playtest-notes.md`)
 
-1. **Power & spectacle push** (this batch) — cinematic boss intros, multi-phase boss transforms
-   (50% HP), giant rooms ~2× with viewport culling (`visibleRect` in draw.js), and combo
-   power-fantasy juice (tier milestones + on-fire edge glow + player charged aura). All verified:
-   108 headless, stress (bosses transform + intro live), Chromium (intros/transforms/glow render,
-   no errors), perf gate green via culling. **UNPLAYED.**
+1. **Power & spectacle push** (this batch, `v0.3.0-spectacle`) — cinematic boss intros, multi-phase
+   boss transforms (50% HP), per-boss arena hooks (eclipse/grave-slams/spore-bloom), climactic boss
+   death (`bossDeathFX`), giant rooms ~2× with viewport culling (`visibleRect`), combo power-fantasy
+   juice (tier milestones + on-fire glow + charged aura), and dash/flow speed-streaks. 8 commits.
+   All verified: 108 headless, stress (bosses transform + intro + die live), Chromium (everything
+   renders, no console errors), perf gate green via culling. **UNPLAYED — overdue for a playtest.**
 2. **Bosses — signature gimmick each** (`94dfcda`) — False Moon gravity pull, Warden rotating
    shield gap (combat.js damage-through-the-gap), Spiggot spore spiral, Archon city-lethal lanes
    (draw.js red lanes). Stress fights False Moon + Warden live; Chromium-confirmed visuals. **UNPLAYED.**

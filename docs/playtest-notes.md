@@ -43,6 +43,20 @@ UNPLAYED. Four features, each its own commit:
   integer multiplier cross (flash/shake/named float/burst/chime, intensity ramps); on-fire
   screen-edge glow in the frame overlay (amber→pink→white by tier); player charged aura ring in
   drawPlayer. All cosmetic, `reduced()`-gated. *Dial:* COMBO.PER_KILL/CAP in config.js.
+- **Per-boss arena hooks** (bosses.js brains + `drawBossArena`/`drawEclipse`): every boss now bends
+  the arena like the Archon's lanes. False Moon **eclipse** (`e.eclipse`, screen-darken capped 0.6,
+  tied to the pull inhale); Warden **grave slams** (`updateGraveSlams`: telegraph circles fill →
+  area-damage slam); Spiggot **spore bloom** (`updateSporeBloom`: expanding fields that drag+chip,
+  fade ~6s). Damage via `hurtPlayer` (self-guards on `p.inv`). *Dials:* slamCd/bloomCd cadence.
+- **Climactic boss death** (`bossDeathFX` in combat.js): slow-mo 0.9, flash, heavy shake, 60-shard
+  staged shatter + white core, twin shockwaves, enemy-bullet wipe, "DOWN" callout. Replaces the
+  old one-line boss burst.
+- **Dash/flow speed juice** (`drawSpeedStreaks` in draw.js + sprites.js afterimage boost): anime
+  speed-lines trailing the travel direction above ~500 speed (dash/flow), intensity ramps; dash
+  afterimages burn at 0.44 vs 0.16 idle. Cosmetic, `reduced()`-gated.
+
+So every boss now stacks: **signature gimmick + 50% transform + cinematic intro + arena hook +
+climactic death**. The four fights are deeply distinct. Version bumped to `0.3.0-spectacle`.
 
 ## Bosses — a signature gimmick each (player-directed, 2026-06-15)
 
