@@ -89,7 +89,7 @@ export function makePlayer() {
     speed: PLAYER.SPEED, baseSpeed: PLAYER.SPEED,
     accel: PLAYER.ACCEL, stop: PLAYER.STOP, turn: PLAYER.TURN, lateral: PLAYER.LATERAL,
     fireDelay: PLAYER.FIRE_DELAY, fireCd: 0, damage: PLAYER.DAMAGE, crit: PLAYER.CRIT,
-    dashCdBase: PLAYER.DASH_CD, dashCd: 0, dashT: 0, dashDur: PLAYER.DASH_DUR,
+    dashCdBase: PLAYER.DASH_CD, dashCd: 0, dashT: 0, dashDur: PLAYER.DASH_DUR, dashDmgMul: 1,
     dashSpinDir: 1, lastDashAngle: null, after: [], faceDir: 1, walkPhase: 0,
     launchT: 0, launchHop: 0, launchFrom: null, launchTo: null, ventCd: 0, // vent launch arc + re-trigger lockout
     railing: false, railPos: 0, railDir: 1, railCd: 0, // perimeter grind rail
@@ -420,7 +420,7 @@ export function firePlayer(p, room) {
 // whoever stood next to the launch pad. A per-dash Set caps each enemy to one hit.
 function performDashCut(p, room, range) {
   if (!(p._dashHitIds instanceof Set)) p._dashHitIds = new Set();
-  const dmg = p.damage * (1 + p.perks.damage * 0.15) * PLAYER.DASH_HIT_MULT;
+  const dmg = p.damage * (1 + p.perks.damage * 0.15) * PLAYER.DASH_HIT_MULT * (p.dashDmgMul || 1);
   let hits = 0;
   for (const e of room.enemies) {
     if (e.hp <= 0 || e.level !== p.level) continue; // dash only cuts your own level

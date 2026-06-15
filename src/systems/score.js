@@ -1,7 +1,7 @@
 // Combo, streaks, bonuses, bests.
-import { COMBO, SCORE, STREAK_NAMES } from '../config.js';
+import { COMBO, SCORE } from '../config.js';
 import { state, saveNow } from '../state.js';
-import { addFloat, burst } from '../render/particles.js';
+import { addFloat, burst, ripple } from '../render/particles.js';
 import { addFlash, addShake } from './juice.js';
 import { sfx } from '../audio/sfx.js';
 import { damp } from '../rng.js';
@@ -17,8 +17,11 @@ function comboMilestone(tier, e) {
   addFlash(0.12 + k * 0.30);
   addShake(0.22 + k * 0.75);
   const hot = tier >= 10 ? '#ffffff' : tier >= 6 ? '#ff9bf5' : (room.biome?.pal.accent3 || '#ffd36e');
-  const name = COMBO_TIER_NAMES[Math.min(COMBO_TIER_NAMES.length - 1, tier)] || '';
-  addFloat(room, e.x, e.y - 78, `×${tier}  ${name}`.trim(), hot, true, 1.05 + k * 0.7);
+  // NUMBER-forward: a big ×N + visual flair (expanding ring + shard burst). A word only
+  // at a rare high milestone (×9+) as a flourish — the game wants visuals, not words.
+  addFloat(room, e.x, e.y - 70, `×${tier}`, hot, true, 1.25 + k * 0.85);
+  if (tier >= 9) { const w = COMBO_TIER_NAMES[Math.min(COMBO_TIER_NAMES.length - 1, tier)]; if (w) addFloat(room, e.x, e.y - 106, w, hot, false, 0.55); }
+  ripple(room, e.x, e.y, hot, 80 + tier * 16, 0.55);
   burst(room, e.x, e.y, hot, 10 + tier * 2, 210 + tier * 28, 0.5, 3);
   sfx('pulse');
   // A good combo patches you up — a piece of integrity, but never the LAST point: caps
@@ -57,9 +60,8 @@ export function killScore(e) {
   state.save.lifetime.kills++;
   state.save.bestiary[e.type] = (state.save.bestiary[e.type] || 0) + 1;
   run.streak++; run.streakT = 0.8;
-  if (run.streak < STREAK_NAMES.length && STREAK_NAMES[run.streak] && state.room) {
-    addFloat(state.room, e.x, e.y - 58, STREAK_NAMES[run.streak], state.room.biome?.pal.accent3 || '#ffd36e', true);
-  }
+  // (streak word-floats removed — the combo ×N + its ring/burst is the feedback now;
+  // the game wants numbers + visuals, not a word on every few kills)
   return pts;
 }
 

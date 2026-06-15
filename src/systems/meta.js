@@ -6,7 +6,7 @@ import { todaySeed } from '../rng.js';
 export const SHRINE_DEFS = [
   { id: 'shrine_hp',    name: 'Stubborn Heart', desc: '+1 max integrity every run.', cost: 80 },
   { id: 'shrine_speed', name: 'Restless Soles', desc: '+18 base speed.',             cost: 100 },
-  { id: 'shrine_pulse', name: 'Quicker Boots',  desc: '−15% dash cooldown.',    cost: 120 },
+  { id: 'shrine_razor', name: 'Razor Soles',    desc: '+25% dash & grind cut damage.', cost: 120 },
   { id: 'shrine_spark', name: 'Spark Magnet',   desc: '+40 pickup range.',           cost: 90 },
   { id: 'shrine_head',  name: 'Headstart',      desc: 'Start each run at round 2 with a free graft.', cost: 200 },
 ];
@@ -26,7 +26,7 @@ export function applyShrine(p) {
   const sh = state.save.shrine || {};
   if (sh.shrine_hp) { p.maxHp += 1; p.hp += 1; }
   if (sh.shrine_speed) { p.baseSpeed += 18; p.speed = p.baseSpeed; }
-  if (sh.shrine_pulse) p.dashCdBase *= 0.85;
+  if (sh.shrine_razor) p.dashDmgMul = 1.25;
   if (sh.shrine_spark) p.pickup += 40;
 }
 

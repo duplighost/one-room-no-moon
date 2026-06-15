@@ -810,7 +810,6 @@ function seedFlowLanes(room, rng, px, py, portalX, portalY) {
 // ── City dressing (ported from ChatGPT's Round 2): skyways, neon signs, traffic
 // flecks. All NON-COLLIDING and BAKED into the background — the "well-fleshed world"
 // without any per-frame cost or new collision. ──
-const SIGN_WORDS = ['NULL', 'MOON', 'EXIT', 'EAT', 'LIVE', 'HUSH', 'GOD', 'WIRE', 'GRAFT', 'BLOOM', 'NOIR', 'OPEN', 'KILL', 'SAINT'];
 
 function seedCityDressing(room, rng, px, py, portalX, portalY) {
   const pal = room.biome.pal;
@@ -841,10 +840,10 @@ function seedCityDressing(room, rng, px, py, portalX, portalY) {
     const y = edge === 0 ? d.y + rand(rng, 8, 26) : edge === 1 ? d.y + rand(rng, pad, d.h - pad) : edge === 2 ? d.y + d.h - rand(rng, 8, 26) : d.y + rand(rng, pad, d.h - pad);
     if (dist(x, y, px, py) < 250 || dist(x, y, portalX, portalY) < 190) continue;
     room.signs.push({
-      x, y, w: rand(rng, 56, 132), h: rand(rng, 18, 34),
+      x, y, w: rand(rng, 50, 120), h: rand(rng, 16, 30),
       rot: edge === 1 || edge === 3 ? Math.PI / 2 + rand(rng, -0.08, 0.08) : rand(rng, -0.08, 0.08),
       color: chance(rng, 0.55) ? d.color : chance(rng, 0.5) ? pal.accent : pal.accent2,
-      text: pick(rng, SIGN_WORDS),
+      glyph: randi(rng, 0, 4), bars: randi(rng, 2, 5), // a VISUAL neon readout, not a word
     });
   }
 
@@ -951,13 +950,19 @@ function paintCityDressing(ctx, room, rng, pal) {
   for (const sg of room.signs || []) {
     ctx.save();
     ctx.translate(sg.x, sg.y); ctx.rotate(sg.rot || 0);
-    ctx.globalAlpha = 0.15; ctx.fillStyle = sg.color || pal.accent;
-    roundRect(ctx, -sg.w / 2, -sg.h / 2, sg.w, sg.h, 6); ctx.fill();
-    ctx.globalAlpha = 0.40; ctx.strokeStyle = sg.color || pal.accent; ctx.lineWidth = 1.5;
-    roundRect(ctx, -sg.w / 2, -sg.h / 2, sg.w, sg.h, 6); ctx.stroke();
-    ctx.globalAlpha = 0.5; ctx.fillStyle = '#ffffff';
-    ctx.font = '900 13px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(sg.text || 'VOID', 0, 0);
+    const col = sg.color || pal.accent, hw = sg.w / 2, hh = sg.h / 2;
+    ctx.globalAlpha = 0.13; ctx.fillStyle = col;
+    roundRect(ctx, -hw, -hh, sg.w, sg.h, 5); ctx.fill();
+    ctx.globalAlpha = 0.42; ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+    roundRect(ctx, -hw, -hh, sg.w, sg.h, 5); ctx.stroke();
+    // a neon billboard READOUT (visual glyph), not text
+    ctx.globalAlpha = 0.62; ctx.strokeStyle = '#ffffff'; ctx.fillStyle = '#ffffff'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    const gl = sg.glyph || 0, n = sg.bars || 3;
+    if (gl === 0) { for (let i = 0; i < n; i++) { const yy = -hh + 5 + (sg.h - 10) * (i / Math.max(1, n - 1)); const ww = (sg.w - 12) * (0.35 + 0.6 * (((i * 7) % 5) / 5)); ctx.beginPath(); ctx.moveTo(-hw + 6, yy); ctx.lineTo(-hw + 6 + ww, yy); ctx.stroke(); } }
+    else if (gl === 1) { for (let i = 0; i < n; i++) { const xx = -hw + 8 + (sg.w - 16) * (i / Math.max(1, n - 1)); ctx.beginPath(); ctx.arc(xx, 0, 2.6, 0, TAU); ctx.fill(); } }
+    else if (gl === 2) { for (let i = 0; i < Math.min(3, n); i++) { const xx = -hw + 9 + i * 11; ctx.beginPath(); ctx.moveTo(xx, -hh + 5); ctx.lineTo(xx + 7, 0); ctx.lineTo(xx, hh - 5); ctx.stroke(); } }
+    else if (gl === 3) { for (let i = 0; i < n; i++) { const xx = -hw + 8 + (sg.w - 16) * (i / Math.max(1, n - 1)); const bh = (sg.h - 8) * (0.3 + 0.7 * (((i * 5) % 4) / 4)); ctx.beginPath(); ctx.moveTo(xx, hh - 4); ctx.lineTo(xx, hh - 4 - bh); ctx.stroke(); } }
+    else { ctx.beginPath(); ctx.arc(0, 0, Math.min(hw, hh) - 4, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, 2.2, 0, TAU); ctx.fill(); }
     ctx.restore();
   }
   ctx.restore(); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
