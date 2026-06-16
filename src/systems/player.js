@@ -19,6 +19,7 @@ const VENT_DUR = 0.32; // vent launch arc duration
 // to latch on and grind around the corners; dash again to leap off. ──
 const RAIL_INSET = 2;      // rail sits at the wall-clamp line, so jamming a wall lands you ON it
 export const RAIL_SPEED = 1120; // grind speed (controllable, not so fast you can't read corners)
+const SKY_SPEED = 1950; // aerial rail grind speed — fast, for cross-map momentum between decks
 
 export function railGeom(room) {
   const L = room.wall + RAIL_INSET, T = room.wall + RAIL_INSET;
@@ -93,6 +94,7 @@ export function makePlayer() {
     dashSpinDir: 1, lastDashAngle: null, after: [], faceDir: 1, walkPhase: 0,
     launchT: 0, launchHop: 0, launchFrom: null, launchTo: null, ventCd: 0, // vent launch arc + re-trigger lockout
     railing: false, railPos: 0, railDir: 1, railCd: 0, // perimeter grind rail
+    skyRail: null, // aerial rail ride between upper decks
     pickup: PLAYER.PICKUP_RANGE,
     perks: { damage: 0, fire: 0, speed: 0, maxHp: 0 },
     modules: {},
@@ -148,6 +150,30 @@ export function updatePlayer(p, move, aim, room, dt) {
     if (Math.abs(p.vx) > Math.abs(p.vy)) p.faceDir = p.vx < 0 ? -1 : 1;
     performDashCut(p, room, (PLAYER.DASH_SWEEP_RANGE || PLAYER.DASH_HIT_RANGE) + 18); // side-slice nearby enemies
     if (!reduced() && Math.random() < 0.7) particle(room, p.x, p.y, room.biome.pal.accent3, -p.vx * 0.04, -p.vy * 0.04, 0.2, 3);
+    return;
+  }
+  // AERIAL RAIL: grind a skyway between upper decks, elevated (level 1) over the floor. Fast
+  // — cross-map momentum. Arrive on the far deck; dash (tryDash) drops you back to the floor.
+  if (p.skyRail) {
+    p.dashT = Math.max(0, p.dashT - dt);
+    const r = p.skyRail.r, dx = r.x2 - r.x1, dy = r.y2 - r.y1, len = Math.hypot(dx, dy) || 1;
+    p.skyRail.pos += p.skyRail.dir * (SKY_SPEED / len) * dt;
+    if (p.skyRail.pos <= 0 || p.skyRail.pos >= 1) {
+      const e = clamp(p.skyRail.pos, 0, 1);
+      p.x = r.x1 + dx * e; p.y = r.y1 + dy * e; p.vx = p.vy = 0;
+      p.skyRail = null; p.level = levelAt(room, p.x, p.y);
+      burst(room, p.x, p.y, room.biome.pal.accent3, 16, 220, 0.4, 3); addShake(0.25); sfx('care');
+    } else {
+      p.x = r.x1 + dx * p.skyRail.pos; p.y = r.y1 + dy * p.skyRail.pos; p.level = 1;
+      const ux = dx / len * p.skyRail.dir, uy = dy / len * p.skyRail.dir;
+      p.vx = ux * SKY_SPEED; p.vy = uy * SKY_SPEED;
+      if (Math.abs(ux) > 0.1) p.faceDir = ux < 0 ? -1 : 1;
+      p.walkPhase += SKY_SPEED * dt * 0.04;
+      const tgt = nearestEnemy(room, p);
+      if (tgt) { const nn = norm(tgt.x - p.x, tgt.y - p.y); p.aimX = nn.x; p.aimY = nn.y; p.face = Math.atan2(nn.y, nn.x); if (p.fireCd <= 0) firePlayer(p, room); }
+      performDashCut(p, room, (PLAYER.DASH_SWEEP_RANGE || PLAYER.DASH_HIT_RANGE) + 14);
+      if (!reduced() && Math.random() < 0.6) particle(room, p.x, p.y, room.biome.pal.accent3, -ux * 110, -uy * 110, 0.2, 4);
+    }
     return;
   }
   const wasDashing = p.dashT > 0;
@@ -258,6 +284,23 @@ export function updatePlayer(p, move, aim, room, dt) {
       p.railCd = 0.2; p._dashHitIds = new Set();
       p.x = pt.x; p.y = pt.y; // snap onto the rail
       sfx('dash'); addShake(0.22); ripple(room, pt.x, pt.y, room.biome.pal.accent3, 84, 0.45);
+    }
+  }
+  // LATCH onto an AERIAL rail: when on a deck (level 1) and dashing along a skyway, grab it
+  // and grind across to the far deck — the cross-map upper highway.
+  if (!p.skyRail && !p.railing && p.dashT > 0 && p.level === 1) {
+    for (const r of room.skyRails || []) {
+      const dx = r.x2 - r.x1, dy = r.y2 - r.y1, len2 = dx * dx + dy * dy || 1;
+      const tt = clamp(((p.x - r.x1) * dx + (p.y - r.y1) * dy) / len2, 0, 1);
+      const cx = r.x1 + dx * tt, cy = r.y1 + dy * tt;
+      if (Math.hypot(p.x - cx, p.y - cy) < 42) {
+        const along = (p.vx * dx + p.vy * dy) / Math.sqrt(len2);
+        if (Math.abs(along) > 50) {
+          p.skyRail = { r, dir: along > 0 ? 1 : -1, pos: tt }; p._dashHitIds = new Set();
+          sfx('dash'); addShake(0.25); ripple(room, cx, cy, room.biome.pal.accent3, 92, 0.5);
+          break;
+        }
+      }
     }
   }
   // step/dash onto a launch vent (from the ground) → fling up onto its platform deck.
@@ -448,6 +491,7 @@ function performDashCut(p, room, range) {
 export function tryDash(dx = null, dy = null, move = null) {
   if (state.mode !== 'play' || !state.run) return;
   const p = state.run.player, room = state.room;
+  if (p.skyRail) { p.skyRail = null; p.dashCd = 0; } // dash off an aerial rail → drop to the floor + dash
   if (p.railing) { releaseRail(p, room, move); return; } // dash while grinding = leap off the rail
   if (p.dashCd > 0 || p.dashT > 0) return; // can't restart a dash mid-dash (refunds could otherwise chain it)
   if (dx == null) {

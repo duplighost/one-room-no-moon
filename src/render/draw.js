@@ -87,6 +87,7 @@ export function drawFrame() {
     if (r.lift) { ctx.save(); ctx.translate(0, -r.lift); r.draw(); ctx.restore(); }
     else r.draw();
   }
+  drawSkyRails(room, pal, p);     // long aerial rails between the upper decks (elevated)
 
   drawLanesOver(room);
   drawBullets(room);
@@ -649,6 +650,35 @@ function drawAnnexCover(room, pal) {
   ctx.globalAlpha = 0.55 + 0.35 * Math.sin(t * 2.6); ctx.fillStyle = pal.accent3;
   ctx.font = '900 38px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('?', ax.cx, ax.cy);
+  ctx.restore();
+}
+
+// Long AERIAL RAILS tying the upper decks together: drawn ELEVATED (lifted by TIER_LIFT)
+// with a floor shadow + support struts, so it reads as a skyway you grind between decks.
+function drawSkyRails(room, pal, p) {
+  if (!room.skyRails?.length) return;
+  const t = performance.now() / 1000, lift = TIER_LIFT + 6;
+  const onRail = p?.skyRail?.r;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (const r of room.skyRails) {
+    const active = onRail === r, len = Math.hypot(r.x2 - r.x1, r.y2 - r.y1) || 1;
+    // floor shadow + vertical support struts (sell the elevation)
+    ctx.globalAlpha = 0.16; ctx.strokeStyle = '#05030a'; ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(r.x1, r.y1); ctx.lineTo(r.x2, r.y2); ctx.stroke();
+    const n = Math.max(2, Math.floor(len / 200));
+    ctx.globalAlpha = 0.22; ctx.strokeStyle = pal.accent2; ctx.lineWidth = 2;
+    for (let i = 1; i < n; i++) { const f = i / n, sx = r.x1 + (r.x2 - r.x1) * f, sy = r.y1 + (r.y2 - r.y1) * f; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx, sy - lift); ctx.stroke(); }
+    // the elevated rail itself
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = active ? 0.55 : 0.36; ctx.strokeStyle = active ? '#ffffff' : pal.accent3; ctx.lineWidth = active ? 6 : 4;
+    ctx.beginPath(); ctx.moveTo(r.x1, r.y1 - lift); ctx.lineTo(r.x2, r.y2 - lift); ctx.stroke();
+    ctx.globalAlpha = active ? 0.92 : 0.55; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = active ? 3 : 1.8;
+    ctx.setLineDash([26, 20]); ctx.lineDashOffset = -t * (active ? 380 : 120) - (r.phase || 0) * 30;
+    ctx.beginPath(); ctx.moveTo(r.x1, r.y1 - lift); ctx.lineTo(r.x2, r.y2 - lift); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalCompositeOperation = 'source-over';
+  }
   ctx.restore();
 }
 

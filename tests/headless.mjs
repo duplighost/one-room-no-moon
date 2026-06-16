@@ -526,6 +526,28 @@ check('suppression clears pads', inputMod.moveTouch.id === null);
   check('rail latches on proximity even with low dash velocity', q.railing === true, 'railing=' + q.railing);
 }
 
+// ── aerial rail: dash along a skyway (on a deck) → grind across to the far deck ──
+{
+  startRun('skyrail'); state.mode = 'play';
+  let r = null, g = 0;
+  while (!r && g++ < 30) { window.oneRoomDebug.skipRound(); state.mode = 'play'; r = (state.room.skyRails || [])[0]; }
+  check('an aerial rail spawns between decks', !!r, 'none in ' + g + ' rooms');
+  if (r) {
+    const p = state.run.player;
+    p.skyRail = null; p.railing = false; p.dashCd = 0; p.launchT = 0;
+    p.x = r.x1; p.y = r.y1; p.level = 1; // start on one deck
+    const dx = r.x2 - r.x1, dy = r.y2 - r.y1, len = Math.hypot(dx, dy) || 1;
+    p.vx = dx / len * 1500; p.vy = dy / len * 1500; p.dashT = 0.3;
+    for (let i = 0; i < 3; i++) tick(1 / 60);
+    check('dashing along a skyway latches the aerial rail', !!p.skyRail, 'skyRail=' + !!p.skyRail);
+    if (p.skyRail) {
+      for (let i = 0; i < 200; i++) tick(1 / 60); // grind across (rails can be long)
+      const arrived = Math.hypot(p.x - r.x2, p.y - r.y2) < 60;
+      check('aerial rail grinds you to the far deck (level 1)', p.skyRail === null && p.level === 1 && arrived, `skyRail=${!!p.skyRail} level=${p.level} arrived=${arrived}`);
+    }
+  }
+}
+
 // ── Phase 8a: floorplans + connectivity invariant ──────────────────────────
 {
   startRun('floorplan-audit');

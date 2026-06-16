@@ -78,7 +78,7 @@ export function rollRoom(run, round) {
     enemies: [], bullets: [], pickups: [], particles: [], floats: [],
     ambient: [], spawnQueue: [], pendingWaves: null, spawnAnchors: [],
     cleared: false, clearT: 0, portal: null, time: 0,
-    vendor: null, vents: [],
+    vendor: null, vents: [], skyRails: [],
     background: null,
   };
   const px = room.w / 2, py = room.h * 0.66; // player spawn
@@ -173,6 +173,8 @@ export function rollRoom(run, round) {
     const big = room.w * room.h > 9_000_000;
     const nTiers = chance(rng, 0.66) ? (big ? (chance(rng, 0.45) ? 3 : 2) : (chance(rng, 0.32) ? 2 : 1)) : 0;
     for (let i = 0; i < nTiers; i++) maybeTier(room, rng, px, py, portalX, portalY);
+    seedSkyRails(room, rng);     // long aerial rails tying the upper decks together
+    seedDeckRewards(room, rng);  // a reason to go up: reward caches on the decks
   }
 
   // ── glass biomes furnish breakable chain-glass (the shard/volatile projectile
@@ -553,6 +555,39 @@ function maybeTier(room, rng, px, py, portalX, portalY) {
 }
 function wallSlab(x, y, w, h) {
   return { type: 'rect', x, y, w: Math.max(8, w), h: Math.max(8, h), wall: true, ledge: true, ledgeHeight: 1, style: 'ledge', round: 3 };
+}
+
+// Reward caches on the upper decks — the reason to climb: a heart/repair (the real draw,
+// not auto-vacuumed) + a spark cluster on each deck. The high ground + the aerial-rail
+// momentum network are the rest of the payoff.
+function seedDeckRewards(room, rng) {
+  for (const t of room.tiers || []) {
+    room.pickups.push({ type: chance(rng, 0.5) ? 'heart' : 'repair', x: t.x + t.w / 2, y: t.y + t.h * 0.5, vx: 0, vy: 0, r: 11, life: 999, deck: true });
+    const n = randi(rng, 5, 9);
+    for (let i = 0; i < n; i++) room.pickups.push({ type: 'spark', x: t.x + rand(rng, t.w * 0.18, t.w * 0.82), y: t.y + rand(rng, t.h * 0.2, t.h * 0.8), vx: 0, vy: 0, r: 6, life: 999, deck: true });
+  }
+}
+
+// Long AERIAL RAILS that tie the upper decks together: connect each platform to its 1-2
+// nearest neighbors (deck centre → deck centre, so the rail runs across the decks and
+// spans the gap between them). You grind these between decks (player.js), elevated over
+// the floor — the upper-layer momentum highway.
+function seedSkyRails(room, rng) {
+  const tiers = room.tiers || [];
+  if (tiers.length < 2) return;
+  const c = tiers.map(t => ({ x: t.x + t.w / 2, y: t.y + t.h / 2 }));
+  const rails = [], added = new Set();
+  for (let i = 0; i < tiers.length; i++) {
+    const order = c.map((cc, j) => ({ j, d: Math.hypot(cc.x - c[i].x, cc.y - c[i].y) })).filter(o => o.j !== i).sort((a, b) => a.d - b.d);
+    const links = Math.min(order.length, tiers.length <= 2 ? 1 : 2);
+    for (let k = 0; k < links; k++) {
+      const j = order[k].j, key = i < j ? `${i}-${j}` : `${j}-${i}`;
+      if (added.has(key)) continue;
+      added.add(key);
+      rails.push({ x1: c[i].x, y1: c[i].y, x2: c[j].x, y2: c[j].y, ti: i, tj: j, phase: rng() * TAU });
+    }
+  }
+  room.skyRails = rails;
 }
 
 function placeLandmark(room, rng, px, py, portalX, portalY) {
